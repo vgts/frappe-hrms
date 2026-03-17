@@ -132,14 +132,6 @@ watch(
 	}
 )
 
-watch(
-	() => leaveApplication.value.leave_approver,
-  	(newApprover) => {
-			const approverField = formFields.data.find(f => f.fieldname === "leave_approver")
-			const selected = approverField?.documentList?.find(opt => opt.value === newApprover)
-			leaveApplication.value.leave_approver_name = selected?.label?.split(" : ")[1] || ""
-  }
-)
 
 // helper functions
 function getFilteredFields(fields) {
@@ -263,7 +255,7 @@ function setLeaveApprovers(data) {
 		leaveApplication.value.leave_approver = data?.leave_approver
 		leaveApplication.value.leave_approver_name = data?.leave_approver_name
 	}
-	
+
 }
 
 function setLeaveTypes(data) {
