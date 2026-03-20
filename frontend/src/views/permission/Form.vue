@@ -8,10 +8,11 @@
 				:isSubmittable="true"
 				:fields="formFields.data"
 				:id="props.id"
+				:showAttachmentView="true"
 				:showFormButton="!showApprovalActions"
 				@validateForm="validateForm"
 			>
-				<!-- Approval buttons slot -->
+				<!-- Available Hours Banner (injected before form via slot) -->
 				<template #formButton v-if="showApprovalActions">
 					<div class="flex flex-col gap-3 w-full">
 						<!-- Approval Stage Tracker -->
@@ -149,33 +150,91 @@ const currEmployee = ref(sessionEmployee.data.name)
 
 const permissionRequest = ref({})
 
+// Fetch available permission hours
+const availableHours = createResource({
+	url: "hrms.hr.doctype.employee_permission.employee_permission.get_available_permission_hours",
+	params: { employee: currEmployee.value, date: today },
+	auto: true,
+})
+
 const formFields = createResource({
 	url: "hrms.api.get_doctype_fields",
 	params: { doctype: "Employee Permission" },
 	transform(data) {
+		// Fields to completely remove
 		const excludeFields = [
 			"naming_series",
-			"custom_secondary_approval_section",
+			// Remove secondary approval section entirely
+			"secondary_approval_section",
 			"custom_secondary_leave_approver",
 			"custom_secondary_approver_name",
-			"custom_column_break_secondary",
+			"column_break_16",
 			"custom_approval_stage",
+			// Remove auto-computed duration (shown in available hours banner)
+			"duration",
+			// Remove column breaks for cleaner mobile layout
+			"column_break_3",
+			"column_break_10",
+			"permission_details_section",
+			// Remove leave approver fields (handled by backend)
+			"leave_approver",
+			"leave_approver_name",
+			"company",
+			"department",
 		]
 
 		const employeeFields = [
 			"employee",
 			"employee_name",
-			"department",
-			"company",
 			"status",
 		]
 
 		if (!props.id) excludeFields.push(...employeeFields)
 
-		return data.filter((field) => !excludeFields.includes(field.fieldname))
+		let fields = data.filter((field) => !excludeFields.includes(field.fieldname))
+
+		// Inject "Available Hours" as a read-only display field after employee
+		const availHoursField = {
+			fieldname: "_available_hours",
+			fieldtype: "Data",
+			label: "Available Hours",
+			read_only: 1,
+			default: availableHours.data?.formatted_available || "04:00",
+		}
+
+		// Find insert position (after employee_name for existing, at start for new)
+		const insertIdx = props.id
+			? fields.findIndex(f => f.fieldname === "status") + 1
+			: 0
+		fields.splice(insertIdx, 0, availHoursField)
+
+		// Set default date
+		const dateField = fields.find(f => f.fieldname === "permission_date")
+		if (dateField) dateField.default = today
+
+		return fields
+	},
+	onSuccess() {
+		// Reload available hours after form loads
+		availableHours.reload()
 	},
 })
 formFields.reload()
+
+// Update available hours display when data changes
+watch(
+	() => availableHours.data,
+	(data) => {
+		if (data && formFields.data) {
+			const field = formFields.data.find(f => f.fieldname === "_available_hours")
+			if (field) {
+				field.default = data.formatted_available
+				permissionRequest.value._available_hours = `${data.formatted_available} (${data.monthly_limit}h limit)`
+			}
+		}
+	},
+	{ immediate: true }
+)
 
 // Fetch approval details for existing docs
 const approvalDetails = createResource({
@@ -337,6 +396,18 @@ watch(
 			setFormReadOnly()
 		}
 		currEmployee.value = employee_id
+		// Reload available hours for this employee
+		availableHours.fetch({ employee: employee_id, date: today })
+	}
+)
+
+// Reload available hours when date changes
+watch(
+	() => permissionRequest.value.permission_date,
+	(date) => {
+		if (date) {
+			availableHours.fetch({ employee: currEmployee.value, date: date })
+		}
 	}
 )
 

@@ -129,9 +129,10 @@
    "reqd": 1
   },
   {
+   "collapsible": 1,
    "fieldname": "secondary_approval_section",
    "fieldtype": "Section Break",
-   "label": "Secondary Approval"
+   "label": "Approval Details"
   },
   {
    "fieldname": "custom_secondary_leave_approver",

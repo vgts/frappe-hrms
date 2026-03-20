@@ -370,6 +370,45 @@ def permission_secondary_reject(employee_permission, reason=None):
 
 
 @frappe.whitelist()
+def get_available_permission_hours(employee, date=None):
+	"""Return available permission hours for the month."""
+	if not date:
+		date = frappe.utils.today()
+
+	month_start = getdate(date).replace(day=1)
+	if month_start.month == 12:
+		month_end = month_start.replace(year=month_start.year + 1, month=1, day=1)
+	else:
+		month_end = month_start.replace(month=month_start.month + 1, day=1)
+
+	from frappe.utils import add_days
+	month_end = add_days(month_end, -1)
+
+	used = frappe.db.sql("""
+		SELECT COALESCE(SUM(duration), 0) as total
+		FROM `tabEmployee Permission`
+		WHERE employee = %s
+		AND permission_date BETWEEN %s AND %s
+		AND docstatus < 2
+	""", (employee, month_start, month_end), as_dict=True)
+
+	used_hours = flt(used[0].total) if used else 0
+	available = max(4 - used_hours, 0)
+
+	# Format as HH:MM
+	hours = int(available)
+	minutes = int((available - hours) * 60)
+
+	return {
+		"available_hours": available,
+		"used_hours": used_hours,
+		"monthly_limit": 4,
+		"formatted_available": f"{hours:02d}:{minutes:02d}",
+		"formatted_used": f"{int(used_hours):02d}:{int((used_hours - int(used_hours)) * 60):02d}",
+	}
+
+
+@frappe.whitelist()
 def get_permission_approval_details(employee_permission):
 	doc = frappe.get_doc("Employee Permission", employee_permission)
 
