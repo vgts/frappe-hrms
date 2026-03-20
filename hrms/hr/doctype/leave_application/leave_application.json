@@ -235,7 +235,7 @@
    "in_standard_filter": 1,
    "label": "Approval Stage",
    "no_copy": 1,
-   "options": "\nPending Leave Approver\nPending Secondary Approver\nFully Approved\nRejected by Secondary Approver",
+   "options": "\nPending Project Reporting Approval\nPending Secondary Reporting Approval\nApproved\nRejected",
    "read_only": 1
   },
   {

@@ -110,20 +110,20 @@ class LeaveApplication(Document, PWANotificationsMixin):
 		user = frappe.session.user
 
 		# Secondary approver submitting — mark fully approved and allow
-		if user == self.custom_secondary_leave_approver and self.custom_approval_stage == "Pending Secondary Approver":
-			self.custom_approval_stage = "Fully Approved"
+		if user == self.custom_secondary_leave_approver and self.custom_approval_stage == "Pending Secondary Reporting Approval":
+			self.custom_approval_stage = "Approved"
 			return
 
 		# Already fully approved
-		if self.custom_approval_stage == "Fully Approved":
+		if self.custom_approval_stage == "Approved":
 			return
 
 		# Anyone else — forward to secondary silently (revert docstatus so doc stays draft)
 		if self.status == "Approved" and self.custom_approval_stage in (
-			"Pending Leave Approver",
-			"Pending Secondary Approver",
+			"Pending Project Reporting Approval",
+			"Pending Secondary Reporting Approval",
 		):
-			if self.custom_approval_stage == "Pending Leave Approver":
+			if self.custom_approval_stage == "Pending Project Reporting Approval":
 				self._forward_to_secondary()
 
 			self.docstatus = 0
@@ -931,7 +931,7 @@ class LeaveApplication(Document, PWANotificationsMixin):
 	def set_approval_stage(self):
 		"""Set initial approval stage for new leave applications."""
 		if self.is_new() and self.custom_secondary_leave_approver:
-			self.custom_approval_stage = "Pending Leave Approver"
+			self.custom_approval_stage = "Pending Project Reporting Approval"
 
 	def handle_secondary_approval_flow(self):
 		"""On save: when leave approver approves, forward to secondary approver."""
@@ -940,7 +940,7 @@ class LeaveApplication(Document, PWANotificationsMixin):
 		if not (
 			self.has_value_changed("status")
 			and self.status == "Approved"
-			and self.custom_approval_stage == "Pending Leave Approver"
+			and self.custom_approval_stage == "Pending Project Reporting Approval"
 			and self.custom_secondary_leave_approver
 		):
 			return
@@ -948,8 +948,8 @@ class LeaveApplication(Document, PWANotificationsMixin):
 
 	def _forward_to_secondary(self):
 		"""Move to secondary approval stage, share doc, and notify."""
-		self.db_set("custom_approval_stage", "Pending Secondary Approver")
-		self.custom_approval_stage = "Pending Secondary Approver"
+		self.db_set("custom_approval_stage", "Pending Secondary Reporting Approval")
+		self.custom_approval_stage = "Pending Secondary Reporting Approval"
 
 		# Share with secondary approver for list visibility and submit access
 		frappe.share.add_docshare(
@@ -1644,13 +1644,13 @@ def secondary_approve(leave_application):
 	if frappe.session.user != doc.custom_secondary_leave_approver:
 		frappe.throw(_("Only the Secondary Leave Approver can perform this action."))
 
-	if doc.custom_approval_stage != "Pending Secondary Approver":
+	if doc.custom_approval_stage != "Pending Secondary Reporting Approval":
 		frappe.throw(_("This leave application is not pending secondary approval."))
 
 	if doc.status != "Approved":
 		frappe.throw(_("Leave Application must be approved by the primary Leave Approver first."))
 
-	doc.custom_approval_stage = "Fully Approved"
+	doc.custom_approval_stage = "Approved"
 	doc.flags.ignore_permissions = True
 	doc.submit()
 
@@ -1665,11 +1665,11 @@ def secondary_reject(leave_application):
 	if frappe.session.user != doc.custom_secondary_leave_approver:
 		frappe.throw(_("Only the Secondary Leave Approver can perform this action."))
 
-	if doc.custom_approval_stage != "Pending Secondary Approver":
+	if doc.custom_approval_stage != "Pending Secondary Reporting Approval":
 		frappe.throw(_("This leave application is not pending secondary approval."))
 
 	doc.status = "Rejected"
-	doc.custom_approval_stage = "Rejected by Secondary Approver"
+	doc.custom_approval_stage = "Rejected"
 	doc.flags.ignore_permissions = True
 	doc.save()
 

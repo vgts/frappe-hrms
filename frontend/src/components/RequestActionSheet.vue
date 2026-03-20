@@ -341,7 +341,7 @@ const isLeaveWithSecondaryApprover = computed(() => {
 const isSecondaryApproverPending = computed(() => {
 	return (
 		isLeaveWithSecondaryApprover.value &&
-		document.doc?.custom_approval_stage === "Pending Secondary Approver" &&
+		document.doc?.custom_approval_stage === "Pending Secondary Reporting Approval" &&
 		employee.data?.user_id === document.doc?.custom_secondary_leave_approver &&
 		document.doc?.docstatus === 0
 	)
@@ -350,7 +350,7 @@ const isSecondaryApproverPending = computed(() => {
 const isPendingSecondaryByOther = computed(() => {
 	return (
 		isLeaveWithSecondaryApprover.value &&
-		document.doc?.custom_approval_stage === "Pending Secondary Approver" &&
+		document.doc?.custom_approval_stage === "Pending Secondary Reporting Approval" &&
 		employee.data?.user_id !== document.doc?.custom_secondary_leave_approver &&
 		document.doc?.docstatus === 0
 	)
@@ -367,7 +367,7 @@ const canShowSubmitButton = computed(() => {
 	// Block submit for leave applications pending secondary approval
 	if (
 		isLeaveWithSecondaryApprover.value &&
-		document.doc.custom_approval_stage === "Pending Secondary Approver"
+		document.doc.custom_approval_stage === "Pending Secondary Reporting Approval"
 	) {
 		return false
 	}

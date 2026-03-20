@@ -64,16 +64,16 @@ const status = computed(() => {
 const showApprovalStage = computed(() => {
 	return (
 		props.doc.custom_approval_stage &&
-		props.doc.custom_approval_stage !== "Pending Leave Approver" &&
+		props.doc.custom_approval_stage !== "Pending Project Reporting Approval" &&
 		props.doc.custom_secondary_leave_approver
 	)
 })
 
 const stageLabel = computed(() => {
 	const map = {
-		"Pending Secondary Approver": __("Pending 2nd Approval"),
-		"Fully Approved": __("Fully Approved"),
-		"Rejected by Secondary Approver": __("Rejected by 2nd"),
+		"Pending Secondary Reporting Approval": __("Pending 2nd Approval"),
+		"Approved": __("Approved"),
+		"Rejected": __("Rejected by 2nd"),
 	}
 	return map[props.doc.custom_approval_stage] || props.doc.custom_approval_stage
 })
@@ -85,8 +85,8 @@ const colorMap = {
 }
 
 const stageColorMap = {
-	"Pending Secondary Approver": "orange",
-	"Fully Approved": "green",
-	"Rejected by Secondary Approver": "red",
+	"Pending Secondary Reporting Approval": "orange",
+	"Approved": "green",
+	"Rejected": "red",
 }
 </script>

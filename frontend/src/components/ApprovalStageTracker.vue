@@ -96,69 +96,69 @@ function getInitials(name) {
 
 // Approver (Level 1) styles
 const approverBorderColor = computed(() => {
-	if (stage.value === "Pending Leave Approver") return "border-yellow-400"
+	if (stage.value === "Pending Project Reporting Approval") return "border-yellow-400"
 	return "border-green-500"
 })
 const approverBgColor = computed(() => {
-	if (stage.value === "Pending Leave Approver") return "bg-yellow-50 text-yellow-700"
+	if (stage.value === "Pending Project Reporting Approval") return "bg-yellow-50 text-yellow-700"
 	return "bg-green-50 text-green-700"
 })
 const approverBadgeColor = computed(() => {
-	if (stage.value === "Pending Leave Approver") return "bg-yellow-400"
+	if (stage.value === "Pending Project Reporting Approval") return "bg-yellow-400"
 	return "bg-green-500"
 })
 const approverIcon = computed(() => {
-	if (stage.value === "Pending Leave Approver") return "…"
+	if (stage.value === "Pending Project Reporting Approval") return "…"
 	return "✓"
 })
 
 // Secondary (Level 2) styles
 const secondaryBorderColor = computed(() => {
-	if (stage.value === "Fully Approved") return "border-green-500"
-	if (stage.value === "Rejected by Secondary Approver") return "border-red-500"
-	if (stage.value === "Pending Secondary Approver") return "border-yellow-400"
+	if (stage.value === "Approved") return "border-green-500"
+	if (stage.value === "Rejected") return "border-red-500"
+	if (stage.value === "Pending Secondary Reporting Approval") return "border-yellow-400"
 	return "border-gray-300"
 })
 const secondaryBgColor = computed(() => {
-	if (stage.value === "Fully Approved") return "bg-green-50 text-green-700"
-	if (stage.value === "Rejected by Secondary Approver") return "bg-red-50 text-red-700"
-	if (stage.value === "Pending Secondary Approver") return "bg-yellow-50 text-yellow-700"
+	if (stage.value === "Approved") return "bg-green-50 text-green-700"
+	if (stage.value === "Rejected") return "bg-red-50 text-red-700"
+	if (stage.value === "Pending Secondary Reporting Approval") return "bg-yellow-50 text-yellow-700"
 	return "bg-gray-100 text-gray-400"
 })
 const secondaryBadgeColor = computed(() => {
-	if (stage.value === "Fully Approved") return "bg-green-500"
-	if (stage.value === "Rejected by Secondary Approver") return "bg-red-500"
-	if (stage.value === "Pending Secondary Approver") return "bg-yellow-400"
+	if (stage.value === "Approved") return "bg-green-500"
+	if (stage.value === "Rejected") return "bg-red-500"
+	if (stage.value === "Pending Secondary Reporting Approval") return "bg-yellow-400"
 	return "bg-gray-300"
 })
 const secondaryIcon = computed(() => {
-	if (stage.value === "Fully Approved") return "✓"
-	if (stage.value === "Rejected by Secondary Approver") return "✗"
-	if (stage.value === "Pending Secondary Approver") return "…"
+	if (stage.value === "Approved") return "✓"
+	if (stage.value === "Rejected") return "✗"
+	if (stage.value === "Pending Secondary Reporting Approval") return "…"
 	return "○"
 })
 
 // Connecting line
 const lineColor = computed(() => {
-	if (stage.value === "Fully Approved") return "bg-green-400"
-	if (stage.value === "Rejected by Secondary Approver") return "bg-red-400"
-	if (stage.value === "Pending Secondary Approver") return "bg-yellow-400"
+	if (stage.value === "Approved") return "bg-green-400"
+	if (stage.value === "Rejected") return "bg-red-400"
+	if (stage.value === "Pending Secondary Reporting Approval") return "bg-yellow-400"
 	return "bg-gray-300"
 })
 const lineIconColor = computed(() => {
-	if (stage.value === "Fully Approved") return "text-green-400"
-	if (stage.value === "Rejected by Secondary Approver") return "text-red-400"
-	if (stage.value === "Pending Secondary Approver") return "text-yellow-400"
+	if (stage.value === "Approved") return "text-green-400"
+	if (stage.value === "Rejected") return "text-red-400"
+	if (stage.value === "Pending Secondary Reporting Approval") return "text-yellow-400"
 	return "text-gray-300"
 })
 
 // Stage label
 const stageLabel = computed(() => {
 	const map = {
-		"Pending Leave Approver": { text: "Pending Leave Approver", class: "bg-yellow-100 text-yellow-800" },
-		"Pending Secondary Approver": { text: "Pending Secondary Approval", class: "bg-yellow-100 text-yellow-800" },
-		"Fully Approved": { text: "Fully Approved", class: "bg-green-100 text-green-800" },
-		"Rejected by Secondary Approver": { text: "Rejected by Secondary Approver", class: "bg-red-100 text-red-800" },
+		"Pending Project Reporting Approval": { text: "Pending Project Reporting Approval", class: "bg-yellow-100 text-yellow-800" },
+		"Pending Secondary Reporting Approval": { text: "Pending Secondary Approval", class: "bg-yellow-100 text-yellow-800" },
+		"Approved": { text: "Approved", class: "bg-green-100 text-green-800" },
+		"Rejected": { text: "Rejected", class: "bg-red-100 text-red-800" },
 	}
 	return map[stage.value] || { text: stage.value || "Unknown", class: "bg-gray-100 text-gray-600" }
 })

@@ -619,7 +619,7 @@ const formButton = computed(() => {
 			if (
 				props.doctype === "Leave Application" &&
 				formModel.value.custom_secondary_leave_approver &&
-				formModel.value.custom_approval_stage === "Pending Secondary Approver"
+				formModel.value.custom_approval_stage === "Pending Secondary Reporting Approval"
 			) {
 				return
 			}

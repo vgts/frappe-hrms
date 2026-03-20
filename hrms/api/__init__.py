@@ -376,7 +376,7 @@ def get_leave_applications(
 			"docstatus": 0,
 			"employee": ("!=", employee),
 			"custom_secondary_leave_approver": approver_id,
-			"custom_approval_stage": "Pending Secondary Approver",
+			"custom_approval_stage": "Pending Secondary Reporting Approval",
 		}
 		secondary_apps = frappe.get_list(
 			"Leave Application",

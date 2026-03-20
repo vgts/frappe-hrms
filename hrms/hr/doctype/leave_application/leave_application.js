@@ -323,10 +323,10 @@ function hrms_show_approval_stage_tracker(frm) {
 			};
 
 			const stageColor = {
-				"Pending Leave Approver": { approver: "orange", secondary: "gray" },
-				"Pending Secondary Approver": { approver: "green", secondary: "orange" },
-				"Fully Approved": { approver: "green", secondary: "green" },
-				"Rejected by Secondary Approver": { approver: "green", secondary: "red" },
+				"Pending Project Reporting Approval": { approver: "orange", secondary: "gray" },
+				"Pending Secondary Reporting Approval": { approver: "green", secondary: "orange" },
+				"Approved": { approver: "green", secondary: "green" },
+				"Rejected": { approver: "green", secondary: "red" },
 			};
 			const colors = stageColor[stage] || { approver: "gray", secondary: "gray" };
 
@@ -371,18 +371,18 @@ function hrms_handle_secondary_approval(frm) {
 	const stage = frm.doc.custom_approval_stage;
 
 	// Hide submit for leave approver when pending secondary
-	if (stage === "Pending Secondary Approver" && !isSecondary) {
+	if (stage === "Pending Secondary Reporting Approval" && !isSecondary) {
 		frm.page.btn_primary.hide();
 		frm.disable_save();
 	}
 
 	// Hide submit when approved but not yet forwarded
-	if (frm.doc.status === "Approved" && !isSecondary && stage !== "Fully Approved") {
+	if (frm.doc.status === "Approved" && !isSecondary && stage !== "Approved") {
 		frm.page.btn_primary.hide();
 	}
 
 	// Show approve/reject buttons for secondary approver
-	if (stage === "Pending Secondary Approver" && isSecondary) {
+	if (stage === "Pending Secondary Reporting Approval" && isSecondary) {
 		frm.page.btn_primary.hide();
 
 		frm.dashboard.set_headline(

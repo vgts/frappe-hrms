@@ -13,10 +13,10 @@ frappe.listview_settings["Leave Application"] = {
 		// Show approval stage when pending secondary
 		if (
 			doc.status === "Approved" &&
-			doc.custom_approval_stage === "Pending Secondary Approver" &&
+			doc.custom_approval_stage === "Pending Secondary Reporting Approval" &&
 			!doc.docstatus
 		) {
-			return [__("Pending Secondary Approver"), "yellow", "custom_approval_stage,=,Pending Secondary Approver"];
+			return [__("Pending Secondary Reporting Approval"), "yellow", "custom_approval_stage,=,Pending Secondary Reporting Approval"];
 		}
 
 		const status_color = {
