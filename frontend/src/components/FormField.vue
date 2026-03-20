@@ -124,15 +124,15 @@
 		/>
 
 		<!-- Time -->
-		<Input
+		<input
 			v-else-if="props.fieldtype === 'Time'"
 			type="time"
 			:value="formattedTimeValue"
-			:placeholder="__('Select {0}', [props.label])"
-			@input="(v) => handleTimeInput(v)"
-			@change="(v) => handleTimeInput(v)"
-			v-bind="$attrs"
+			@input="(e) => handleTimeInput(e.target.value)"
+			@change="(e) => handleTimeInput(e.target.value)"
 			:disabled="isReadOnly"
+			class="form-input block w-full rounded border-gray-300 text-base text-gray-800 placeholder-gray-400 focus:border-gray-500 focus:ring-0"
+			:class="isReadOnly ? 'bg-gray-50 text-gray-500' : ''"
 		/>
 
 		<!-- Datetime -->
