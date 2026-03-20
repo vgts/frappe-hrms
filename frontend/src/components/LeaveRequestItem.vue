@@ -62,10 +62,13 @@ const status = computed(() => {
 })
 
 const showApprovalStage = computed(() => {
+	// Only show the stage badge when it adds information beyond the status badge
+	// Hide when stage is "Approved" or "Rejected" (redundant with status badge)
+	// Show only for intermediate stages like "Pending Secondary Reporting Approval"
 	return (
 		props.doc.custom_approval_stage &&
-		props.doc.custom_approval_stage !== "Pending Project Reporting Approval" &&
-		props.doc.custom_secondary_leave_approver
+		props.doc.custom_secondary_leave_approver &&
+		!["Pending Project Reporting Approval", "Approved", "Rejected"].includes(props.doc.custom_approval_stage)
 	)
 })
 
