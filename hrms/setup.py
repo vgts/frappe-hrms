@@ -250,9 +250,17 @@ def get_custom_fields():
 				"insert_after": "expense_approver",
 			},
 			{
+				"fieldname": "custom_secondary_leave_approver",
+				"fieldtype": "Link",
+				"label": _("Secondary Leave Approver"),
+				"options": "User",
+				"description": _("Second-level leave approver for two-level approval flow"),
+				"insert_after": "leave_approver",
+			},
+			{
 				"fieldname": "column_break_45",
 				"fieldtype": "Column Break",
-				"insert_after": "leave_approver",
+				"insert_after": "custom_secondary_leave_approver",
 			},
 			{
 				"fieldname": "shift_request_approver",

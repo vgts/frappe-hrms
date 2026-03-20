@@ -913,6 +913,12 @@ class LeaveApplication(Document, PWANotificationsMixin):
 		"""Auto-fetch secondary leave approver from employee master."""
 		if self.custom_secondary_leave_approver or not self.employee:
 			return
+
+		# Check if the field exists on Employee before querying
+		employee_meta = frappe.get_meta("Employee")
+		if not employee_meta.has_field("custom_secondary_leave_approver"):
+			return
+
 		secondary = frappe.db.get_value(
 			"Employee", self.employee, "custom_secondary_leave_approver"
 		)
