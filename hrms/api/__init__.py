@@ -398,6 +398,74 @@ def get_leave_applications(
 
 
 @frappe.whitelist()
+def get_employee_permissions(
+	employee: str,
+	approver_id: str | None = None,
+	for_approval: bool = False,
+	limit: int | None = None,
+) -> list[dict]:
+	filters = frappe._dict()
+	if for_approval:
+		filters.docstatus = 0
+		filters.employee = ("!=", employee)
+		filters.status = "Open"
+		if approver_id:
+			filters.leave_approver = approver_id
+	else:
+		filters.docstatus = ("!=", 2)
+		filters.employee = employee
+
+	fields = [
+		"name",
+		"employee",
+		"employee_name",
+		"permission_date",
+		"from_time",
+		"to_time",
+		"duration",
+		"reason",
+		"status",
+		"leave_approver",
+		"leave_approver_name",
+		"docstatus",
+		"creation",
+		"custom_approval_stage",
+		"custom_secondary_leave_approver",
+		"custom_secondary_approver_name",
+	]
+
+	permissions = frappe.get_list(
+		"Employee Permission",
+		fields=fields,
+		filters=filters,
+		order_by="creation desc",
+		limit=limit,
+	)
+
+	# For team: also include permissions pending secondary approval for this user
+	if for_approval and approver_id:
+		secondary_filters = {
+			"docstatus": 0,
+			"employee": ("!=", employee),
+			"custom_secondary_leave_approver": approver_id,
+			"custom_approval_stage": "Pending Secondary Reporting Approval",
+		}
+		secondary_perms = frappe.get_list(
+			"Employee Permission",
+			fields=fields,
+			filters=secondary_filters,
+			order_by="creation desc",
+			limit=limit,
+		)
+		existing_names = {p["name"] for p in permissions}
+		for perm in secondary_perms:
+			if perm["name"] not in existing_names:
+				permissions.append(perm)
+
+	return permissions
+
+
+@frappe.whitelist()
 def get_leave_balance_map() -> dict[str, dict[str, float]]:
 	"""
 	Returns a map of leave type and balance details like:

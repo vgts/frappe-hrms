@@ -362,11 +362,22 @@ const permittedWriteFields = createResource({
 	auto: true,
 })
 
-// Fetch secondary approval details (avatars, stage)
+// Fetch secondary approval details (avatars, stage) for doctypes with two-level approval
+const approvalApiMap = {
+	"Leave Application": {
+		details: "hrms.hr.doctype.leave_application.leave_application.get_secondary_approval_details",
+		detailsParam: "leave_application",
+	},
+	"Employee Permission": {
+		details: "hrms.hr.doctype.employee_permission.employee_permission.get_permission_approval_details",
+		detailsParam: "employee_permission",
+	},
+}
+const approvalConfig = approvalApiMap[props.modelValue.doctype]
 const approvalDetails = createResource({
-	url: "hrms.hr.doctype.leave_application.leave_application.get_secondary_approval_details",
-	params: { leave_application: props.modelValue.name },
-	auto: props.modelValue.doctype === "Leave Application",
+	url: approvalConfig?.details || "hrms.hr.doctype.leave_application.leave_application.get_secondary_approval_details",
+	params: { [approvalConfig?.detailsParam || "leave_application"]: props.modelValue.name },
+	auto: !!approvalConfig,
 })
 
 function hasPermission(action) {
@@ -412,9 +423,10 @@ const approvalField = computed(() => {
 })
 
 // Two-level approval computed properties
+const twoLevelDoctypes = ["Leave Application", "Employee Permission"]
 const isLeaveWithSecondaryApprover = computed(() => {
 	return (
-		props.modelValue.doctype === "Leave Application" &&
+		twoLevelDoctypes.includes(props.modelValue.doctype) &&
 		document.doc?.custom_secondary_leave_approver
 	)
 })
@@ -517,12 +529,26 @@ const updateDocumentStatus = ({ status = "", docstatus = 0 }) => {
 	)
 }
 
-function handleSecondaryAction(action) {
-	const method = action === "approve"
-		? "hrms.hr.doctype.leave_application.leave_application.secondary_approve"
-		: "hrms.hr.doctype.leave_application.leave_application.secondary_reject"
+const secondaryApiMap = {
+	"Leave Application": {
+		approve: "hrms.hr.doctype.leave_application.leave_application.secondary_approve",
+		reject: "hrms.hr.doctype.leave_application.leave_application.secondary_reject",
+		primaryReject: "hrms.hr.doctype.leave_application.leave_application.project_reporting_reject",
+		paramKey: "leave_application",
+	},
+	"Employee Permission": {
+		approve: "hrms.hr.doctype.employee_permission.employee_permission.permission_secondary_approve",
+		reject: "hrms.hr.doctype.employee_permission.employee_permission.permission_secondary_reject",
+		primaryReject: "hrms.hr.doctype.employee_permission.employee_permission.permission_project_reporting_reject",
+		paramKey: "employee_permission",
+	},
+}
 
-	let params = { leave_application: props.modelValue.name }
+function handleSecondaryAction(action) {
+	const apiConfig = secondaryApiMap[props.modelValue.doctype] || secondaryApiMap["Leave Application"]
+	const method = action === "approve" ? apiConfig.approve : apiConfig.reject
+
+	let params = { [apiConfig.paramKey]: props.modelValue.name }
 	if (action === "reject") {
 		if (!rejectReason.value?.trim()) return
 		params.reason = rejectReason.value.trim()
@@ -557,10 +583,11 @@ function handleSecondaryAction(action) {
 function handlePrimaryReject() {
 	if (!primaryRejectReason.value?.trim()) return
 
+	const apiConfig = secondaryApiMap[props.modelValue.doctype] || secondaryApiMap["Leave Application"]
 	createResource({
-		url: "hrms.hr.doctype.leave_application.leave_application.project_reporting_reject",
+		url: apiConfig.primaryReject,
 		params: {
-			leave_application: props.modelValue.name,
+			[apiConfig.paramKey]: props.modelValue.name,
 			reason: primaryRejectReason.value.trim(),
 		},
 		auto: true,

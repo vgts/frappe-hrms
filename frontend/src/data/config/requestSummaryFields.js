@@ -217,6 +217,49 @@ export const SHIFT_REQUEST_FIELDS = [
 	},
 ]
 
+export const EMPLOYEE_PERMISSION_FIELDS = [
+	{
+		fieldname: "name",
+		label: "ID",
+		fieldtype: "Data",
+	},
+	{
+		fieldname: "permission_date",
+		label: "Date",
+		fieldtype: "Date",
+	},
+	{
+		fieldname: "from_time",
+		label: "From Time",
+		fieldtype: "Time",
+	},
+	{
+		fieldname: "to_time",
+		label: "To Time",
+		fieldtype: "Time",
+	},
+	{
+		fieldname: "duration",
+		label: "Duration (hrs)",
+		fieldtype: "Float",
+	},
+	{
+		fieldname: "employee",
+		label: "Employee",
+		fieldtype: "Link",
+	},
+	{
+		fieldname: "status",
+		label: "Status",
+		fieldtype: "Select",
+	},
+	{
+		fieldname: "reason",
+		label: "Reason",
+		fieldtype: "Small Text",
+	},
+]
+
 export const EMPLOYEE_CHECKIN_FIELDS = [
 	{
 		fieldname: "name",
