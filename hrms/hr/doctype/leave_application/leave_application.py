@@ -1637,6 +1637,40 @@ def on_doctype_update():
 
 
 @frappe.whitelist()
+def project_reporting_reject(leave_application, reason=None):
+	"""Project reporting (primary leave approver) rejects — set rejected, submit then cancel."""
+	if not reason:
+		frappe.throw(_("Please provide a reason for rejection."))
+
+	doc = frappe.get_doc("Leave Application", leave_application)
+
+	if frappe.session.user != doc.leave_approver:
+		frappe.throw(_("Only the Leave Approver can perform this action."))
+
+	if doc.custom_approval_stage != "Pending Project Reporting Approval":
+		frappe.throw(_("This leave application is not pending project reporting approval."))
+
+	if doc.docstatus != 0:
+		frappe.throw(_("This leave application has already been submitted."))
+
+	# Set rejected status and stage
+	doc.status = "Rejected"
+	doc.custom_approval_stage = "Rejected"
+	doc.flags.ignore_permissions = True
+	doc.submit()
+
+	# Cancel the submitted doc so it goes to Cancelled stage
+	doc.reload()
+	doc.flags.ignore_permissions = True
+	doc.cancel()
+
+	# Add rejection reason as a comment
+	doc.add_comment("Comment", _("Rejected by Project Reporting (Leave Approver): {0}").format(reason))
+
+	return {"status": "success", "message": _("Leave Application rejected and cancelled.")}
+
+
+@frappe.whitelist()
 def secondary_approve(leave_application):
 	"""Secondary approver approves — set fully approved and auto-submit."""
 	doc = frappe.get_doc("Leave Application", leave_application)

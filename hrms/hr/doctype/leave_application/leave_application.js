@@ -322,11 +322,17 @@ function hrms_show_approval_stage_tracker(frm) {
 				return `<div style="width:32px;height:32px;border-radius:50%;background:#d1d5db;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#374151;" title="${frappe.utils.escape_html(name || "")}">${initials}</div>`;
 			};
 
+			// Determine if rejection was at primary or secondary level
+			const wasRejectedAtPrimary = stage === "Rejected" && d.approval_stage === "Rejected" &&
+				frm.doc.status === "Rejected" &&
+				frm.doc.custom_approval_stage === "Rejected" &&
+				frm.doc.docstatus === 2;
+
 			const stageColor = {
 				"Pending Project Reporting Approval": { approver: "orange", secondary: "gray" },
 				"Pending Secondary Reporting Approval": { approver: "green", secondary: "orange" },
 				"Approved": { approver: "green", secondary: "green" },
-				"Rejected": { approver: "green", secondary: "red" },
+				"Rejected": { approver: "red", secondary: "gray" },
 			};
 			const colors = stageColor[stage] || { approver: "gray", secondary: "gray" };
 
@@ -379,6 +385,46 @@ function hrms_handle_secondary_approval(frm) {
 	// Hide submit when approved but not yet forwarded
 	if (frm.doc.status === "Approved" && !isSecondary && stage !== "Approved") {
 		frm.page.btn_primary.hide();
+	}
+
+	// Show reject button for project reporting (primary leave approver)
+	const isPrimaryApprover = frappe.session.user === frm.doc.leave_approver;
+	if (stage === "Pending Project Reporting Approval" && isPrimaryApprover) {
+		frm.add_custom_button(__("Reject"), () => {
+			let d = new frappe.ui.Dialog({
+				title: __("Reject Leave Application"),
+				fields: [
+					{
+						fieldname: "reason",
+						fieldtype: "Small Text",
+						label: __("Reason for Rejection"),
+						reqd: 1,
+					},
+				],
+				primary_action_label: __("Reject"),
+				primary_action(values) {
+					d.hide();
+					frappe.call({
+						method: "hrms.hr.doctype.leave_application.leave_application.project_reporting_reject",
+						args: {
+							leave_application: frm.doc.name,
+							reason: values.reason,
+						},
+						freeze: true,
+						freeze_message: __("Rejecting..."),
+						callback(r) {
+							if (r.message && r.message.status === "success") {
+								frappe.show_alert({ message: r.message.message, indicator: "red" });
+								frm.reload_doc();
+							}
+						},
+					});
+				},
+			});
+			d.show();
+		}, __("Leave Approver"));
+
+		frm.change_custom_button_type(__("Reject"), __("Leave Approver"), "danger");
 	}
 
 	// Show approve/reject buttons for secondary approver
