@@ -124,6 +124,17 @@
 		/>
 
 		<!-- Time -->
+		<Input
+			v-else-if="props.fieldtype === 'Time'"
+			type="time"
+			:value="formattedTimeValue"
+			:placeholder="__('Select {0}', [props.label])"
+			@input="(v) => handleTimeInput(v)"
+			@change="(v) => handleTimeInput(v)"
+			v-bind="$attrs"
+			:disabled="isReadOnly"
+		/>
+
 		<!-- Datetime -->
 		<DateTimePicker
 			v-else-if="props.fieldtype === 'Datetime'"
@@ -205,6 +216,24 @@ const selectionList = computed(() => {
 
 	return []
 })
+
+// Time field helpers: Frappe stores time as "HH:mm:ss", HTML input needs "HH:mm"
+const formattedTimeValue = computed(() => {
+	if (!props.modelValue || props.fieldtype !== "Time") return ""
+	// "HH:mm:ss" -> "HH:mm"
+	return String(props.modelValue).split(":").slice(0, 2).join(":")
+})
+
+function handleTimeInput(val) {
+	if (!val) {
+		emit("update:modelValue", "")
+		return
+	}
+	// HTML time input gives "HH:mm", Frappe expects "HH:mm:ss"
+	const parts = String(val).split(":")
+	const formatted = parts.length === 2 ? `${parts[0]}:${parts[1]}:00` : val
+	emit("update:modelValue", formatted)
+}
 
 function setDefaultValue() {
 	// set default values
