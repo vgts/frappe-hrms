@@ -351,8 +351,12 @@ def get_leave_applications(
 		"total_leave_days",
 		"leave_balance",
 		"leave_approver",
+		"leave_approver_name",
 		"posting_date",
 		"creation",
+		"custom_approval_stage",
+		"custom_secondary_leave_approver",
+		"custom_secondary_approver_name",
 	]
 
 	if workflow_state_field := get_workflow_state_field("Leave Application"):
@@ -365,6 +369,26 @@ def get_leave_applications(
 		order_by="posting_date desc",
 		limit=limit,
 	)
+
+	# For team leaves: also include leaves pending secondary approval for this user
+	if for_approval and approver_id:
+		secondary_filters = {
+			"docstatus": 0,
+			"employee": ("!=", employee),
+			"custom_secondary_leave_approver": approver_id,
+			"custom_approval_stage": "Pending Secondary Approver",
+		}
+		secondary_apps = frappe.get_list(
+			"Leave Application",
+			fields=fields,
+			filters=secondary_filters,
+			order_by="posting_date desc",
+			limit=limit,
+		)
+		existing_names = {a["name"] for a in applications}
+		for app in secondary_apps:
+			if app["name"] not in existing_names:
+				applications.append(app)
 
 	if workflow_state_field:
 		for application in applications:

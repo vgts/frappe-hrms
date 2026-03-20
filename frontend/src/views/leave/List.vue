@@ -26,6 +26,9 @@ const LEAVE_FIELDS = [
 	"to_date",
 	"total_leave_days",
 	"status",
+	"custom_approval_stage",
+	"custom_secondary_leave_approver",
+	"custom_secondary_approver_name",
 ]
 const STATUS_FILTER_OPTIONS = ["Open", "Approved", "Rejected"] // __("Open"), __("Approved"), __("Rejected")
 const FILTER_CONFIG = [

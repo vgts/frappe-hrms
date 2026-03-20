@@ -88,6 +88,8 @@ class LeaveApplication(Document, PWANotificationsMixin):
 		if frappe.db.get_value("Leave Type", self.leave_type, "is_optional_leave"):
 			self.validate_optional_leave()
 		self.validate_applicable_after()
+		self.set_secondary_leave_approver()
+		self.set_approval_stage()
 
 	def on_update(self):
 		if self.status == "Open" and self.docstatus < 1:
@@ -98,6 +100,47 @@ class LeaveApplication(Document, PWANotificationsMixin):
 		share_doc_with_approver(self, self.leave_approver)
 		self.publish_update()
 		self.notify_approval_status()
+		self.handle_secondary_approval_flow()
+
+	def before_submit(self):
+		"""Gate submission: only secondary approver (or normal flow without secondary) can submit."""
+		if not self.custom_secondary_leave_approver:
+			return
+
+		user = frappe.session.user
+
+		# Secondary approver submitting — mark fully approved and allow
+		if user == self.custom_secondary_leave_approver and self.custom_approval_stage == "Pending Secondary Approver":
+			self.custom_approval_stage = "Fully Approved"
+			return
+
+		# Already fully approved
+		if self.custom_approval_stage == "Fully Approved":
+			return
+
+		# Anyone else — forward to secondary silently (revert docstatus so doc stays draft)
+		if self.status == "Approved" and self.custom_approval_stage in (
+			"Pending Leave Approver",
+			"Pending Secondary Approver",
+		):
+			if self.custom_approval_stage == "Pending Leave Approver":
+				self._forward_to_secondary()
+
+			self.docstatus = 0
+			frappe.msgprint(
+				_("Leave Application has been forwarded to {0} for final approval.").format(
+					self.custom_secondary_approver_name or self.custom_secondary_leave_approver
+				),
+				title=_("Forwarded to Secondary Approver"),
+				indicator="blue",
+			)
+			return
+
+		frappe.throw(
+			_("Leave Application cannot be submitted at this stage: {0}").format(
+				self.custom_approval_stage
+			)
+		)
 
 	def on_submit(self):
 		if self.status in ["Open", "Cancelled"]:
@@ -864,6 +907,98 @@ class LeaveApplication(Document, PWANotificationsMixin):
 				args.update(dict(from_date=start_date, to_date=self.to_date, leaves=leaves * -1))
 				create_leave_ledger_entry(self, args, submit)
 
+	# ---- Two-level approval helpers ----
+
+	def set_secondary_leave_approver(self):
+		"""Auto-fetch secondary leave approver from employee master."""
+		if self.custom_secondary_leave_approver or not self.employee:
+			return
+		secondary = frappe.db.get_value(
+			"Employee", self.employee, "custom_secondary_leave_approver"
+		)
+		if secondary:
+			self.custom_secondary_leave_approver = secondary
+			self.custom_secondary_approver_name = frappe.db.get_value(
+				"User", secondary, "full_name"
+			)
+
+	def set_approval_stage(self):
+		"""Set initial approval stage for new leave applications."""
+		if self.is_new() and self.custom_secondary_leave_approver:
+			self.custom_approval_stage = "Pending Leave Approver"
+
+	def handle_secondary_approval_flow(self):
+		"""On save: when leave approver approves, forward to secondary approver."""
+		if self.docstatus != 0:
+			return
+		if not (
+			self.has_value_changed("status")
+			and self.status == "Approved"
+			and self.custom_approval_stage == "Pending Leave Approver"
+			and self.custom_secondary_leave_approver
+		):
+			return
+		self._forward_to_secondary()
+
+	def _forward_to_secondary(self):
+		"""Move to secondary approval stage, share doc, and notify."""
+		self.db_set("custom_approval_stage", "Pending Secondary Approver")
+		self.custom_approval_stage = "Pending Secondary Approver"
+
+		# Share with secondary approver for list visibility and submit access
+		frappe.share.add_docshare(
+			self.doctype,
+			self.name,
+			self.custom_secondary_leave_approver,
+			write=1,
+			submit=1,
+			flags={"ignore_share_permission": True},
+		)
+
+		self.notify_secondary_approver()
+
+	def notify_secondary_approver(self):
+		"""Send PWA notification + email to the secondary leave approver."""
+		to_user = self.custom_secondary_leave_approver
+		if not to_user or frappe.session.user == to_user:
+			return
+
+		# PWA notification
+		notification = frappe.new_doc("PWA Notification")
+		notification.message = (
+			f"{frappe.bold(self.employee_name)}'s {frappe.bold('Leave Application')} "
+			f"{self.name} requires your secondary approval"
+		)
+		notification.from_user = frappe.session.user
+		notification.to_user = to_user
+		notification.reference_document_type = self.doctype
+		notification.reference_document_name = self.name
+		notification.insert(ignore_permissions=True)
+
+		# Email notification
+		if cint(self.follow_via_email):
+			link = frappe.utils.get_url_to_form("Leave Application", self.name)
+			frappe.sendmail(
+				recipients=[to_user],
+				subject=_("Leave Application {0} – Pending Your Approval").format(self.name),
+				message=_(
+					"<p>Leave Application <b>{0}</b> by <b>{1}</b> has been approved by the "
+					"primary Leave Approver and is now pending your approval.</p>"
+					"<p>Leave Type: {2}<br>From: {3}<br>To: {4}<br>Total Days: {5}</p>"
+					'<p><a href="{6}">Review Leave Application</a></p>'
+				).format(
+					self.name,
+					self.employee_name,
+					self.leave_type,
+					formatdate(self.from_date),
+					formatdate(self.to_date),
+					self.total_leave_days,
+					link,
+				),
+				reference_doctype="Leave Application",
+				reference_name=self.name,
+			)
+
 	def validate_for_self_approval(self):
 		self_leave_approval_not_allowed = frappe.db.get_single_value(
 			"HR Settings", "prevent_self_leave_approval"
@@ -1488,3 +1623,66 @@ def get_leave_approver(employee):
 
 def on_doctype_update():
 	frappe.db.add_index("Leave Application", ["employee", "from_date", "to_date"])
+
+
+# ---------------------------------------------------------------------------
+# Two-level approval whitelisted methods
+# ---------------------------------------------------------------------------
+
+
+@frappe.whitelist()
+def secondary_approve(leave_application):
+	"""Secondary approver approves — set fully approved and auto-submit."""
+	doc = frappe.get_doc("Leave Application", leave_application)
+
+	if frappe.session.user != doc.custom_secondary_leave_approver:
+		frappe.throw(_("Only the Secondary Leave Approver can perform this action."))
+
+	if doc.custom_approval_stage != "Pending Secondary Approver":
+		frappe.throw(_("This leave application is not pending secondary approval."))
+
+	if doc.status != "Approved":
+		frappe.throw(_("Leave Application must be approved by the primary Leave Approver first."))
+
+	doc.custom_approval_stage = "Fully Approved"
+	doc.flags.ignore_permissions = True
+	doc.submit()
+
+	return {"status": "success", "message": _("Leave Application approved and submitted.")}
+
+
+@frappe.whitelist()
+def secondary_reject(leave_application):
+	"""Secondary approver rejects the leave application."""
+	doc = frappe.get_doc("Leave Application", leave_application)
+
+	if frappe.session.user != doc.custom_secondary_leave_approver:
+		frappe.throw(_("Only the Secondary Leave Approver can perform this action."))
+
+	if doc.custom_approval_stage != "Pending Secondary Approver":
+		frappe.throw(_("This leave application is not pending secondary approval."))
+
+	doc.status = "Rejected"
+	doc.custom_approval_stage = "Rejected by Secondary Approver"
+	doc.flags.ignore_permissions = True
+	doc.save()
+
+	return {"status": "success", "message": _("Leave Application rejected by Secondary Approver.")}
+
+
+@frappe.whitelist()
+def get_secondary_approval_details(leave_application):
+	"""Return approval stage info with avatar details for the frontend."""
+	doc = frappe.get_doc("Leave Application", leave_application)
+	approver_image = frappe.db.get_value("User", doc.leave_approver, "user_image") if doc.leave_approver else None
+	secondary_image = frappe.db.get_value("User", doc.custom_secondary_leave_approver, "user_image") if doc.custom_secondary_leave_approver else None
+
+	return {
+		"approval_stage": doc.custom_approval_stage,
+		"leave_approver": doc.leave_approver,
+		"leave_approver_name": doc.leave_approver_name,
+		"leave_approver_image": approver_image,
+		"secondary_leave_approver": doc.custom_secondary_leave_approver,
+		"secondary_approver_name": doc.custom_secondary_approver_name,
+		"secondary_approver_image": secondary_image,
+	}

@@ -9,22 +9,71 @@
 				:fields="formFields.data"
 				:id="props.id"
 				:showAttachmentView="true"
+				:showFormButton="!showSecondaryActions"
 				@validateForm="validateForm"
-			/>
+			>
+				<!-- Secondary approval buttons slot -->
+				<template #formButton v-if="showSecondaryActions">
+					<div class="flex flex-col gap-3 w-full">
+						<!-- Approval Stage Tracker -->
+						<ApprovalStageTracker
+							v-if="approvalDetails?.data && leaveApplication.custom_secondary_leave_approver"
+							:doc="leaveApplication"
+							:approvalDetails="approvalDetails"
+						/>
+
+						<!-- Waiting message for non-secondary users -->
+						<div
+							v-if="isPendingSecondaryByOther"
+							class="text-center text-sm font-medium text-blue-700 bg-blue-50 rounded-lg p-3"
+						>
+							{{ __("Forwarded to {0} for secondary approval", [leaveApplication.custom_secondary_approver_name || leaveApplication.custom_secondary_leave_approver]) }}
+						</div>
+
+						<!-- Secondary approver buttons -->
+						<template v-if="isSecondaryApproverPending">
+							<div class="text-center text-sm font-medium text-yellow-700 bg-yellow-50 rounded-lg p-2 mb-1">
+								{{ __("Waiting for your approval") }}
+							</div>
+							<div class="flex flex-row gap-3">
+								<Button
+									@click="handleSecondaryAction('reject')"
+									class="w-full py-5"
+									variant="subtle"
+									theme="red"
+								>
+									{{ __("Reject") }}
+								</Button>
+								<Button
+									@click="handleSecondaryAction('approve')"
+									class="w-full py-5"
+									variant="solid"
+									theme="green"
+								>
+									{{ __("Approve & Submit") }}
+								</Button>
+							</div>
+						</template>
+					</div>
+				</template>
+			</FormView>
 		</ion-content>
 	</ion-page>
 </template>
 
 <script setup>
 import { IonPage, IonContent } from "@ionic/vue"
-import { createResource } from "frappe-ui"
-import { ref, watch, inject } from "vue"
+import { createResource, toast } from "frappe-ui"
+import { ref, watch, inject, computed } from "vue"
+import { useRouter } from "vue-router"
 
 import FormView from "@/components/FormView.vue"
+import ApprovalStageTracker from "@/components/ApprovalStageTracker.vue"
 
 const dayjs = inject("$dayjs")
 const __ = inject("$translate")
 const today = dayjs().format("YYYY-MM-DD")
+const router = useRouter()
 
 const props = defineProps({
 	id: {
@@ -80,6 +129,71 @@ const leaveTypes = createResource({
 	},
 })
 
+// Fetch secondary approval details for existing docs
+const approvalDetails = createResource({
+	url: "hrms.hr.doctype.leave_application.leave_application.get_secondary_approval_details",
+	params: { leave_application: props.id },
+	auto: !!props.id,
+})
+
+// Two-level approval computed
+const isSecondaryApproverPending = computed(() => {
+	return (
+		leaveApplication.value.custom_approval_stage === "Pending Secondary Approver" &&
+		sessionEmployee.data?.user_id === leaveApplication.value.custom_secondary_leave_approver &&
+		leaveApplication.value.docstatus === 0
+	)
+})
+
+const isPendingSecondaryByOther = computed(() => {
+	return (
+		leaveApplication.value.custom_approval_stage === "Pending Secondary Approver" &&
+		sessionEmployee.data?.user_id !== leaveApplication.value.custom_secondary_leave_approver &&
+		leaveApplication.value.docstatus === 0 &&
+		leaveApplication.value.custom_secondary_leave_approver
+	)
+})
+
+const showSecondaryActions = computed(() => {
+	return (
+		props.id &&
+		leaveApplication.value.custom_secondary_leave_approver &&
+		leaveApplication.value.custom_approval_stage === "Pending Secondary Approver" &&
+		leaveApplication.value.docstatus === 0
+	)
+})
+
+function handleSecondaryAction(action) {
+	const method = action === "approve"
+		? "hrms.hr.doctype.leave_application.leave_application.secondary_approve"
+		: "hrms.hr.doctype.leave_application.leave_application.secondary_reject"
+
+	createResource({
+		url: method,
+		params: { leave_application: props.id },
+		auto: true,
+		onSuccess(data) {
+			toast({
+				title: __("Success"),
+				text: data.message,
+				icon: "check-circle",
+				position: "bottom-center",
+				iconClasses: action === "approve" ? "text-green-500" : "text-red-500",
+			})
+			router.back()
+		},
+		onError() {
+			toast({
+				title: __("Error"),
+				text: __("Action failed. Please try again."),
+				icon: "alert-circle",
+				position: "bottom-center",
+				iconClasses: "text-red-500",
+			})
+		},
+	})
+}
+
 // form scripts
 watch(
 	() => leaveApplication.value.employee,
@@ -90,7 +204,7 @@ watch(
 		}
 		currEmployee.value = employee_id
 		leaveTypes.fetch({ employee: currEmployee.value, date: today })
-		leaveApprovalDetails.fetch({ employee: currEmployee.value })		
+		leaveApprovalDetails.fetch({ employee: currEmployee.value })
 	}
 )
 watch(
@@ -142,6 +256,12 @@ function getFilteredFields(fields) {
 		"sb_other_details",
 		"salary_slip",
 		"letter_head",
+		// Hide secondary approval fields from the form (shown in tracker instead)
+		"custom_secondary_approval_section",
+		"custom_secondary_leave_approver",
+		"custom_secondary_approver_name",
+		"custom_column_break_secondary",
+		"custom_approval_stage",
 	]
 
 	const employeeFields = [
@@ -161,6 +281,7 @@ function getFilteredFields(fields) {
 
 function setFormReadOnly() {
 	if (leaveApplication.value.leave_approver === sessionEmployee.data.user_id) return
+	if (leaveApplication.value.custom_secondary_leave_approver === sessionEmployee.data.user_id) return
 	formFields.data.map((field) => (field.read_only = true))
 }
 

@@ -614,6 +614,15 @@ const formButton = computed(() => {
 
 	if (props.id && props.isSubmittable && !isFormDirty.value) {
 		if (formModel.value.docstatus === 0 && hasPermission("submit")) {
+			// Hide submit for leave applications pending secondary approval
+			// (unless the user IS the secondary approver — handled by RequestActionSheet)
+			if (
+				props.doctype === "Leave Application" &&
+				formModel.value.custom_secondary_leave_approver &&
+				formModel.value.custom_approval_stage === "Pending Secondary Approver"
+			) {
+				return
+			}
 			return "Submit"
 		} else if (formModel.value.docstatus === 1 && hasPermission("cancel")) {
 			return "Cancel"

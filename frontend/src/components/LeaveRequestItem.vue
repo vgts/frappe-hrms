@@ -18,19 +18,30 @@
 			</div>
 		</template>
 		<template #right>
-			<Badge variant="outline" :theme="colorMap[status]" :label="__(status, null, 'Leave Application')" size="md" />
+			<div class="flex flex-col items-end gap-1">
+				<Badge variant="outline" :theme="colorMap[status]" :label="__(status, null, 'Leave Application')" size="md" />
+				<Badge
+					v-if="showApprovalStage"
+					variant="subtle"
+					:theme="stageColorMap[props.doc.custom_approval_stage] || 'gray'"
+					:label="stageLabel"
+					size="sm"
+				/>
+			</div>
 			<FeatherIcon name="chevron-right" class="h-5 w-5 text-gray-500" />
 		</template>
 	</ListItem>
 </template>
 
 <script setup>
-import { computed } from "vue"
+import { computed, inject } from "vue"
 import { FeatherIcon, Badge } from "frappe-ui"
 
 import ListItem from "@/components/ListItem.vue"
 import LeaveIcon from "@/components/icons/LeaveIcon.vue"
 import { getLeaveDates } from "@/data/leaves"
+
+const __ = inject("$translate")
 
 const props = defineProps({
 	doc: {
@@ -50,9 +61,32 @@ const status = computed(() => {
 	return props.workflowStateField ? props.doc[props.workflowStateField] : props.doc.status
 })
 
+const showApprovalStage = computed(() => {
+	return (
+		props.doc.custom_approval_stage &&
+		props.doc.custom_approval_stage !== "Pending Leave Approver" &&
+		props.doc.custom_secondary_leave_approver
+	)
+})
+
+const stageLabel = computed(() => {
+	const map = {
+		"Pending Secondary Approver": __("Pending 2nd Approval"),
+		"Fully Approved": __("Fully Approved"),
+		"Rejected by Secondary Approver": __("Rejected by 2nd"),
+	}
+	return map[props.doc.custom_approval_stage] || props.doc.custom_approval_stage
+})
+
 const colorMap = {
 	Approved: "green",
 	Rejected: "red",
 	Open: "orange",
+}
+
+const stageColorMap = {
+	"Pending Secondary Approver": "orange",
+	"Fully Approved": "green",
+	"Rejected by Secondary Approver": "red",
 }
 </script>

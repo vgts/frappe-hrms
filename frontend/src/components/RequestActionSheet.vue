@@ -21,6 +21,13 @@
 		<!-- Request Summary -->
 		<div class="w-full p-4 overflow-auto">
 			<div class="flex flex-col items-center justify-center gap-5">
+				<!-- Approval Stage Tracker -->
+				<ApprovalStageTracker
+					v-if="isLeaveWithSecondaryApprover"
+					:doc="document.doc"
+					:approvalDetails="approvalDetails"
+				/>
+
 				<div
 					v-for="field in fieldsWithValues"
 					:key="field.fieldname"
@@ -80,6 +87,51 @@
 			view="actionSheet"
 		/>
 
+		<!-- Secondary Approver: Approve/Reject (when pending their approval) -->
+		<div
+			v-else-if="isSecondaryApproverPending"
+			class="flex w-full flex-col gap-3 sticky bottom-0 border-t z-[100] p-4"
+		>
+			<div class="text-center text-sm font-medium text-yellow-700 bg-yellow-50 rounded-lg p-2 mb-1">
+				{{ __("Waiting for your approval") }}
+			</div>
+			<div class="flex flex-row items-center justify-between gap-3">
+				<Button
+					@click="handleSecondaryAction('reject')"
+					class="w-full py-5"
+					variant="subtle"
+					theme="red"
+				>
+					<template #prefix>
+						<FeatherIcon name="x" class="w-4" />
+					</template>
+					{{ __("Reject") }}
+				</Button>
+				<Button
+					@click="handleSecondaryAction('approve')"
+					class="w-full py-5"
+					variant="solid"
+					theme="green"
+				>
+					<template #prefix>
+						<FeatherIcon name="check" class="w-4" />
+					</template>
+					{{ __("Approve & Submit") }}
+				</Button>
+			</div>
+		</div>
+
+		<!-- Leave Approver: After approving, show forwarded message (no submit) -->
+		<div
+			v-else-if="isPendingSecondaryByOther"
+			class="flex w-full flex-col gap-2 sticky bottom-0 border-t z-[100] p-4"
+		>
+			<div class="text-center text-sm font-medium text-blue-700 bg-blue-50 rounded-lg p-3">
+				{{ __("Forwarded to {0} for secondary approval", [document.doc.custom_secondary_approver_name || document.doc.custom_secondary_leave_approver]) }}
+			</div>
+		</div>
+
+		<!-- Primary Approver: Approve/Reject (standard flow) -->
 		<div
 			v-else-if="['Open', 'Draft'].includes(document?.doc?.[approvalField]) && hasPermission('approval')"
 			class="flex w-full flex-row items-center justify-between gap-3 sticky bottom-0 border-t z-[100] p-4"
@@ -109,13 +161,9 @@
 			</Button>
 		</div>
 
+		<!-- Submit (only when no secondary approver or fully approved) -->
 		<div
-			v-else-if="
-				document?.doc?.docstatus === 0 &&
-				(document?.doc?.doctype === 'Attendance Request' ||
-					['Approved', 'Rejected'].includes(document?.doc?.[approvalField])) &&
-				hasPermission('submit')
-			"
+			v-else-if="canShowSubmitButton"
 			class="flex w-full flex-row items-center justify-between gap-3 sticky bottom-0 border-t z-[100] p-4"
 		>
 			<Button
@@ -169,6 +217,7 @@ import {
 import FormattedField from "@/components/FormattedField.vue"
 import FilePreviewModal from "@/components/FilePreviewModal.vue"
 import WorkflowActionSheet from "@/components/WorkflowActionSheet.vue"
+import ApprovalStageTracker from "@/components/ApprovalStageTracker.vue"
 
 import { getCompanyCurrency } from "@/data/currencies"
 import { formatCurrency } from "@/utils/formatters"
@@ -176,6 +225,7 @@ import { formatCurrency } from "@/utils/formatters"
 import useWorkflow from "@/composables/workflow"
 
 const __ = inject("$translate")
+const employee = inject("$employee")
 
 const props = defineProps({
 	fields: {
@@ -231,6 +281,13 @@ const permittedWriteFields = createResource({
 	auto: true,
 })
 
+// Fetch secondary approval details (avatars, stage)
+const approvalDetails = createResource({
+	url: "hrms.hr.doctype.leave_application.leave_application.get_secondary_approval_details",
+	params: { leave_application: props.modelValue.name },
+	auto: props.modelValue.doctype === "Leave Application",
+})
+
 function hasPermission(action) {
 	if (action === "approval")
 		return permittedWriteFields.data?.includes(approvalField.value)
@@ -255,8 +312,6 @@ const fieldsWithValues = computed(() => {
 			)
 		} else {
 			if (field.fieldtype === "Table") {
-				// dynamically loading child table component as per config
-				// does not work with @ alias due to vite's import analysis
 				field.component = defineAsyncComponent(() =>
 					import(`../components/${field.componentName}.vue`)
 				)
@@ -273,6 +328,51 @@ const approvalField = computed(() => {
 	return props.modelValue.doctype === "Expense Claim"
 		? "approval_status"
 		: "status"
+})
+
+// Two-level approval computed properties
+const isLeaveWithSecondaryApprover = computed(() => {
+	return (
+		props.modelValue.doctype === "Leave Application" &&
+		document.doc?.custom_secondary_leave_approver
+	)
+})
+
+const isSecondaryApproverPending = computed(() => {
+	return (
+		isLeaveWithSecondaryApprover.value &&
+		document.doc?.custom_approval_stage === "Pending Secondary Approver" &&
+		employee.data?.user_id === document.doc?.custom_secondary_leave_approver &&
+		document.doc?.docstatus === 0
+	)
+})
+
+const isPendingSecondaryByOther = computed(() => {
+	return (
+		isLeaveWithSecondaryApprover.value &&
+		document.doc?.custom_approval_stage === "Pending Secondary Approver" &&
+		employee.data?.user_id !== document.doc?.custom_secondary_leave_approver &&
+		document.doc?.docstatus === 0
+	)
+})
+
+const canShowSubmitButton = computed(() => {
+	if (!document?.doc || document.doc.docstatus !== 0) return false
+	const isAttendanceReq = document.doc.doctype === "Attendance Request"
+	const isApprovedOrRejected = ["Approved", "Rejected"].includes(document.doc[approvalField.value])
+
+	if (!(isAttendanceReq || isApprovedOrRejected)) return false
+	if (!hasPermission("submit")) return false
+
+	// Block submit for leave applications pending secondary approval
+	if (
+		isLeaveWithSecondaryApprover.value &&
+		document.doc.custom_approval_stage === "Pending Secondary Approver"
+	) {
+		return false
+	}
+
+	return true
 })
 
 const getSuccessMessage = ({ status = "", docstatus = 0 }) => {
@@ -324,6 +424,39 @@ const updateDocumentStatus = ({ status = "", docstatus = 0 }) => {
 			},
 		}
 	)
+}
+
+function handleSecondaryAction(action) {
+	const method = action === "approve"
+		? "hrms.hr.doctype.leave_application.leave_application.secondary_approve"
+		: "hrms.hr.doctype.leave_application.leave_application.secondary_reject"
+
+	const label = action === "approve" ? __("Approving...") : __("Rejecting...")
+
+	createResource({
+		url: method,
+		params: { leave_application: props.modelValue.name },
+		auto: true,
+		onSuccess(data) {
+			modalController.dismiss()
+			toast({
+				title: __("Success"),
+				text: data.message,
+				icon: "check-circle",
+				position: "bottom-center",
+				iconClasses: action === "approve" ? "text-green-500" : "text-red-500",
+			})
+		},
+		onError() {
+			toast({
+				title: __("Error"),
+				text: __("Action failed. Please try again."),
+				icon: "alert-circle",
+				position: "bottom-center",
+				iconClasses: "text-red-500",
+			})
+		},
+	})
 }
 
 const openFormView = () => {
