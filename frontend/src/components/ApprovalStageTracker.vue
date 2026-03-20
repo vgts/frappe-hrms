@@ -4,19 +4,12 @@
 			<!-- Leave Approver -->
 			<div class="flex flex-col items-center gap-2 min-w-[72px]">
 				<div class="relative">
-					<img
-						v-if="approvalDetails.data.leave_approver_image"
-						:src="approvalDetails.data.leave_approver_image"
-						class="w-10 h-10 rounded-full object-cover border-2"
+					<EmployeeAvatar
+						:userID="approvalDetails.data.leave_approver"
+						size="xl"
+						class="border-2 rounded-full"
 						:class="approverBorderColor"
 					/>
-					<div
-						v-else
-						class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold border-2"
-						:class="[approverBorderColor, approverBgColor]"
-					>
-						{{ getInitials(approvalDetails.data.leave_approver_name) }}
-					</div>
 					<div
 						class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold"
 						:class="approverBadgeColor"
@@ -38,19 +31,12 @@
 			<!-- Secondary Approver -->
 			<div class="flex flex-col items-center gap-2 min-w-[72px]">
 				<div class="relative">
-					<img
-						v-if="approvalDetails.data.secondary_approver_image"
-						:src="approvalDetails.data.secondary_approver_image"
-						class="w-10 h-10 rounded-full object-cover border-2"
+					<EmployeeAvatar
+						:userID="approvalDetails.data.secondary_leave_approver"
+						size="xl"
+						class="border-2 rounded-full"
 						:class="secondaryBorderColor"
 					/>
-					<div
-						v-else
-						class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold border-2"
-						:class="[secondaryBorderColor, secondaryBgColor]"
-					>
-						{{ getInitials(approvalDetails.data.secondary_approver_name) }}
-					</div>
 					<div
 						class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold"
 						:class="secondaryBadgeColor"
@@ -79,6 +65,7 @@
 <script setup>
 import { computed, inject } from "vue"
 import { FeatherIcon } from "frappe-ui"
+import EmployeeAvatar from "@/components/EmployeeAvatar.vue"
 
 const __ = inject("$translate")
 
@@ -89,19 +76,10 @@ const props = defineProps({
 
 const stage = computed(() => props.doc?.custom_approval_stage || "")
 
-function getInitials(name) {
-	if (!name) return "?"
-	return name.split(" ").map(w => w[0]).join("").substring(0, 2).toUpperCase()
-}
-
 // Approver (Level 1) styles
 const approverBorderColor = computed(() => {
 	if (stage.value === "Pending Project Reporting Approval") return "border-yellow-400"
 	return "border-green-500"
-})
-const approverBgColor = computed(() => {
-	if (stage.value === "Pending Project Reporting Approval") return "bg-yellow-50 text-yellow-700"
-	return "bg-green-50 text-green-700"
 })
 const approverBadgeColor = computed(() => {
 	if (stage.value === "Pending Project Reporting Approval") return "bg-yellow-400"
@@ -118,12 +96,6 @@ const secondaryBorderColor = computed(() => {
 	if (stage.value === "Rejected") return "border-red-500"
 	if (stage.value === "Pending Secondary Reporting Approval") return "border-yellow-400"
 	return "border-gray-300"
-})
-const secondaryBgColor = computed(() => {
-	if (stage.value === "Approved") return "bg-green-50 text-green-700"
-	if (stage.value === "Rejected") return "bg-red-50 text-red-700"
-	if (stage.value === "Pending Secondary Reporting Approval") return "bg-yellow-50 text-yellow-700"
-	return "bg-gray-100 text-gray-400"
 })
 const secondaryBadgeColor = computed(() => {
 	if (stage.value === "Approved") return "bg-green-500"

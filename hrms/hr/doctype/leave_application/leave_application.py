@@ -1692,15 +1692,23 @@ def secondary_reject(leave_application, reason=None):
 def get_secondary_approval_details(leave_application):
 	"""Return approval stage info with avatar details for the frontend."""
 	doc = frappe.get_doc("Leave Application", leave_application)
-	approver_image = frappe.db.get_value("User", doc.leave_approver, "user_image") if doc.leave_approver else None
-	secondary_image = frappe.db.get_value("User", doc.custom_secondary_leave_approver, "user_image") if doc.custom_secondary_leave_approver else None
+
+	def _get_user_image(user_id):
+		"""Get user image, fallback to employee image."""
+		if not user_id:
+			return None
+		image = frappe.db.get_value("User", user_id, "user_image")
+		if not image:
+			# Fallback: get employee image by user_id
+			image = frappe.db.get_value("Employee", {"user_id": user_id}, "image")
+		return image
 
 	return {
 		"approval_stage": doc.custom_approval_stage,
 		"leave_approver": doc.leave_approver,
 		"leave_approver_name": doc.leave_approver_name,
-		"leave_approver_image": approver_image,
+		"leave_approver_image": _get_user_image(doc.leave_approver),
 		"secondary_leave_approver": doc.custom_secondary_leave_approver,
 		"secondary_approver_name": doc.custom_secondary_approver_name,
-		"secondary_approver_image": secondary_image,
+		"secondary_approver_image": _get_user_image(doc.custom_secondary_leave_approver),
 	}
