@@ -410,12 +410,25 @@ function hrms_handle_secondary_approval(frm) {
 		}, __("Secondary Approver"));
 
 		frm.add_custom_button(__("Reject"), () => {
-			frappe.confirm(
-				__("Reject this Leave Application?"),
-				() => {
+			let d = new frappe.ui.Dialog({
+				title: __("Reject Leave Application"),
+				fields: [
+					{
+						fieldname: "reason",
+						fieldtype: "Small Text",
+						label: __("Reason for Rejection"),
+						reqd: 1,
+					},
+				],
+				primary_action_label: __("Reject"),
+				primary_action(values) {
+					d.hide();
 					frappe.call({
 						method: "hrms.hr.doctype.leave_application.leave_application.secondary_reject",
-						args: { leave_application: frm.doc.name },
+						args: {
+							leave_application: frm.doc.name,
+							reason: values.reason,
+						},
 						freeze: true,
 						freeze_message: __("Rejecting..."),
 						callback(r) {
@@ -425,8 +438,9 @@ function hrms_handle_secondary_approval(frm) {
 							}
 						},
 					});
-				}
-			);
+				},
+			});
+			d.show();
 		}, __("Secondary Approver"));
 
 		frm.change_custom_button_type(__("Approve & Submit"), __("Secondary Approver"), "primary");

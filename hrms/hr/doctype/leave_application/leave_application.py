@@ -114,8 +114,8 @@ class LeaveApplication(Document, PWANotificationsMixin):
 			self.custom_approval_stage = "Approved"
 			return
 
-		# Already fully approved
-		if self.custom_approval_stage == "Approved":
+		# Already fully approved or rejected by secondary
+		if self.custom_approval_stage in ("Approved", "Rejected"):
 			return
 
 		# Anyone else — forward to secondary silently (revert docstatus so doc stays draft)
@@ -1658,8 +1658,11 @@ def secondary_approve(leave_application):
 
 
 @frappe.whitelist()
-def secondary_reject(leave_application):
-	"""Secondary approver rejects the leave application."""
+def secondary_reject(leave_application, reason=None):
+	"""Secondary approver rejects — set rejected, submit then cancel so it goes to Cancelled."""
+	if not reason:
+		frappe.throw(_("Please provide a reason for rejection."))
+
 	doc = frappe.get_doc("Leave Application", leave_application)
 
 	if frappe.session.user != doc.custom_secondary_leave_approver:
@@ -1668,12 +1671,21 @@ def secondary_reject(leave_application):
 	if doc.custom_approval_stage != "Pending Secondary Reporting Approval":
 		frappe.throw(_("This leave application is not pending secondary approval."))
 
+	# Set rejected status and stage
 	doc.status = "Rejected"
 	doc.custom_approval_stage = "Rejected"
 	doc.flags.ignore_permissions = True
-	doc.save()
+	doc.submit()
 
-	return {"status": "success", "message": _("Leave Application rejected by Secondary Approver.")}
+	# Cancel the submitted doc so it goes to Cancelled stage
+	doc.reload()
+	doc.flags.ignore_permissions = True
+	doc.cancel()
+
+	# Add rejection reason as a comment
+	doc.add_comment("Comment", _("Rejected by Secondary Approver: {0}").format(reason))
+
+	return {"status": "success", "message": _("Leave Application rejected and cancelled.")}
 
 
 @frappe.whitelist()

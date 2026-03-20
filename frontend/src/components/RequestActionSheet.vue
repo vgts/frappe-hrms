@@ -95,9 +95,19 @@
 			<div class="text-center text-sm font-medium text-yellow-700 bg-yellow-50 rounded-lg p-2 mb-1">
 				{{ __("Waiting for your approval") }}
 			</div>
+			<!-- Rejection reason input -->
+			<div v-if="showRejectReason" class="w-full mb-2">
+				<label class="text-sm text-gray-600 mb-1 block">{{ __("Reason for Rejection") }} *</label>
+				<textarea
+					v-model="rejectReason"
+					class="w-full border rounded-lg p-2 text-sm min-h-[80px] focus:outline-none focus:ring-2 focus:ring-red-300"
+					:placeholder="__('Enter reason for rejection...')"
+				></textarea>
+			</div>
 			<div class="flex flex-row items-center justify-between gap-3">
 				<Button
-					@click="handleSecondaryAction('reject')"
+					v-if="!showRejectReason"
+					@click="showRejectReason = true"
 					class="w-full py-5"
 					variant="subtle"
 					theme="red"
@@ -106,6 +116,19 @@
 						<FeatherIcon name="x" class="w-4" />
 					</template>
 					{{ __("Reject") }}
+				</Button>
+				<Button
+					v-else
+					@click="handleSecondaryAction('reject')"
+					class="w-full py-5"
+					variant="subtle"
+					theme="red"
+					:disabled="!rejectReason?.trim()"
+				>
+					<template #prefix>
+						<FeatherIcon name="x" class="w-4" />
+					</template>
+					{{ __("Confirm Reject") }}
 				</Button>
 				<Button
 					@click="handleSecondaryAction('approve')"
@@ -246,6 +269,8 @@ const router = useRouter()
 let showPreviewModal = ref(false)
 let selectedFile = ref({})
 let workflow = ref(null)
+let showRejectReason = ref(false)
+let rejectReason = ref("")
 
 function showFilePreview(fileObj) {
 	selectedFile.value = fileObj
@@ -431,11 +456,15 @@ function handleSecondaryAction(action) {
 		? "hrms.hr.doctype.leave_application.leave_application.secondary_approve"
 		: "hrms.hr.doctype.leave_application.leave_application.secondary_reject"
 
-	const label = action === "approve" ? __("Approving...") : __("Rejecting...")
+	let params = { leave_application: props.modelValue.name }
+	if (action === "reject") {
+		if (!rejectReason.value?.trim()) return
+		params.reason = rejectReason.value.trim()
+	}
 
 	createResource({
 		url: method,
-		params: { leave_application: props.modelValue.name },
+		params: params,
 		auto: true,
 		onSuccess(data) {
 			modalController.dismiss()

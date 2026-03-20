@@ -36,13 +36,33 @@
 								{{ __("Waiting for your approval") }}
 							</div>
 							<div class="flex flex-row gap-3">
+								<!-- Rejection reason input -->
+								<div v-if="showRejectReason" class="w-full mb-2">
+									<label class="text-sm text-gray-600 mb-1 block">{{ __("Reason for Rejection") }} *</label>
+									<textarea
+										v-model="rejectReason"
+										class="w-full border rounded-lg p-2 text-sm min-h-[80px] focus:outline-none focus:ring-2 focus:ring-red-300"
+										:placeholder="__('Enter reason for rejection...')"
+									></textarea>
+								</div>
 								<Button
-									@click="handleSecondaryAction('reject')"
+									v-if="!showRejectReason"
+									@click="showRejectReason = true"
 									class="w-full py-5"
 									variant="subtle"
 									theme="red"
 								>
 									{{ __("Reject") }}
+								</Button>
+								<Button
+									v-else
+									@click="handleSecondaryAction('reject')"
+									class="w-full py-5"
+									variant="subtle"
+									theme="red"
+									:disabled="!rejectReason?.trim()"
+								>
+									{{ __("Confirm Reject") }}
 								</Button>
 								<Button
 									@click="handleSecondaryAction('approve')"
@@ -163,14 +183,23 @@ const showSecondaryActions = computed(() => {
 	)
 })
 
+const showRejectReason = ref(false)
+const rejectReason = ref("")
+
 function handleSecondaryAction(action) {
 	const method = action === "approve"
 		? "hrms.hr.doctype.leave_application.leave_application.secondary_approve"
 		: "hrms.hr.doctype.leave_application.leave_application.secondary_reject"
 
+	let params = { leave_application: props.id }
+	if (action === "reject") {
+		if (!rejectReason.value?.trim()) return
+		params.reason = rejectReason.value.trim()
+	}
+
 	createResource({
 		url: method,
-		params: { leave_application: props.id },
+		params: params,
 		auto: true,
 		onSuccess(data) {
 			toast({
