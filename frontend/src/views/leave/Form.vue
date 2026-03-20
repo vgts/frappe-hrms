@@ -1,6 +1,10 @@
 <template>
 	<ion-page>
 		<ion-content :fullscreen="true">
+			<!-- VGTS deploy test - remove after confirming -->
+			<div style="background:#22c55e;color:white;text-align:center;padding:8px;font-size:13px;font-weight:600;">
+				VGTS HRMS v2 - Two Level Approval Active
+			</div>
 			<FormView
 				v-if="formFields.data"
 				doctype="Leave Application"
