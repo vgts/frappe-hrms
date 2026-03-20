@@ -4,8 +4,9 @@
 			<!-- Leave Approver -->
 			<div class="flex flex-col items-center gap-2 min-w-[72px]">
 				<div class="relative">
-					<EmployeeAvatar
-						:userID="approvalDetails.data.leave_approver"
+					<Avatar
+						:label="approvalDetails.data.leave_approver_name || 'Leave Approver'"
+						:image="approvalDetails.data.leave_approver_image"
 						size="xl"
 						class="border-2 rounded-full"
 						:class="approverBorderColor"
@@ -31,8 +32,9 @@
 			<!-- Secondary Approver -->
 			<div class="flex flex-col items-center gap-2 min-w-[72px]">
 				<div class="relative">
-					<EmployeeAvatar
-						:userID="approvalDetails.data.secondary_leave_approver"
+					<Avatar
+						:label="approvalDetails.data.secondary_approver_name || 'Secondary Approver'"
+						:image="approvalDetails.data.secondary_approver_image"
 						size="xl"
 						class="border-2 rounded-full"
 						:class="secondaryBorderColor"
@@ -64,8 +66,7 @@
 
 <script setup>
 import { computed, inject } from "vue"
-import { FeatherIcon } from "frappe-ui"
-import EmployeeAvatar from "@/components/EmployeeAvatar.vue"
+import { Avatar, FeatherIcon } from "frappe-ui"
 
 const __ = inject("$translate")
 
@@ -79,33 +80,36 @@ const stage = computed(() => props.doc?.custom_approval_stage || "")
 // Approver (Level 1) styles
 const approverBorderColor = computed(() => {
 	if (stage.value === "Pending Project Reporting Approval") return "border-yellow-400"
+	if (stage.value === "Rejected") return "border-red-500"
 	return "border-green-500"
 })
 const approverBadgeColor = computed(() => {
 	if (stage.value === "Pending Project Reporting Approval") return "bg-yellow-400"
+	if (stage.value === "Rejected") return "bg-red-500"
 	return "bg-green-500"
 })
 const approverIcon = computed(() => {
 	if (stage.value === "Pending Project Reporting Approval") return "…"
+	if (stage.value === "Rejected") return "✗"
 	return "✓"
 })
 
 // Secondary (Level 2) styles
 const secondaryBorderColor = computed(() => {
 	if (stage.value === "Approved") return "border-green-500"
-	if (stage.value === "Rejected") return "border-red-500"
+	if (stage.value === "Rejected") return "border-gray-300"
 	if (stage.value === "Pending Secondary Reporting Approval") return "border-yellow-400"
 	return "border-gray-300"
 })
 const secondaryBadgeColor = computed(() => {
 	if (stage.value === "Approved") return "bg-green-500"
-	if (stage.value === "Rejected") return "bg-red-500"
+	if (stage.value === "Rejected") return "bg-gray-300"
 	if (stage.value === "Pending Secondary Reporting Approval") return "bg-yellow-400"
 	return "bg-gray-300"
 })
 const secondaryIcon = computed(() => {
 	if (stage.value === "Approved") return "✓"
-	if (stage.value === "Rejected") return "✗"
+	if (stage.value === "Rejected") return "○"
 	if (stage.value === "Pending Secondary Reporting Approval") return "…"
 	return "○"
 })

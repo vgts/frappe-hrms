@@ -22,16 +22,61 @@
 							:approvalDetails="approvalDetails"
 						/>
 
+						<!-- Project Reporting (Primary) approver buttons -->
+						<template v-if="isProjectReportingPending">
+							<div class="text-center text-sm font-medium text-yellow-700 bg-yellow-50 rounded-lg p-2 mb-1">
+								{{ __("Waiting for your approval") }}
+							</div>
+							<!-- Rejection reason input -->
+							<div v-if="showPrimaryRejectReason" class="w-full mb-2">
+								<label class="text-sm text-gray-600 mb-1 block">{{ __("Reason for Rejection") }} *</label>
+								<textarea
+									v-model="primaryRejectReason"
+									class="w-full border rounded-lg p-2 text-sm min-h-[80px] focus:outline-none focus:ring-2 focus:ring-red-300"
+									:placeholder="__('Enter reason for rejection...')"
+								></textarea>
+							</div>
+							<div class="flex flex-row gap-3">
+								<Button
+									v-if="!showPrimaryRejectReason"
+									@click="showPrimaryRejectReason = true"
+									class="w-full py-5"
+									variant="subtle"
+									theme="red"
+								>
+									{{ __("Reject") }}
+								</Button>
+								<Button
+									v-else
+									@click="handlePrimaryReject"
+									class="w-full py-5"
+									variant="subtle"
+									theme="red"
+									:disabled="!primaryRejectReason?.trim()"
+								>
+									{{ __("Confirm Reject") }}
+								</Button>
+								<Button
+									@click="handlePrimaryApprove"
+									class="w-full py-5"
+									variant="solid"
+									theme="green"
+								>
+									{{ __("Approve") }}
+								</Button>
+							</div>
+						</template>
+
 						<!-- Waiting message for non-secondary users -->
 						<div
-							v-if="isPendingSecondaryByOther"
+							v-else-if="isPendingSecondaryByOther"
 							class="text-center text-sm font-medium text-blue-700 bg-blue-50 rounded-lg p-3"
 						>
 							{{ __("Forwarded to {0} for secondary approval", [leaveApplication.custom_secondary_approver_name || leaveApplication.custom_secondary_leave_approver]) }}
 						</div>
 
 						<!-- Secondary approver buttons -->
-						<template v-if="isSecondaryApproverPending">
+						<template v-else-if="isSecondaryApproverPending">
 							<div class="text-center text-sm font-medium text-yellow-700 bg-yellow-50 rounded-lg p-2 mb-1">
 								{{ __("Waiting for your approval") }}
 							</div>
@@ -174,17 +219,31 @@ const isPendingSecondaryByOther = computed(() => {
 	)
 })
 
+const isProjectReportingPending = computed(() => {
+	return (
+		props.id &&
+		leaveApplication.value.custom_secondary_leave_approver &&
+		leaveApplication.value.custom_approval_stage === "Pending Project Reporting Approval" &&
+		leaveApplication.value.status === "Open" &&
+		leaveApplication.value.docstatus === 0 &&
+		sessionEmployee.data?.user_id === leaveApplication.value.leave_approver
+	)
+})
+
 const showSecondaryActions = computed(() => {
 	return (
 		props.id &&
 		leaveApplication.value.custom_secondary_leave_approver &&
-		leaveApplication.value.custom_approval_stage === "Pending Secondary Reporting Approval" &&
+		(leaveApplication.value.custom_approval_stage === "Pending Secondary Reporting Approval" ||
+		isProjectReportingPending.value) &&
 		leaveApplication.value.docstatus === 0
 	)
 })
 
 const showRejectReason = ref(false)
 const rejectReason = ref("")
+const showPrimaryRejectReason = ref(false)
+const primaryRejectReason = ref("")
 
 function handleSecondaryAction(action) {
 	const method = action === "approve"
@@ -215,6 +274,70 @@ function handleSecondaryAction(action) {
 			toast({
 				title: __("Error"),
 				text: __("Action failed. Please try again."),
+				icon: "alert-circle",
+				position: "bottom-center",
+				iconClasses: "text-red-500",
+			})
+		},
+	})
+}
+
+function handlePrimaryReject() {
+	if (!primaryRejectReason.value?.trim()) return
+
+	createResource({
+		url: "hrms.hr.doctype.leave_application.leave_application.project_reporting_reject",
+		params: {
+			leave_application: props.id,
+			reason: primaryRejectReason.value.trim(),
+		},
+		auto: true,
+		onSuccess(data) {
+			toast({
+				title: __("Success"),
+				text: data.message,
+				icon: "check-circle",
+				position: "bottom-center",
+				iconClasses: "text-red-500",
+			})
+			router.back()
+		},
+		onError() {
+			toast({
+				title: __("Error"),
+				text: __("Action failed. Please try again."),
+				icon: "alert-circle",
+				position: "bottom-center",
+				iconClasses: "text-red-500",
+			})
+		},
+	})
+}
+
+function handlePrimaryApprove() {
+	createResource({
+		url: "frappe.client.set_value",
+		params: {
+			doctype: "Leave Application",
+			name: props.id,
+			fieldname: "status",
+			value: "Approved",
+		},
+		auto: true,
+		onSuccess() {
+			toast({
+				title: __("Success"),
+				text: __("Leave Application approved and forwarded for secondary approval."),
+				icon: "check-circle",
+				position: "bottom-center",
+				iconClasses: "text-green-500",
+			})
+			router.back()
+		},
+		onError() {
+			toast({
+				title: __("Error"),
+				text: __("Approval failed. Please try again."),
 				icon: "alert-circle",
 				position: "bottom-center",
 				iconClasses: "text-red-500",

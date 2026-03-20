@@ -154,7 +154,61 @@
 			</div>
 		</div>
 
-		<!-- Primary Approver: Approve/Reject (standard flow) -->
+		<!-- Project Reporting (Primary) Approver: Approve/Reject with reason for leave applications -->
+		<div
+			v-else-if="isProjectReportingPending"
+			class="flex w-full flex-col gap-3 sticky bottom-0 border-t z-[100] p-4"
+		>
+			<!-- Rejection reason input -->
+			<div v-if="showPrimaryRejectReason" class="w-full mb-2">
+				<label class="text-sm text-gray-600 mb-1 block">{{ __("Reason for Rejection") }} *</label>
+				<textarea
+					v-model="primaryRejectReason"
+					class="w-full border rounded-lg p-2 text-sm min-h-[80px] focus:outline-none focus:ring-2 focus:ring-red-300"
+					:placeholder="__('Enter reason for rejection...')"
+				></textarea>
+			</div>
+			<div class="flex flex-row items-center justify-between gap-3">
+				<Button
+					v-if="!showPrimaryRejectReason"
+					@click="showPrimaryRejectReason = true"
+					class="w-full py-5"
+					variant="subtle"
+					theme="red"
+				>
+					<template #prefix>
+						<FeatherIcon name="x" class="w-4" />
+					</template>
+					{{ __("Reject") }}
+				</Button>
+				<Button
+					v-else
+					@click="handlePrimaryReject"
+					class="w-full py-5"
+					variant="subtle"
+					theme="red"
+					:disabled="!primaryRejectReason?.trim()"
+				>
+					<template #prefix>
+						<FeatherIcon name="x" class="w-4" />
+					</template>
+					{{ __("Confirm Reject") }}
+				</Button>
+				<Button
+					@click="updateDocumentStatus({ status: 'Approved' })"
+					class="w-full py-5"
+					variant="solid"
+					theme="green"
+				>
+					<template #prefix>
+						<FeatherIcon name="check" class="w-4" />
+					</template>
+					{{ __("Approve") }}
+				</Button>
+			</div>
+		</div>
+
+		<!-- Primary Approver: Approve/Reject (standard flow for non-leave or no secondary approver) -->
 		<div
 			v-else-if="['Open', 'Draft'].includes(document?.doc?.[approvalField]) && hasPermission('approval')"
 			class="flex w-full flex-row items-center justify-between gap-3 sticky bottom-0 border-t z-[100] p-4"
@@ -271,6 +325,8 @@ let selectedFile = ref({})
 let workflow = ref(null)
 let showRejectReason = ref(false)
 let rejectReason = ref("")
+let showPrimaryRejectReason = ref(false)
+let primaryRejectReason = ref("")
 
 function showFilePreview(fileObj) {
 	selectedFile.value = fileObj
@@ -372,6 +428,16 @@ const isSecondaryApproverPending = computed(() => {
 	)
 })
 
+const isProjectReportingPending = computed(() => {
+	return (
+		isLeaveWithSecondaryApprover.value &&
+		document.doc?.custom_approval_stage === "Pending Project Reporting Approval" &&
+		document.doc?.status === "Open" &&
+		document.doc?.docstatus === 0 &&
+		hasPermission("approval")
+	)
+})
+
 const isPendingSecondaryByOther = computed(() => {
 	return (
 		isLeaveWithSecondaryApprover.value &&
@@ -389,10 +455,10 @@ const canShowSubmitButton = computed(() => {
 	if (!(isAttendanceReq || isApprovedOrRejected)) return false
 	if (!hasPermission("submit")) return false
 
-	// Block submit for leave applications pending secondary approval
+	// Block submit for leave applications pending approval at any level
 	if (
 		isLeaveWithSecondaryApprover.value &&
-		document.doc.custom_approval_stage === "Pending Secondary Reporting Approval"
+		["Pending Project Reporting Approval", "Pending Secondary Reporting Approval"].includes(document.doc.custom_approval_stage)
 	) {
 		return false
 	}
@@ -474,6 +540,38 @@ function handleSecondaryAction(action) {
 				icon: "check-circle",
 				position: "bottom-center",
 				iconClasses: action === "approve" ? "text-green-500" : "text-red-500",
+			})
+		},
+		onError() {
+			toast({
+				title: __("Error"),
+				text: __("Action failed. Please try again."),
+				icon: "alert-circle",
+				position: "bottom-center",
+				iconClasses: "text-red-500",
+			})
+		},
+	})
+}
+
+function handlePrimaryReject() {
+	if (!primaryRejectReason.value?.trim()) return
+
+	createResource({
+		url: "hrms.hr.doctype.leave_application.leave_application.project_reporting_reject",
+		params: {
+			leave_application: props.modelValue.name,
+			reason: primaryRejectReason.value.trim(),
+		},
+		auto: true,
+		onSuccess(data) {
+			modalController.dismiss()
+			toast({
+				title: __("Success"),
+				text: data.message,
+				icon: "check-circle",
+				position: "bottom-center",
+				iconClasses: "text-red-500",
 			})
 		},
 		onError() {
