@@ -432,9 +432,25 @@ function getFilteredFields(fields) {
 }
 
 function setFormReadOnly() {
-	if (leaveApplication.value.leave_approver === sessionEmployee.data.user_id) return
-	if (leaveApplication.value.custom_secondary_leave_approver === sessionEmployee.data.user_id) return
-	formFields.data.map((field) => (field.read_only = true))
+	const userId = sessionEmployee.data.user_id
+	const isApprover = userId === leaveApplication.value.leave_approver ||
+		userId === leaveApplication.value.custom_secondary_leave_approver
+
+	if (isApprover) {
+		// Approvers can only change status — lock all content fields
+		const contentFields = [
+			"leave_type", "from_date", "to_date", "half_day", "half_day_date",
+			"description", "total_leave_days", "leave_balance", "posting_date",
+		]
+		formFields.data.forEach((field) => {
+			if (contentFields.includes(field.fieldname)) {
+				field.read_only = true
+			}
+		})
+	} else {
+		// Not the employee and not an approver — full read-only
+		formFields.data.forEach((field) => (field.read_only = true))
+	}
 }
 
 function validateDates(from_date, to_date) {

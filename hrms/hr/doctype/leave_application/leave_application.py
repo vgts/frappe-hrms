@@ -76,6 +76,7 @@ class LeaveApplication(Document, PWANotificationsMixin):
 	def validate(self):
 		validate_active_employee(self.employee)
 		set_employee_name(self)
+		self.validate_approver_cannot_edit_content()
 		self.validate_dates()
 		self.validate_balance_leaves()
 		self.validate_leave_overlap()
@@ -90,6 +91,37 @@ class LeaveApplication(Document, PWANotificationsMixin):
 		self.validate_applicable_after()
 		self.set_secondary_leave_approver()
 		self.set_approval_stage()
+
+	def validate_approver_cannot_edit_content(self):
+		"""Prevent approvers from modifying leave content fields."""
+		if self.is_new() or self.docstatus != 0:
+			return
+
+		user = frappe.session.user
+		if user == "Administrator":
+			return
+
+		is_approver = user in (self.leave_approver, self.custom_secondary_leave_approver)
+		if not is_approver:
+			return
+
+		# Check if user is also the employee
+		employee_user = frappe.db.get_value("Employee", self.employee, "user_id")
+		if employee_user == user:
+			return
+
+		# Approver is editing — check if content fields were changed
+		content_fields = [
+			"leave_type", "from_date", "to_date", "half_day", "half_day_date",
+			"description", "total_leave_days", "posting_date",
+		]
+		for field in content_fields:
+			if self.has_value_changed(field):
+				frappe.throw(
+					_("Approvers cannot modify {0}. Only the employee can edit leave details.").format(
+						frappe.bold(self.meta.get_label(field))
+					)
+				)
 
 	def on_update(self):
 		if self.status == "Open" and self.docstatus < 1:

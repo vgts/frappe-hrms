@@ -114,6 +114,9 @@ frappe.ui.form.on("Leave Application", {
 		}
 		frm.trigger("set_form_buttons");
 
+		// Make fields read-only for approvers (they can only approve/reject, not edit)
+		hrms_set_approver_readonly(frm);
+
 		// Two-level approval UI
 		hrms_show_approval_stage_tracker(frm);
 		hrms_handle_secondary_approval(frm);
@@ -300,6 +303,38 @@ frappe.ui.form.on("Leave Application", {
 		frm.trigger("get_leave_balance");
 	},
 });
+
+// ---------------------------------------------------------------------------
+// Make leave application fields read-only for approvers
+// ---------------------------------------------------------------------------
+
+function hrms_set_approver_readonly(frm) {
+	if (frm.is_new() || frm.doc.docstatus !== 0) return;
+
+	const user = frappe.session.user;
+	const isApprover = user === frm.doc.leave_approver ||
+		user === frm.doc.custom_secondary_leave_approver;
+
+	// Get employee's user_id to check if current user is the employee
+	const employeeUserId = frm.doc.__onload?.employee_user_id;
+
+	if (!isApprover) return;
+
+	// Check if current user is also the employee (self-approval case)
+	frappe.db.get_value("Employee", frm.doc.employee, "user_id", (r) => {
+		if (r && r.user_id === user) return; // Employee viewing own application
+
+		// Approver viewing — lock all content fields
+		const readonlyFields = [
+			"leave_type", "from_date", "to_date", "half_day", "half_day_date",
+			"description", "follow_via_email", "total_leave_days",
+			"leave_balance", "posting_date", "employee", "employee_name",
+		];
+		readonlyFields.forEach((fieldname) => {
+			frm.set_df_property(fieldname, "read_only", 1);
+		});
+	});
+}
 
 // ---------------------------------------------------------------------------
 // Two-level approval: stage tracker with avatars + secondary approve buttons
