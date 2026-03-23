@@ -124,7 +124,7 @@ function areg_show_approval_stage_tracker(frm) {
 
 	frappe.call({
 		method: "hrms.hr.doctype.attendance_regularization.attendance_regularization.get_regularization_approval_details",
-		args: { name: frm.doc.name },
+		args: { attendance_regularization: frm.doc.name },
 		callback(r) {
 			if (!r.message) return;
 			const d = r.message;
@@ -215,7 +215,7 @@ function areg_handle_secondary_approval(frm) {
 					frappe.call({
 						method: "hrms.hr.doctype.attendance_regularization.attendance_regularization.regularization_project_reporting_reject",
 						args: {
-							name: frm.doc.name,
+							attendance_regularization: frm.doc.name,
 							reason: values.reason,
 						},
 						freeze: true,
@@ -249,7 +249,7 @@ function areg_handle_secondary_approval(frm) {
 				() => {
 					frappe.call({
 						method: "hrms.hr.doctype.attendance_regularization.attendance_regularization.regularization_secondary_approve",
-						args: { name: frm.doc.name },
+						args: { attendance_regularization: frm.doc.name },
 						freeze: true,
 						freeze_message: __("Approving..."),
 						callback(r) {
@@ -280,7 +280,7 @@ function areg_handle_secondary_approval(frm) {
 					frappe.call({
 						method: "hrms.hr.doctype.attendance_regularization.attendance_regularization.regularization_secondary_reject",
 						args: {
-							name: frm.doc.name,
+							attendance_regularization: frm.doc.name,
 							reason: values.reason,
 						},
 						freeze: true,

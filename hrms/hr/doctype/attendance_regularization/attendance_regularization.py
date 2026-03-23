@@ -274,12 +274,12 @@ class AttendanceRegularization(Document):
 
 
 @frappe.whitelist()
-def regularization_project_reporting_reject(name, reason=None):
+def regularization_project_reporting_reject(attendance_regularization, reason=None):
 	"""Project reporting (primary leave approver) rejects - set rejected, submit then cancel."""
 	if not reason:
 		frappe.throw(_("Please provide a reason for rejection."))
 
-	doc = frappe.get_doc("Attendance Regularization", name)
+	doc = frappe.get_doc("Attendance Regularization", attendance_regularization)
 
 	if frappe.session.user != doc.leave_approver:
 		frappe.throw(_("Only the Leave Approver can perform this action."))
@@ -311,9 +311,9 @@ def regularization_project_reporting_reject(name, reason=None):
 
 
 @frappe.whitelist()
-def regularization_secondary_approve(name):
+def regularization_secondary_approve(attendance_regularization):
 	"""Secondary approver approves - set fully approved and auto-submit."""
-	doc = frappe.get_doc("Attendance Regularization", name)
+	doc = frappe.get_doc("Attendance Regularization", attendance_regularization)
 
 	if frappe.session.user != doc.custom_secondary_leave_approver:
 		frappe.throw(_("Only the Secondary Leave Approver can perform this action."))
@@ -334,12 +334,12 @@ def regularization_secondary_approve(name):
 
 
 @frappe.whitelist()
-def regularization_secondary_reject(name, reason=None):
+def regularization_secondary_reject(attendance_regularization, reason=None):
 	"""Secondary approver rejects - set rejected, submit then cancel so it goes to Cancelled."""
 	if not reason:
 		frappe.throw(_("Please provide a reason for rejection."))
 
-	doc = frappe.get_doc("Attendance Regularization", name)
+	doc = frappe.get_doc("Attendance Regularization", attendance_regularization)
 
 	if frappe.session.user != doc.custom_secondary_leave_approver:
 		frappe.throw(_("Only the Secondary Leave Approver can perform this action."))
@@ -365,9 +365,9 @@ def regularization_secondary_reject(name, reason=None):
 
 
 @frappe.whitelist()
-def get_regularization_approval_details(name):
+def get_regularization_approval_details(attendance_regularization):
 	"""Return approval stage info with avatar details for the frontend."""
-	doc = frappe.get_doc("Attendance Regularization", name)
+	doc = frappe.get_doc("Attendance Regularization", attendance_regularization)
 
 	def _get_user_image(user_id):
 		"""Get user image, fallback to employee image."""
