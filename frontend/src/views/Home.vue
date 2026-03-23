@@ -4,8 +4,8 @@
 			<div class="flex flex-col items-center my-7 p-4 gap-7">
 				<CheckInPanel />
 				<TeamCheckinSummary />
-				<QuickLinks :items="quickLinks" :title="__('Quick Links')" />
 				<RequestPanel />
+				<QuickLinks :items="quickLinks" :title="__('Quick Links')" />
 			</div>
 		</template>
 	</BaseLayout>
