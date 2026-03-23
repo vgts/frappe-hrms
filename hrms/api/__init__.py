@@ -117,6 +117,11 @@ def mark_all_notifications_as_read() -> None:
 
 @frappe.whitelist()
 def are_push_notifications_enabled() -> bool:
+	# Check for direct FCM integration via site_config
+	if frappe.conf.get("fcm_config") and frappe.conf.get("fcm_project_id"):
+		return True
+
+	# Fallback: check legacy Push Notification Settings doctype
 	try:
 		return frappe.db.get_single_value("Push Notification Settings", "enable_push_notification_relay")
 	except frappe.DoesNotExistError:

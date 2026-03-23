@@ -29,6 +29,14 @@ def get_boot():
 		}
 	)
 
+	# FCM direct integration config
+	fcm_config = frappe.conf.get("fcm_config")
+	if fcm_config:
+		bootinfo.fcm_config = fcm_config
+	fcm_vapid_key = frappe.conf.get("fcm_vapid_key")
+	if fcm_vapid_key:
+		bootinfo.fcm_vapid_key = fcm_vapid_key
+
 	bootinfo.lang = frappe.local.lang
 	load_translations(bootinfo)
 

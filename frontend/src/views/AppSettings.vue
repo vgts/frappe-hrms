@@ -66,7 +66,7 @@ const isLoading = ref(false)
 const disablePushSetting = computed(() => {
 	return (
 		!(
-			window.frappe?.boot.push_relay_server_url &&
+			(window.frappe?.boot?.fcm_config || window.frappe?.boot?.push_relay_server_url) &&
 			arePushNotificationsEnabled.data
 		) || isLoading.value
 	)
@@ -74,7 +74,7 @@ const disablePushSetting = computed(() => {
 
 const description = computed(() => {
 	return !(
-		window.frappe?.boot.push_relay_server_url &&
+		(window.frappe?.boot?.fcm_config || window.frappe?.boot?.push_relay_server_url) &&
 		arePushNotificationsEnabled.data
 	)
 		? __("Push notifications have been disabled on your site")
