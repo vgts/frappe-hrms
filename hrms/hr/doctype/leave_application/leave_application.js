@@ -141,6 +141,8 @@ frappe.ui.form.on("Leave Application", {
 	},
 
 	leave_approver: function (frm) {
+		// Re-toggle approval section visibility now that approver is set
+		hrms_toggle_approval_section(frm);
 		if (frm.doc.leave_approver) {
 			frm.set_value("leave_approver_name", frappe.user.full_name(frm.doc.leave_approver));
 		}

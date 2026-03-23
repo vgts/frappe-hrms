@@ -359,6 +359,22 @@ watch(
 		leaveApprovalDetails.fetch({ employee: currEmployee.value })
 	}
 )
+// Reactively hide/show approval section based on whether approver is set
+watch(
+	() => leaveApplication.value.leave_approver,
+	(approver) => {
+		if (!formFields.data) return
+		const approvalFields = ["section_break_7", "leave_approver", "leave_approver_name", "column_break_18"]
+		const hasApprover = !!approver || !!leaveApplication.value.custom_secondary_leave_approver
+		formFields.data.forEach((field) => {
+			if (approvalFields.includes(field.fieldname)) {
+				field.hidden = !hasApprover
+			}
+		})
+	},
+	{ immediate: true }
+)
+
 watch(
 	() => leaveApplication.value.leave_type,
 	(leave_type) => setLeaveBalance(leave_type)
@@ -415,18 +431,6 @@ function getFilteredFields(fields) {
 		"custom_column_break_secondary",
 		"custom_approval_stage",
 	]
-
-	// Hide approval section and fields if no approver is configured
-	const hasApprover = leaveApplication.value.leave_approver ||
-		leaveApplication.value.custom_secondary_leave_approver
-	if (!hasApprover) {
-		excludeFields.push(
-			"section_break_7",       // "Approval" section label
-			"leave_approver",
-			"leave_approver_name",
-			"column_break_18",
-		)
-	}
 
 	const employeeFields = [
 		"employee",
