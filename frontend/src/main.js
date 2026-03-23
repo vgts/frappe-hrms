@@ -63,12 +63,15 @@ const registerServiceWorker = async () => {
 
 	if ("serviceWorker" in navigator) {
 		let serviceWorkerURL = "/assets/hrms/frontend/sw.js"
-		let config = window.frappe?.boot?.fcm_config || null
+		let config = ""
 
-		if (config) {
+		try {
+			config = await window.frappePushNotification.fetchWebConfig()
 			serviceWorkerURL = `${serviceWorkerURL}?config=${encodeURIComponent(
 				JSON.stringify(config)
 			)}`
+		} catch (err) {
+			console.error("Failed to fetch FCM config", err)
 		}
 
 		navigator.serviceWorker
