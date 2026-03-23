@@ -312,9 +312,15 @@ frappe.ui.form.on("Leave Application", {
 // ---------------------------------------------------------------------------
 
 function hrms_toggle_approval_section(frm) {
+	const hasApprover = frm.doc.leave_approver || frm.doc.custom_secondary_leave_approver;
 	const hasSecondaryApprover = !!frm.doc.custom_secondary_leave_approver;
 
-	// Hide the entire secondary approval section
+	// Hide the primary "Approval" section if no approver at all
+	frm.toggle_display("section_break_7", hasApprover);
+	frm.toggle_display("leave_approver", hasApprover);
+	frm.toggle_display("leave_approver_name", hasApprover);
+
+	// Hide the secondary approval section if no secondary approver
 	frm.toggle_display("custom_secondary_approval_section", hasSecondaryApprover);
 	frm.toggle_display("custom_secondary_leave_approver", hasSecondaryApprover);
 	frm.toggle_display("custom_secondary_approver_name", hasSecondaryApprover);

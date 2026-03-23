@@ -416,6 +416,18 @@ function getFilteredFields(fields) {
 		"custom_approval_stage",
 	]
 
+	// Hide approval section and fields if no approver is configured
+	const hasApprover = leaveApplication.value.leave_approver ||
+		leaveApplication.value.custom_secondary_leave_approver
+	if (!hasApprover) {
+		excludeFields.push(
+			"section_break_7",       // "Approval" section label
+			"leave_approver",
+			"leave_approver_name",
+			"column_break_18",
+		)
+	}
+
 	const employeeFields = [
 		"employee",
 		"employee_name",
