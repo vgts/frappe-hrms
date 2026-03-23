@@ -41,6 +41,9 @@
 		</ion-header>
 
 		<ion-content class="ion-no-padding">
+			<ion-refresher slot="fixed" @ionRefresh="handleRefresh">
+				<ion-refresher-content></ion-refresher-content>
+			</ion-refresher>
 			<div class="flex flex-col h-screen w-screen sm:w-96">
 				<slot name="body"></slot>
 			</div>
@@ -49,7 +52,7 @@
 </template>
 
 <script setup>
-import { IonHeader, IonContent, IonPage } from "@ionic/vue"
+import { IonHeader, IonContent, IonPage, IonRefresher, IonRefresherContent } from "@ionic/vue"
 import { FeatherIcon, Avatar } from "frappe-ui"
 
 import { unreadNotificationsCount } from "@/data/notifications"
@@ -58,6 +61,8 @@ import { inject } from "vue"
 
 const user = inject("$user")
 
+const emit = defineEmits(["refresh"])
+
 const props = defineProps({
 	pageTitle: {
 		type: String,
@@ -65,4 +70,12 @@ const props = defineProps({
 		default: "",
 	},
 })
+
+async function handleRefresh(event) {
+	emit("refresh")
+	// Give resources time to refetch
+	setTimeout(() => {
+		event.target.complete()
+	}, 1500)
+}
 </script>

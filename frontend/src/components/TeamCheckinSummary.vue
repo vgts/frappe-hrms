@@ -29,7 +29,7 @@
 </template>
 
 <script setup>
-import { computed, inject } from "vue"
+import { computed, inject, onMounted, onUnmounted } from "vue"
 import { createResource } from "frappe-ui"
 
 const __ = inject("$translate")
@@ -41,6 +41,15 @@ const teamCheckins = createResource({
 	auto: true,
 	cache: "hrms:team_checkins",
 })
+
+// Auto-refetch on app resume
+function onVisibilityChange() {
+	if (document.visibilityState === "visible") {
+		teamCheckins.reload()
+	}
+}
+onMounted(() => document.addEventListener("visibilitychange", onVisibilityChange))
+onUnmounted(() => document.removeEventListener("visibilitychange", onVisibilityChange))
 
 const checkedInCount = computed(() =>
 	(teamCheckins.data || []).filter(m => m.status === "Checked In").length

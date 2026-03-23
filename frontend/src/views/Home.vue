@@ -1,10 +1,10 @@
 <template>
-	<BaseLayout>
+	<BaseLayout @refresh="refreshAll">
 		<template #body>
 			<div class="flex flex-col items-center my-7 p-4 gap-7">
 				<CheckInPanel />
-				<TeamCheckinSummary />
-				<RequestPanel />
+				<TeamCheckinSummary ref="teamSummary" />
+				<RequestPanel ref="requestPanel" />
 				<QuickLinks :items="quickLinks" :title="__('Quick Links')" />
 			</div>
 		</template>
@@ -12,7 +12,7 @@
 </template>
 
 <script setup>
-import { inject, markRaw } from "vue"
+import { inject, markRaw, onMounted, onUnmounted, ref } from "vue"
 
 import CheckInPanel from "@/components/CheckInPanel.vue"
 import TeamCheckinSummary from "@/components/TeamCheckinSummary.vue"
@@ -26,7 +26,44 @@ import ExpenseIcon from "@/components/icons/ExpenseIcon.vue"
 import EmployeeAdvanceIcon from "@/components/icons/EmployeeAdvanceIcon.vue"
 import SalaryIcon from "@/components/icons/SalaryIcon.vue"
 
+import { myLeaves, teamLeaves } from "@/data/leaves"
+import { myAttendanceRequests, myShiftRequests, teamShiftRequests, teamAttendanceRequests } from "@/data/attendance"
+import { myClaims, teamClaims } from "@/data/claims"
+import { myPermissions, teamPermissions } from "@/data/permissions"
+import { myRegularizations, teamRegularizations } from "@/data/regularization"
+
 const __ = inject("$translate")
+
+// Reload all data resources
+function refreshAll() {
+	myLeaves.reload()
+	teamLeaves.reload()
+	myAttendanceRequests.reload()
+	teamAttendanceRequests.reload()
+	myShiftRequests.reload()
+	teamShiftRequests.reload()
+	myClaims.reload()
+	teamClaims.reload()
+	myPermissions.reload()
+	teamPermissions.reload()
+	myRegularizations.reload()
+	teamRegularizations.reload()
+}
+
+// Auto-refetch when app comes back to foreground (tab focus / app resume)
+function onVisibilityChange() {
+	if (document.visibilityState === "visible") {
+		refreshAll()
+	}
+}
+
+onMounted(() => {
+	document.addEventListener("visibilitychange", onVisibilityChange)
+})
+
+onUnmounted(() => {
+	document.removeEventListener("visibilitychange", onVisibilityChange)
+})
 
 const quickLinks = [
 	{
