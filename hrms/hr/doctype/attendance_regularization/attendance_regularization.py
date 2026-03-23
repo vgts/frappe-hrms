@@ -20,11 +20,35 @@ class AttendanceRegularization(Document):
 	def validate(self):
 		validate_active_employee(self.employee)
 		set_employee_name(self)
+		self.validate_duplicate_regularization()
 		self.validate_times()
 		self.calculate_total_hours()
 		self.set_leave_approver()
 		self.set_secondary_leave_approver()
 		self.set_approval_stage()
+
+	def validate_duplicate_regularization(self):
+		"""Prevent duplicate regularization for the same employee and date."""
+		if not self.attendance_date or not self.employee:
+			return
+
+		existing = frappe.db.exists(
+			"Attendance Regularization",
+			{
+				"employee": self.employee,
+				"attendance_date": self.attendance_date,
+				"docstatus": ("<", 2),
+				"name": ("!=", self.name or ""),
+			},
+		)
+		if existing:
+			frappe.throw(
+				_("An Attendance Regularization {0} already exists for {1} on {2}").format(
+					frappe.bold(existing),
+					frappe.bold(self.employee_name or self.employee),
+					frappe.bold(frappe.utils.formatdate(self.attendance_date)),
+				)
+			)
 
 	def validate_times(self):
 		"""Validate that check-in time is before check-out time when both are provided."""
@@ -182,6 +206,8 @@ class AttendanceRegularization(Document):
 
 	def create_attendance(self):
 		"""Create or update Attendance record for the regularization date."""
+		company = frappe.db.get_value("Employee", self.employee, "company")
+
 		# Check if attendance already exists for this date
 		existing = frappe.db.exists(
 			"Attendance",
@@ -193,22 +219,36 @@ class AttendanceRegularization(Document):
 		)
 
 		if existing:
-			# Update existing attendance to Present
 			att = frappe.get_doc("Attendance", existing)
-			if att.docstatus == 1:
-				# Already submitted — add comment linking to regularization
+			if att.docstatus == 1 and att.status != "Present":
+				# Submitted but not Present (e.g. Absent) — cancel and create new
+				att.flags.ignore_permissions = True
+				att.cancel()
+				att.add_comment("Info", _("Cancelled for regularization via {0}").format(self.name))
+
+				# Create new Present attendance
+				att = frappe.new_doc("Attendance")
+				att.employee = self.employee
+				att.attendance_date = self.attendance_date
+				att.status = "Present"
+				att.company = company
+				att.flags.ignore_permissions = True
+				att.insert()
+				att.submit()
+				att.add_comment("Info", _("Created via Attendance Regularization {0}").format(self.name))
+			elif att.docstatus == 1 and att.status == "Present":
+				# Already Present — just link it
 				att.add_comment("Info", _("Regularized via {0}").format(self.name))
 			else:
-				# Draft — update and submit
+				# Draft — update to Present and submit
 				att.status = "Present"
-				att.attendance_request = None
+				att.company = company
 				att.flags.ignore_permissions = True
 				att.save()
 				att.submit()
 				att.add_comment("Info", _("Marked Present via Attendance Regularization {0}").format(self.name))
 		else:
-			# Create new attendance record
-			company = frappe.db.get_value("Employee", self.employee, "company")
+			# No attendance exists — create new
 			att = frappe.new_doc("Attendance")
 			att.employee = self.employee
 			att.attendance_date = self.attendance_date
