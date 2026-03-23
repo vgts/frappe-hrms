@@ -117,6 +117,9 @@ frappe.ui.form.on("Leave Application", {
 		// Make fields read-only for approvers (they can only approve/reject, not edit)
 		hrms_set_approver_readonly(frm);
 
+		// Hide approval section if no secondary approver is configured
+		hrms_toggle_approval_section(frm);
+
 		// Two-level approval UI
 		hrms_show_approval_stage_tracker(frm);
 		hrms_handle_secondary_approval(frm);
@@ -303,6 +306,21 @@ frappe.ui.form.on("Leave Application", {
 		frm.trigger("get_leave_balance");
 	},
 });
+
+// ---------------------------------------------------------------------------
+// Hide approval section when no secondary approver is configured
+// ---------------------------------------------------------------------------
+
+function hrms_toggle_approval_section(frm) {
+	const hasSecondaryApprover = !!frm.doc.custom_secondary_leave_approver;
+
+	// Hide the entire secondary approval section
+	frm.toggle_display("custom_secondary_approval_section", hasSecondaryApprover);
+	frm.toggle_display("custom_secondary_leave_approver", hasSecondaryApprover);
+	frm.toggle_display("custom_secondary_approver_name", hasSecondaryApprover);
+	frm.toggle_display("custom_column_break_secondary", hasSecondaryApprover);
+	frm.toggle_display("custom_approval_stage", hasSecondaryApprover);
+}
 
 // ---------------------------------------------------------------------------
 // Make leave application fields read-only for approvers
