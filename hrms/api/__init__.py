@@ -195,16 +195,20 @@ def get_attendance_regularizations(
 
 # Team Checkin Dashboard
 @frappe.whitelist()
-def get_team_checkins(date: str | None = None) -> list[dict]:
-	"""Get today's checkin/checkout status for team members who report to current user."""
-	employee = get_current_employee()
+def get_team_checkins(date: str | None = None, manager: str | None = None) -> list[dict]:
+	"""Get today's checkin/checkout status for team members who report to a manager.
+	If manager is not specified, uses the current employee.
+	Returns has_reports flag per member to support nested drill-down.
+	"""
+	if not manager:
+		manager = get_current_employee()
 	if not date:
 		date = frappe.utils.today()
 
-	# Get all employees who report to the current employee
+	# Get direct reports of the manager
 	team_members = frappe.get_all(
 		"Employee",
-		filters={"reports_to": employee, "status": "Active"},
+		filters={"reports_to": manager, "status": "Active"},
 		fields=["name", "employee_name", "designation", "department", "image", "user_id"],
 		order_by="employee_name asc",
 	)
@@ -213,6 +217,15 @@ def get_team_checkins(date: str | None = None) -> list[dict]:
 		return []
 
 	team_ids = [m.name for m in team_members]
+
+	# Check which members have their own reports (for nested drill-down)
+	members_with_reports = set(
+		frappe.get_all(
+			"Employee",
+			filters={"reports_to": ("in", team_ids), "status": "Active"},
+			pluck="reports_to",
+		)
+	)
 
 	# Get today's checkins for all team members
 	checkins = frappe.get_all(
@@ -225,7 +238,7 @@ def get_team_checkins(date: str | None = None) -> list[dict]:
 		order_by="time asc",
 	)
 
-	# Build checkin map: employee -> {first_in, last_out, all_logs}
+	# Build checkin map
 	checkin_map = {}
 	for c in checkins:
 		emp = c.employee
@@ -260,6 +273,7 @@ def get_team_checkins(date: str | None = None) -> list[dict]:
 			"first_in": str(first_in) if first_in else None,
 			"last_out": str(last_out) if last_out else None,
 			"total_logs": len(data.get("logs", [])),
+			"has_reports": member.name in members_with_reports,
 		})
 
 	return result
