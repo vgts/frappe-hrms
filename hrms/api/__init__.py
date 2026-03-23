@@ -124,6 +124,75 @@ def are_push_notifications_enabled() -> bool:
 		return False
 
 
+# Attendance Regularization
+@frappe.whitelist()
+def get_attendance_regularizations(
+	employee: str,
+	approver_id: str | None = None,
+	for_approval: bool = False,
+	limit: int | None = None,
+) -> list[dict]:
+	filters = frappe._dict()
+	if for_approval:
+		filters.docstatus = 0
+		filters.employee = ("!=", employee)
+		filters.status = "Open"
+		if approver_id:
+			filters.leave_approver = approver_id
+	else:
+		filters.docstatus = ("!=", 2)
+		filters.employee = employee
+
+	fields = [
+		"name",
+		"employee",
+		"employee_name",
+		"attendance_date",
+		"reason",
+		"checkin_time",
+		"checkout_time",
+		"total_hours",
+		"status",
+		"leave_approver",
+		"leave_approver_name",
+		"docstatus",
+		"creation",
+		"custom_approval_stage",
+		"custom_secondary_leave_approver",
+		"custom_secondary_approver_name",
+	]
+
+	regularizations = frappe.get_list(
+		"Attendance Regularization",
+		fields=fields,
+		filters=filters,
+		order_by="creation desc",
+		limit=limit,
+	)
+
+	# For team: also include pending secondary approval
+	if for_approval and approver_id:
+		secondary_filters = {
+			"docstatus": 0,
+			"employee": ("!=", employee),
+			"custom_secondary_leave_approver": approver_id,
+			"custom_approval_stage": "Pending Secondary Reporting Approval",
+		}
+		secondary_regs = frappe.get_list(
+			"Attendance Regularization",
+			fields=fields,
+			filters=secondary_filters,
+			order_by="creation desc",
+			limit=limit,
+		)
+		existing_names = {r["name"] for r in regularizations}
+		for reg in secondary_regs:
+			if reg["name"] not in existing_names:
+				regularizations.append(reg)
+
+	return regularizations
+
+
 # Team Checkin Dashboard
 @frappe.whitelist()
 def get_team_checkins(date: str | None = None) -> list[dict]:

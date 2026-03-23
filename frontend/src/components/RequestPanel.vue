@@ -19,6 +19,12 @@
 				listRoute="AttendanceRequestListView"
 			/>
 			<RequestSection
+				:title="__('Regularization')"
+				:items="myRegularizationItems"
+				:component="RegularizationRequestItem"
+				listRoute="RegularizationListView"
+			/>
+			<RequestSection
 				:title="__('Permission')"
 				:items="myPermissionItems"
 				:component="PermissionRequestItem"
@@ -52,6 +58,13 @@
 				:component="AttendanceRequestItem"
 				:teamRequests="true"
 				listRoute="AttendanceRequestListView"
+			/>
+			<RequestSection
+				:title="__('Regularization')"
+				:items="teamRegularizationItems"
+				:component="RegularizationRequestItem"
+				:teamRequests="true"
+				listRoute="RegularizationListView"
 			/>
 			<RequestSection
 				:title="__('Permission')"
@@ -88,12 +101,14 @@ import { myAttendanceRequests, myShiftRequests, teamShiftRequests, teamAttendanc
 import { myClaims, teamClaims } from "@/data/claims"
 import { myLeaves, teamLeaves } from "@/data/leaves"
 import { myPermissions, teamPermissions } from "@/data/permissions"
+import { myRegularizations, teamRegularizations } from "@/data/regularization"
 
 import AttendanceRequestItem from "@/components/AttendanceRequestItem.vue"
 import ExpenseClaimItem from "@/components/ExpenseClaimItem.vue"
 import LeaveRequestItem from "@/components/LeaveRequestItem.vue"
 import ShiftRequestItem from "@/components/ShiftRequestItem.vue"
 import PermissionRequestItem from "@/components/PermissionRequestItem.vue"
+import RegularizationRequestItem from "@/components/RegularizationRequestItem.vue"
 
 import { useListUpdate } from "@/composables/realtime"
 
@@ -109,6 +124,7 @@ const myAttendanceItems = computed(() => (myAttendanceRequests?.data || []).slic
 const myShiftItems = computed(() => (myShiftRequests?.data || []).slice(0, 5))
 const myClaimItems = computed(() => (myClaims?.data || []).slice(0, 5))
 const myPermissionItems = computed(() => (myPermissions?.data || []).slice(0, 5))
+const myRegularizationItems = computed(() => (myRegularizations?.data || []).slice(0, 5))
 
 // Team requests - separated by type
 const teamLeaveItems = computed(() => (teamLeaves?.data || []).slice(0, 5))
@@ -116,6 +132,7 @@ const teamAttendanceItems = computed(() => (teamAttendanceRequests?.data || []).
 const teamShiftItems = computed(() => (teamShiftRequests?.data || []).slice(0, 5))
 const teamClaimItems = computed(() => (teamClaims?.data || []).slice(0, 5))
 const teamPermissionItems = computed(() => (teamPermissions?.data || []).slice(0, 5))
+const teamRegularizationItems = computed(() => (teamRegularizations?.data || []).slice(0, 5))
 
 onMounted(() => {
 	useListUpdate(socket, "Leave Application", () => teamLeaves.reload())
@@ -123,5 +140,6 @@ onMounted(() => {
 	useListUpdate(socket, "Shift Request", () => teamShiftRequests.reload())
 	useListUpdate(socket, "Attendance Request", () => teamAttendanceRequests.reload())
 	useListUpdate(socket, "Employee Permission", () => teamPermissions.reload())
+	useListUpdate(socket, "Attendance Regularization", () => teamRegularizations.reload())
 })
 </script>

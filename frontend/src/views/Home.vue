@@ -55,6 +55,11 @@ const quickLinks = [
 		route: "PermissionFormView",
 	},
 	{
+		icon: markRaw(AttendanceIcon),
+		title: __("Regularization"),
+		route: "RegularizationFormView",
+	},
+	{
 		icon: markRaw(EmployeeAdvanceIcon),
 		title: __("Request an Advance"),
 		route: "EmployeeAdvanceFormView",

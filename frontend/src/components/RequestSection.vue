@@ -74,6 +74,7 @@ import {
 	SHIFT_REQUEST_FIELDS,
 	SHIFT_FIELDS,
 	EMPLOYEE_PERMISSION_FIELDS,
+	ATTENDANCE_REGULARIZATION_FIELDS,
 } from "@/data/config/requestSummaryFields"
 
 const __ = inject("$translate")
@@ -112,6 +113,7 @@ const fieldsMap = {
 	"Shift Request": SHIFT_REQUEST_FIELDS,
 	"Shift Assignment": SHIFT_FIELDS,
 	"Employee Permission": EMPLOYEE_PERMISSION_FIELDS,
+	"Attendance Regularization": ATTENDANCE_REGULARIZATION_FIELDS,
 }
 
 const openRequestModal = async (request) => {

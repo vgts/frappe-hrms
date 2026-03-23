@@ -152,6 +152,7 @@ import LeaveRequestItem from "@/components/LeaveRequestItem.vue"
 import ExpenseClaimItem from "@/components/ExpenseClaimItem.vue"
 import EmployeeAdvanceItem from "@/components/EmployeeAdvanceItem.vue"
 import PermissionRequestItem from "@/components/PermissionRequestItem.vue"
+import RegularizationRequestItem from "@/components/RegularizationRequestItem.vue"
 import ListFiltersActionSheet from "@/components/ListFiltersActionSheet.vue"
 import CustomIonModal from "@/components/CustomIonModal.vue"
 import RequestActionSheet from "@/components/RequestActionSheet.vue"
@@ -199,6 +200,7 @@ const listItemComponent = {
 	"Expense Claim": markRaw(ExpenseClaimItem),
 	"Employee Advance": markRaw(EmployeeAdvanceItem),
 	"Employee Permission": markRaw(PermissionRequestItem),
+	"Attendance Regularization": markRaw(RegularizationRequestItem),
 }
 
 const router = useRouter()

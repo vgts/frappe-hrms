@@ -217,6 +217,54 @@ export const SHIFT_REQUEST_FIELDS = [
 	},
 ]
 
+export const ATTENDANCE_REGULARIZATION_FIELDS = [
+	{
+		fieldname: "name",
+		label: "ID",
+		fieldtype: "Data",
+	},
+	{
+		fieldname: "attendance_date",
+		label: "Date",
+		fieldtype: "Date",
+	},
+	{
+		fieldname: "reason",
+		label: "Reason",
+		fieldtype: "Select",
+	},
+	{
+		fieldname: "checkin_time",
+		label: "Check-in Time",
+		fieldtype: "Time",
+	},
+	{
+		fieldname: "checkout_time",
+		label: "Check-out Time",
+		fieldtype: "Time",
+	},
+	{
+		fieldname: "total_hours",
+		label: "Total Hours",
+		fieldtype: "Float",
+	},
+	{
+		fieldname: "employee",
+		label: "Employee",
+		fieldtype: "Link",
+	},
+	{
+		fieldname: "status",
+		label: "Status",
+		fieldtype: "Select",
+	},
+	{
+		fieldname: "description",
+		label: "Description",
+		fieldtype: "Small Text",
+	},
+]
+
 export const EMPLOYEE_PERMISSION_FIELDS = [
 	{
 		fieldname: "name",

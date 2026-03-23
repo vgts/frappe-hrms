@@ -372,6 +372,10 @@ const approvalApiMap = {
 		details: "hrms.hr.doctype.employee_permission.employee_permission.get_permission_approval_details",
 		detailsParam: "employee_permission",
 	},
+	"Attendance Regularization": {
+		details: "hrms.hr.doctype.attendance_regularization.attendance_regularization.get_regularization_approval_details",
+		detailsParam: "attendance_regularization",
+	},
 }
 const approvalConfig = approvalApiMap[props.modelValue.doctype]
 const approvalDetails = createResource({
@@ -423,7 +427,7 @@ const approvalField = computed(() => {
 })
 
 // Two-level approval computed properties
-const twoLevelDoctypes = ["Leave Application", "Employee Permission"]
+const twoLevelDoctypes = ["Leave Application", "Employee Permission", "Attendance Regularization"]
 const isLeaveWithSecondaryApprover = computed(() => {
 	return (
 		twoLevelDoctypes.includes(props.modelValue.doctype) &&
@@ -541,6 +545,12 @@ const secondaryApiMap = {
 		reject: "hrms.hr.doctype.employee_permission.employee_permission.permission_secondary_reject",
 		primaryReject: "hrms.hr.doctype.employee_permission.employee_permission.permission_project_reporting_reject",
 		paramKey: "employee_permission",
+	},
+	"Attendance Regularization": {
+		approve: "hrms.hr.doctype.attendance_regularization.attendance_regularization.regularization_secondary_approve",
+		reject: "hrms.hr.doctype.attendance_regularization.attendance_regularization.regularization_secondary_reject",
+		primaryReject: "hrms.hr.doctype.attendance_regularization.attendance_regularization.regularization_project_reporting_reject",
+		paramKey: "attendance_regularization",
 	},
 }
 
