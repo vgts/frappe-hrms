@@ -28,6 +28,7 @@
   "custom_secondary_approver_name",
   "column_break_approval",
   "custom_approval_stage",
+  "attendance",
   "amended_from"
  ],
  "fields": [
@@ -164,6 +165,14 @@
    "label": "Approval Stage",
    "options": "\nPending Project Reporting Approval\nPending Secondary Reporting Approval\nApproved\nRejected",
    "read_only": 1
+  },
+  {
+   "fieldname": "attendance",
+   "fieldtype": "Link",
+   "label": "Attendance",
+   "options": "Attendance",
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "fieldname": "amended_from",

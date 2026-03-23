@@ -126,10 +126,12 @@ class AttendanceRegularization(Document):
 
 		if self.status == "Approved":
 			self.create_employee_checkin()
+			self.create_attendance()
 
 		self.publish_update()
 
 	def on_cancel(self):
+		self.cancel_attendance()
 		self.delete_employee_checkin()
 		self.publish_update()
 
@@ -152,9 +154,10 @@ class AttendanceRegularization(Document):
 			checkin.employee = self.employee
 			checkin.log_type = "IN"
 			checkin.time = checkin_datetime
-			checkin.attendance_regularization = self.name
+			checkin.skip_auto_attendance = 1
 			checkin.flags.ignore_permissions = True
 			checkin.insert()
+			checkin.add_comment("Info", _("Created via Attendance Regularization {0}").format(self.name))
 
 		if self.reason in ("Forgot to Check-out", "Forgot Both") and self.checkout_time:
 			checkout_datetime = get_datetime(
@@ -164,19 +167,93 @@ class AttendanceRegularization(Document):
 			checkout.employee = self.employee
 			checkout.log_type = "OUT"
 			checkout.time = checkout_datetime
-			checkout.attendance_regularization = self.name
+			checkout.skip_auto_attendance = 1
 			checkout.flags.ignore_permissions = True
 			checkout.insert()
+			checkout.add_comment("Info", _("Created via Attendance Regularization {0}").format(self.name))
+
+	def create_attendance(self):
+		"""Create or update Attendance record for the regularization date."""
+		# Check if attendance already exists for this date
+		existing = frappe.db.exists(
+			"Attendance",
+			{
+				"employee": self.employee,
+				"attendance_date": self.attendance_date,
+				"docstatus": ("!=", 2),
+			},
+		)
+
+		if existing:
+			# Update existing attendance to Present
+			att = frappe.get_doc("Attendance", existing)
+			if att.docstatus == 1:
+				# Already submitted — add comment linking to regularization
+				att.add_comment("Info", _("Regularized via {0}").format(self.name))
+			else:
+				# Draft — update and submit
+				att.status = "Present"
+				att.attendance_request = None
+				att.flags.ignore_permissions = True
+				att.save()
+				att.submit()
+				att.add_comment("Info", _("Marked Present via Attendance Regularization {0}").format(self.name))
+		else:
+			# Create new attendance record
+			company = frappe.db.get_value("Employee", self.employee, "company")
+			att = frappe.new_doc("Attendance")
+			att.employee = self.employee
+			att.attendance_date = self.attendance_date
+			att.status = "Present"
+			att.company = company
+			att.flags.ignore_permissions = True
+			att.insert()
+			att.submit()
+			att.add_comment("Info", _("Created via Attendance Regularization {0}").format(self.name))
+
+		# Store the attendance reference
+		self.db_set("attendance", att.name)
+
+	def cancel_attendance(self):
+		"""Cancel attendance record created by this regularization."""
+		if not self.attendance:
+			return
+
+		try:
+			att = frappe.get_doc("Attendance", self.attendance)
+			if att.docstatus == 1:
+				att.flags.ignore_permissions = True
+				att.cancel()
+		except frappe.DoesNotExistError:
+			pass
 
 	def delete_employee_checkin(self):
-		"""Delete Employee Checkin records created by this regularization."""
+		"""Delete Employee Checkin records created by this regularization (linked via comment)."""
+		# Find checkins created for this date by this employee with skip_auto_attendance
 		checkins = frappe.get_all(
 			"Employee Checkin",
-			filters={"attendance_regularization": self.name},
+			filters={
+				"employee": self.employee,
+				"time": ("between", [
+					"{} 00:00:00".format(self.attendance_date),
+					"{} 23:59:59".format(self.attendance_date),
+				]),
+				"skip_auto_attendance": 1,
+			},
 			pluck="name",
 		)
+		# Only delete checkins that have our regularization comment
 		for checkin_name in checkins:
-			frappe.delete_doc("Employee Checkin", checkin_name, force=True, ignore_permissions=True)
+			comments = frappe.get_all(
+				"Comment",
+				filters={
+					"reference_doctype": "Employee Checkin",
+					"reference_name": checkin_name,
+					"content": ("like", "%{}%".format(self.name)),
+				},
+			)
+			if comments:
+				frappe.delete_doc("Employee Checkin", checkin_name, force=True, ignore_permissions=True)
 
 	def publish_update(self):
 		employee_user = frappe.db.get_value("Employee", self.employee, "user_id", cache=True)
