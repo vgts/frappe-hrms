@@ -2,6 +2,9 @@
 	<BaseLayout pageTitle="Attendance">
 		<template #body>
 			<div class="flex flex-col mt-7 mb-7 p-4 gap-7">
+				<!-- Team Check-in Dashboard (shown for managers) -->
+				<TeamCheckinList />
+
 				<AttendanceCalendar />
 				<div class="w-full">
 					<router-link :to="{ name: 'AttendanceRequestFormView' }" v-slot="{ navigate }">
@@ -60,6 +63,7 @@ import ShiftRequestItem from "@/components/ShiftRequestItem.vue"
 import ShiftAssignmentItem from "@/components/ShiftAssignmentItem.vue"
 import RequestList from "@/components/RequestList.vue"
 import AttendanceCalendar from "@/components/AttendanceCalendar.vue"
+import TeamCheckinList from "@/components/TeamCheckinList.vue"
 
 import {
 	getShiftDates,

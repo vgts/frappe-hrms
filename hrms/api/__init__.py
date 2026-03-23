@@ -124,6 +124,78 @@ def are_push_notifications_enabled() -> bool:
 		return False
 
 
+# Team Checkin Dashboard
+@frappe.whitelist()
+def get_team_checkins(date: str | None = None) -> list[dict]:
+	"""Get today's checkin/checkout status for team members who report to current user."""
+	employee = get_current_employee()
+	if not date:
+		date = frappe.utils.today()
+
+	# Get all employees who report to the current employee
+	team_members = frappe.get_all(
+		"Employee",
+		filters={"reports_to": employee, "status": "Active"},
+		fields=["name", "employee_name", "designation", "department", "image", "user_id"],
+		order_by="employee_name asc",
+	)
+
+	if not team_members:
+		return []
+
+	team_ids = [m.name for m in team_members]
+
+	# Get today's checkins for all team members
+	checkins = frappe.get_all(
+		"Employee Checkin",
+		filters={
+			"employee": ("in", team_ids),
+			"time": ("between", [f"{date} 00:00:00", f"{date} 23:59:59"]),
+		},
+		fields=["employee", "log_type", "time"],
+		order_by="time asc",
+	)
+
+	# Build checkin map: employee -> {first_in, last_out, all_logs}
+	checkin_map = {}
+	for c in checkins:
+		emp = c.employee
+		if emp not in checkin_map:
+			checkin_map[emp] = {"first_in": None, "last_out": None, "logs": []}
+		checkin_map[emp]["logs"].append(c)
+		if c.log_type == "IN" and not checkin_map[emp]["first_in"]:
+			checkin_map[emp]["first_in"] = c.time
+		if c.log_type == "OUT":
+			checkin_map[emp]["last_out"] = c.time
+
+	result = []
+	for member in team_members:
+		data = checkin_map.get(member.name, {})
+		first_in = data.get("first_in")
+		last_out = data.get("last_out")
+
+		if first_in and last_out:
+			status = "Checked Out"
+		elif first_in:
+			status = "Checked In"
+		else:
+			status = "Not Checked In"
+
+		result.append({
+			"employee": member.name,
+			"employee_name": member.employee_name,
+			"designation": member.designation,
+			"department": member.department,
+			"image": member.image,
+			"status": status,
+			"first_in": str(first_in) if first_in else None,
+			"last_out": str(last_out) if last_out else None,
+			"total_logs": len(data.get("logs", [])),
+		})
+
+	return result
+
+
 # Attendance
 @frappe.whitelist()
 def get_attendance_calendar_events(from_date: str, to_date: str) -> dict[str, str]:

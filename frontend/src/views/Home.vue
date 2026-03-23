@@ -3,6 +3,7 @@
 		<template #body>
 			<div class="flex flex-col items-center my-7 p-4 gap-7">
 				<CheckInPanel />
+				<TeamCheckinList />
 				<QuickLinks :items="quickLinks" :title="__('Quick Links')" />
 				<RequestPanel />
 			</div>
@@ -14,6 +15,7 @@
 import { inject, markRaw } from "vue"
 
 import CheckInPanel from "@/components/CheckInPanel.vue"
+import TeamCheckinList from "@/components/TeamCheckinList.vue"
 import QuickLinks from "@/components/QuickLinks.vue"
 import BaseLayout from "@/components/BaseLayout.vue"
 import RequestPanel from "@/components/RequestPanel.vue"
