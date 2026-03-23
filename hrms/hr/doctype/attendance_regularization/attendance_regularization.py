@@ -150,27 +150,35 @@ class AttendanceRegularization(Document):
 			checkin_datetime = get_datetime(
 				"{} {}".format(self.attendance_date, self.checkin_time)
 			)
-			checkin = frappe.new_doc("Employee Checkin")
-			checkin.employee = self.employee
-			checkin.log_type = "IN"
-			checkin.time = checkin_datetime
-			checkin.skip_auto_attendance = 1
-			checkin.flags.ignore_permissions = True
-			checkin.insert()
-			checkin.add_comment("Info", _("Created via Attendance Regularization {0}").format(self.name))
+			# Skip if checkin already exists at this exact time
+			if not frappe.db.exists("Employee Checkin", {
+				"employee": self.employee, "time": checkin_datetime,
+			}):
+				checkin = frappe.new_doc("Employee Checkin")
+				checkin.employee = self.employee
+				checkin.log_type = "IN"
+				checkin.time = checkin_datetime
+				checkin.skip_auto_attendance = 1
+				checkin.flags.ignore_permissions = True
+				checkin.insert()
+				checkin.add_comment("Info", _("Created via Attendance Regularization {0}").format(self.name))
 
 		if self.reason in ("Forgot to Check-out", "Forgot Both") and self.checkout_time:
 			checkout_datetime = get_datetime(
 				"{} {}".format(self.attendance_date, self.checkout_time)
 			)
-			checkout = frappe.new_doc("Employee Checkin")
-			checkout.employee = self.employee
-			checkout.log_type = "OUT"
-			checkout.time = checkout_datetime
-			checkout.skip_auto_attendance = 1
-			checkout.flags.ignore_permissions = True
-			checkout.insert()
-			checkout.add_comment("Info", _("Created via Attendance Regularization {0}").format(self.name))
+			# Skip if checkout already exists at this exact time
+			if not frappe.db.exists("Employee Checkin", {
+				"employee": self.employee, "time": checkout_datetime,
+			}):
+				checkout = frappe.new_doc("Employee Checkin")
+				checkout.employee = self.employee
+				checkout.log_type = "OUT"
+				checkout.time = checkout_datetime
+				checkout.skip_auto_attendance = 1
+				checkout.flags.ignore_permissions = True
+				checkout.insert()
+				checkout.add_comment("Info", _("Created via Attendance Regularization {0}").format(self.name))
 
 	def create_attendance(self):
 		"""Create or update Attendance record for the regularization date."""
