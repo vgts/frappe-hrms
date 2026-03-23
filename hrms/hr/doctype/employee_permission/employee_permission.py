@@ -259,9 +259,10 @@ class EmployeePermission(Document, PWANotificationsMixin):
 					"Only Permission Requests with status 'Approved' and 'Rejected' can be submitted"
 				)
 			)
+		self.publish_update()
 
 	def on_cancel(self):
-		pass
+		self.publish_update()
 
 	def publish_update(self):
 		import hrms
@@ -269,8 +270,18 @@ class EmployeePermission(Document, PWANotificationsMixin):
 		employee_user = frappe.db.get_value(
 			"Employee", self.employee, "user_id", cache=True
 		)
-		hrms.refetch_resource("hrms:my_permissions", employee_user)
-		hrms.refetch_resource("hrms:team_permissions")
+
+		# Notify the employee
+		if employee_user:
+			hrms.refetch_resource("hrms:my_permissions", employee_user)
+
+		# Notify the primary approver
+		if self.leave_approver:
+			hrms.refetch_resource("hrms:team_permissions", self.leave_approver)
+
+		# Notify the secondary approver
+		if self.custom_secondary_leave_approver:
+			hrms.refetch_resource("hrms:team_permissions", self.custom_secondary_leave_approver)
 
 	def after_delete(self):
 		self.publish_update()

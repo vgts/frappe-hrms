@@ -190,6 +190,7 @@ class LeaveApplication(Document, PWANotificationsMixin):
 		# create a reverse ledger entry for backdated leave applications for whom expiry entry already exists
 		leave_allocation = self.get_leave_allocation()
 		if not leave_allocation:
+			self.publish_update()
 			return
 		to_date = leave_allocation.get("to_date")
 		can_expire = not frappe.db.get_value("Leave Type", self.leave_type, "is_carry_forward")
@@ -201,6 +202,7 @@ class LeaveApplication(Document, PWANotificationsMixin):
 			create_leave_ledger_entry(self, args)
 
 		self.reload()
+		self.publish_update()
 
 	def before_cancel(self):
 		self.status = "Cancelled"
@@ -222,8 +224,18 @@ class LeaveApplication(Document, PWANotificationsMixin):
 
 	def publish_update(self):
 		employee_user = frappe.db.get_value("Employee", self.employee, "user_id", cache=True)
-		hrms.refetch_resource("hrms:my_leaves", employee_user)
-		hrms.refetch_resource("hrms:team_leaves")
+
+		# Notify the employee
+		if employee_user:
+			hrms.refetch_resource("hrms:my_leaves", employee_user)
+
+		# Notify the primary approver (project reporting)
+		if self.leave_approver:
+			hrms.refetch_resource("hrms:team_leaves", self.leave_approver)
+
+		# Notify the secondary approver
+		if self.custom_secondary_leave_approver:
+			hrms.refetch_resource("hrms:team_leaves", self.custom_secondary_leave_approver)
 
 	def validate_applicable_after(self):
 		if self.leave_type:

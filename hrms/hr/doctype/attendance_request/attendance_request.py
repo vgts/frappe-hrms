@@ -73,6 +73,7 @@ class AttendanceRequest(Document):
 
 	def on_submit(self):
 		self.create_attendance_records()
+		self.publish_update()
 
 	def on_cancel(self):
 		attendance_list = frappe.get_all(
@@ -82,6 +83,7 @@ class AttendanceRequest(Document):
 			for attendance in attendance_list:
 				attendance_obj = frappe.get_doc("Attendance", attendance["name"])
 				attendance_obj.cancel()
+		self.publish_update()
 
 	def create_attendance_records(self):
 		request_days = date_diff(self.to_date, self.from_date) + 1
