@@ -12,7 +12,11 @@
 				:showFormButton="!showApprovalActions"
 				@validateForm="validateForm"
 			>
-				<!-- Available Hours Banner (injected before form via slot) -->
+				<!-- Monthly balance banner shown when creating a new request -->
+				<template #aboveForm v-if="!props.id">
+					<PermissionBalanceBanner :balance="availableHours.data" />
+				</template>
+
 				<template #formButton v-if="showApprovalActions">
 					<div class="flex flex-col gap-3 w-full">
 						<!-- Approval Stage Tracker -->
@@ -132,6 +136,7 @@ import { useRouter } from "vue-router"
 
 import FormView from "@/components/FormView.vue"
 import ApprovalStageTracker from "@/components/ApprovalStageTracker.vue"
+import PermissionBalanceBanner from "@/components/PermissionBalanceBanner.vue"
 
 const __ = inject("$translate")
 const dayjs = inject("$dayjs")
@@ -170,7 +175,7 @@ const formFields = createResource({
 			"custom_secondary_approver_name",
 			"column_break_16",
 			"custom_approval_stage",
-			// Remove auto-computed duration (shown in available hours banner)
+			// Remove auto-computed duration (shown in balance banner)
 			"duration",
 			// Remove column breaks for cleaner mobile layout
 			"column_break_3",
@@ -193,21 +198,6 @@ const formFields = createResource({
 
 		let fields = data.filter((field) => !excludeFields.includes(field.fieldname))
 
-		// Inject "Available Hours" as a read-only display field after employee
-		const availHoursField = {
-			fieldname: "_available_hours",
-			fieldtype: "Data",
-			label: "Available Hours",
-			read_only: 1,
-			default: availableHours.data?.formatted_available || "04:00",
-		}
-
-		// Find insert position (after employee_name for existing, at start for new)
-		const insertIdx = props.id
-			? fields.findIndex(f => f.fieldname === "status") + 1
-			: 0
-		fields.splice(insertIdx, 0, availHoursField)
-
 		// Set default date
 		const dateField = fields.find(f => f.fieldname === "permission_date")
 		if (dateField) dateField.default = today
@@ -215,26 +205,10 @@ const formFields = createResource({
 		return fields
 	},
 	onSuccess() {
-		// Reload available hours after form loads
 		availableHours.reload()
 	},
 })
 formFields.reload()
-
-// Update available hours display when data changes
-watch(
-	() => availableHours.data,
-	(data) => {
-		if (data && formFields.data) {
-			const field = formFields.data.find(f => f.fieldname === "_available_hours")
-			if (field) {
-				field.default = data.formatted_available
-				permissionRequest.value._available_hours = `${data.formatted_available} (${data.monthly_limit}h limit)`
-			}
-		}
-	},
-	{ immediate: true }
-)
 
 // Fetch approval details for existing docs
 const approvalDetails = createResource({

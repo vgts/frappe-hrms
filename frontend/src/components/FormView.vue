@@ -59,6 +59,9 @@
 				</h2>
 			</header>
 
+			<!-- Optional slot above form content (e.g. balance banners) -->
+			<slot name="aboveForm"></slot>
+
 			<!-- Form -->
 			<div class="bg-white grow overflow-y-auto">
 				<!-- Tabs -->

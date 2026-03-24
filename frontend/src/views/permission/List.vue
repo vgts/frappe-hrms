@@ -6,14 +6,23 @@
 			:tabButtons="TAB_BUTTONS"
 			:fields="PERMISSION_FIELDS"
 			:filterConfig="FILTER_CONFIG"
-		/>
+		>
+			<template #aboveList="{ isTeamRequest }">
+				<PermissionBalanceBanner
+					v-if="!isTeamRequest"
+					:balance="permissionBalance.data"
+				/>
+			</template>
+		</ListView>
 	</ion-page>
 </template>
 
 <script setup>
 import { IonPage } from "@ionic/vue"
 import ListView from "@/components/ListView.vue"
+import PermissionBalanceBanner from "@/components/PermissionBalanceBanner.vue"
 import { inject } from "vue"
+import { permissionBalance } from "@/data/permissions"
 
 const __ = inject("$translate")
 const TAB_BUTTONS = ["My Permissions", "Team Permissions"] // __("My Permissions"), __("Team Permissions")

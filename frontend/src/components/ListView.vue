@@ -56,6 +56,7 @@
 					:buttons="props.tabButtons"
 					v-model="activeTab"
 				/>
+				<slot name="aboveList" :activeTab="activeTab" :isTeamRequest="isTeamRequest" />
 
 				<div
 					class="flex flex-col bg-white rounded mt-5"

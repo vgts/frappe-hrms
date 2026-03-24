@@ -29,7 +29,7 @@ import SalaryIcon from "@/components/icons/SalaryIcon.vue"
 import { myLeaves, teamLeaves } from "@/data/leaves"
 import { myAttendanceRequests, myShiftRequests, teamShiftRequests, teamAttendanceRequests } from "@/data/attendance"
 import { myClaims, teamClaims } from "@/data/claims"
-import { myPermissions, teamPermissions } from "@/data/permissions"
+import { myPermissions, teamPermissions, permissionBalance } from "@/data/permissions"
 import { myRegularizations, teamRegularizations } from "@/data/regularization"
 
 const __ = inject("$translate")
@@ -46,6 +46,7 @@ function refreshAll() {
 	teamClaims.reload()
 	myPermissions.reload()
 	teamPermissions.reload()
+	permissionBalance.reload()
 	myRegularizations.reload()
 	teamRegularizations.reload()
 }

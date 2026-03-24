@@ -45,3 +45,13 @@ export const teamPermissions = createResource({
 		return transformPermissions(data)
 	},
 })
+
+export const permissionBalance = createResource({
+	url: "hrms.hr.doctype.employee_permission.employee_permission.get_available_permission_hours",
+	params: {
+		employee: employeeResource.data.name,
+		date: dayjs().format("YYYY-MM-DD"),
+	},
+	auto: true,
+	cache: "hrms:permission_balance",
+})
