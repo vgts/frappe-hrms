@@ -1,12 +1,12 @@
 <template>
 	<div class="flex flex-col h-full w-full" v-if="isFormReady">
-		<div class="w-full h-full bg-white sm:w-96 flex flex-col">
+		<div class="w-full h-full sm:w-96 flex flex-col bg-white dark:bg-[#000000]">
 			<header
-				class="flex flex-row bg-white shadow-sm py-4 px-3 items-center sticky top-0 z-[1000]"
+				class="flex flex-row shadow-sm py-4 px-3 items-center sticky top-0 z-[1000] bg-white dark:bg-[#0d0d0d] border-b border-transparent dark:border-[#262626]"
 			>
 				<Button
 					variant="ghost"
-					class="!pl-0 hover:bg-white"
+					class="!pl-0 hover:bg-white dark:hover:bg-[#1a1a1a] dark:text-[#fafafa]"
 					@click="router.back()"
 				>
 					<FeatherIcon name="chevron-left" class="h-5 w-5" />
@@ -63,11 +63,11 @@
 			<slot name="aboveForm"></slot>
 
 			<!-- Form -->
-			<div class="bg-white grow overflow-y-auto">
+			<div class="grow overflow-y-auto bg-white dark:bg-[#000000]">
 				<!-- Tabs -->
 				<template v-if="tabbedView">
 					<div
-						class="px-4 sticky top-0 z-[100] bg-white text-sm font-medium text-center text-gray-500 border-b border-gray-200 dark:text-gray-400 dark:border-gray-700"
+						class="px-4 sticky top-0 z-[100] text-sm font-medium text-center border-b bg-white dark:bg-[#0d0d0d] text-gray-500 dark:text-[#525252] border-gray-200 dark:border-[#262626]"
 					>
 						<ul class="flex -mb-px overflow-auto hide-scrollbar">
 							<li class="mr-2 whitespace-nowrap" v-for="tab in tabs">
@@ -76,8 +76,8 @@
 									class="inline-block py-4 px-2 border-b-2 border-transparent rounded-t-lg"
 									:class="[
 										activeTab === tab.name
-											? '!text-gray-800 !border-gray-800'
-											: 'hover:text-gray-600 hover:border-gray-300',
+											? '!text-gray-800 dark:!text-[#fafafa] !border-gray-800 dark:!border-[#fafafa]'
+											: 'hover:text-gray-600 dark:hover:text-[#a3a3a3] hover:border-gray-300 dark:hover:border-[#404040]',
 									]"
 								>
 									{{ __(tab.name, null, props.doctype) }}
@@ -179,7 +179,7 @@
 			<!-- custom form button eg: Download button in salary slips -->
 			<div
 				v-if="!showFormButton"
-				class="px-4 pt-4 pb-4 standalone:pb-safe-bottom sm:w-96 bg-white sticky bottom-0 w-full drop-shadow-xl z-40 border-t rounded-t-lg"
+				class="px-4 pt-4 pb-4 standalone:pb-safe-bottom sm:w-96 sticky bottom-0 w-full drop-shadow-xl z-40 border-t rounded-t-lg bg-white dark:bg-[#0d0d0d] border-gray-200 dark:border-[#262626]"
 			>
 				<slot name="formButton"></slot>
 			</div>
@@ -195,7 +195,7 @@
 			<!-- save/submit/cancel -->
 			<div
 				v-else-if="isFormDirty || (!workflow?.hasWorkflow && formButton)"
-				class="px-4 pt-4 pb-4 standalone:pb-safe-bottom sm:w-96 bg-white sticky bottom-0 w-full drop-shadow-xl z-40 border-t rounded-t-lg"
+				class="px-4 pt-4 pb-4 standalone:pb-safe-bottom sm:w-96 sticky bottom-0 w-full drop-shadow-xl z-40 border-t rounded-t-lg bg-white dark:bg-[#0d0d0d] border-gray-200 dark:border-[#262626]"
 			>
 				<ErrorMessage
 					class="mb-2"

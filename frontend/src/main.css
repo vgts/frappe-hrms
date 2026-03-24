@@ -25,86 +25,202 @@ body {
 
 /* For IE, Edge and Firefox */
 .hide-scrollbar {
-	-ms-overflow-style: none; /* IE and Edge */
-	scrollbar-width: none; /* Firefox */
+	-ms-overflow-style: none;
+	scrollbar-width: none;
 }
 
-/* ── Dark mode global overrides ─────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════
+   DARK THEME — black-based palette
+   Background #000000 · Surface #111111 · Elevated #0d0d0d
+   Border #262626 · Text #fafafa/#a3a3a3/#525252
+   ═══════════════════════════════════════════════════════════════ */
 
-/* White surfaces → dark card surface */
-.dark .bg-white {
-	background-color: #1f2937 !important;
-}
+/* ── Ionic shell ──────────────────────────────────────────────── */
+.dark ion-app,
+.dark ion-page       { --background: #000000; background-color: #000000; }
+.dark ion-content    { --background: #000000; }
+.dark ion-header     { --background: #0d0d0d; background-color: #0d0d0d; }
+.dark ion-footer     { --background: #0d0d0d; }
+.dark ion-toolbar    { --background: #0d0d0d; }
 
-/* Page/app background */
-.dark ion-content {
-	--background: #111827;
-}
-.dark ion-page {
-	--background: #111827;
-	background-color: #111827;
-}
-.dark ion-header {
-	--background: #1f2937;
-}
-
-/* Tab bar */
+/* ── Tab bar ──────────────────────────────────────────────────── */
 .dark ion-tab-bar {
-	background: #1f2937 !important;
-	border-top: 1px solid #374151 !important;
+	background: #0d0d0d !important;
+	border-top: 1px solid #262626 !important;
 }
 .dark ion-tab-button {
-	background: #1f2937 !important;
-	--color: #9ca3af;
-	--color-selected: #f9fafb;
+	background: #0d0d0d !important;
+	--color: #525252;
+	--color-selected: #fafafa;
 }
 
-/* Modals and action sheets */
-.dark ion-modal {
-	--background: #1f2937;
-}
+/* ── Modals & action sheets ───────────────────────────────────── */
+.dark ion-modal              { --background: #111111; }
+.dark ion-action-sheet       { --background: #111111; --color: #fafafa; }
 
-/* Gray text shades */
-.dark .text-gray-900 { color: #f9fafb !important; }
-.dark .text-gray-800 { color: #f3f4f6 !important; }
-.dark .text-gray-700 { color: #e5e7eb !important; }
-.dark .text-gray-600 { color: #d1d5db !important; }
-.dark .text-gray-500 { color: #9ca3af !important; }
-.dark .text-gray-400 { color: #6b7280 !important; }
+/* ── White / light surfaces → black cards ────────────────────── */
+.dark .bg-white              { background-color: #111111 !important; }
+.dark .bg-gray-50            { background-color: #000000 !important; }
+.dark .bg-gray-100           { background-color: #1a1a1a !important; }
+.dark .bg-gray-200           { background-color: #262626 !important; }
 
-/* Borders */
-.dark .border-gray-200 { border-color: #374151 !important; }
-.dark .border-gray-100 { border-color: #374151 !important; }
-.dark .border-b { border-bottom-color: #374151 !important; }
-.dark .border-t { border-top-color: #374151 !important; }
-.dark .divide-gray-200 > * { border-color: #374151 !important; }
+/* ── Text colors ──────────────────────────────────────────────── */
+.dark .text-gray-900         { color: #fafafa   !important; }
+.dark .text-gray-800         { color: #e5e5e5   !important; }
+.dark .text-gray-700         { color: #d4d4d4   !important; }
+.dark .text-gray-600         { color: #a3a3a3   !important; }
+.dark .text-gray-500         { color: #737373   !important; }
+.dark .text-gray-400         { color: #525252   !important; }
+.dark .text-gray-200         { color: #404040   !important; }
 
-/* Gray backgrounds */
-.dark .bg-gray-50  { background-color: #111827 !important; }
-.dark .bg-gray-100 { background-color: #1f2937 !important; }
-.dark .bg-gray-200 { background-color: #374151 !important; }
+/* ── Borders ──────────────────────────────────────────────────── */
+.dark .border-gray-100,
+.dark .border-gray-200,
+.dark .border-gray-300       { border-color: #262626 !important; }
+.dark .border-b              { border-bottom-color: #262626 !important; }
+.dark .border-t              { border-top-color:    #262626 !important; }
+.dark .border-l              { border-left-color:   #262626 !important; }
+.dark .border-r              { border-right-color:  #262626 !important; }
+.dark .border                { border-color: #262626 !important; }
+.dark .divide-gray-200 > *   { border-color: #262626 !important; }
 
-/* Input / textarea fields */
+/* Notification dot border */
+.dark .border-white          { border-color: #0d0d0d !important; }
+
+/* ── Shadows ──────────────────────────────────────────────────── */
+.dark .shadow-sm,
+.dark .shadow-md             { box-shadow: 0 1px 6px 0 rgba(0,0,0,.8) !important; }
+.dark .drop-shadow-sm,
+.dark .drop-shadow-md,
+.dark .drop-shadow-xl        { filter: drop-shadow(0 2px 8px rgba(0,0,0,.9)) !important; }
+
+/* ── Inputs / textareas / selects ─────────────────────────────── */
 .dark input:not([type="checkbox"]):not([type="radio"]),
 .dark textarea,
 .dark select {
-	background-color: #374151 !important;
-	color: #f9fafb !important;
-	border-color: #4b5563 !important;
+	background-color: #1a1a1a !important;
+	color:            #fafafa !important;
+	border-color:     #333333 !important;
 }
 .dark input::placeholder,
-.dark textarea::placeholder {
-	color: #6b7280 !important;
+.dark textarea::placeholder  { color: #525252 !important; }
+.dark input:focus,
+.dark textarea:focus         { border-color: #404040 !important; }
+
+/* ── Status / badge pill variants ────────────────────────────── */
+/* Green pills (Present / Approved / Check-in) */
+.dark .bg-green-50           { background-color: rgba(22,163,74,0.15) !important; }
+.dark .text-green-700        { color: #4ade80 !important; }
+.dark .text-green-600        { color: #4ade80 !important; }
+
+/* Blue pills (Late Entry / Info) */
+.dark .bg-blue-50            { background-color: rgba(37,99,235,0.15) !important; }
+.dark .text-blue-700         { color: #60a5fa !important; }
+.dark .text-blue-600         { color: #60a5fa !important; }
+
+/* Yellow / warning pills (Pending approval) */
+.dark .bg-yellow-50          { background-color: rgba(161,98,7,0.2)  !important; }
+.dark .text-yellow-700       { color: #fbbf24 !important; }
+.dark .text-yellow-500       { color: #fbbf24 !important; }
+
+/* Red */
+.dark .text-red-600          { color: #f87171 !important; }
+.dark .text-red-500          { color: #f87171 !important; }
+
+/* ── Hover states ─────────────────────────────────────────────── */
+.dark .hover\:bg-white:hover    { background-color: #1a1a1a !important; }
+.dark .hover\:bg-gray-100:hover { background-color: #1a1a1a !important; }
+.dark .hover\:bg-gray-200:hover { background-color: #262626 !important; }
+
+/* ── Active / focus states ────────────────────────────────────── */
+.dark .active\:bg-gray-300:active { background-color: #2e2e2e !important; }
+.dark .focus-visible\:ring        { --tw-ring-color: #404040; }
+
+/* ── Login page ───────────────────────────────────────────────── */
+.dark .bg-white.flex.h-screen.w-screen { background-color: #000000 !important; }
+
+/* Social login button */
+.dark .bg-gray-100.hover\:bg-gray-200 {
+	background-color: #1a1a1a !important;
+	color:            #fafafa !important;
 }
 
-/* Shadows */
-.dark .shadow-sm  { box-shadow: 0 1px 3px 0 rgba(0,0,0,.5) !important; }
-.dark .shadow-md  { box-shadow: 0 4px 6px -1px rgba(0,0,0,.5) !important; }
-.dark .drop-shadow-md { filter: drop-shadow(0 4px 6px rgba(0,0,0,.5)) !important; }
+/* ── FormView header & form background ────────────────────────── */
+.dark .flex.flex-col.h-full.w-full .bg-white,
+.dark header.flex.flex-row.bg-white {
+	background-color: #0d0d0d !important;
+}
 
-/* Notification / badge border fix */
-.dark .border-white { border-color: #1f2937 !important; }
+/* Sticky tab bar inside FormView */
+.dark .px-4.sticky.bg-white {
+	background-color: #0d0d0d !important;
+	border-bottom-color: #262626 !important;
+}
 
-/* Scrollbar in dark mode */
-.dark ::-webkit-scrollbar-track { background: #111827; }
-.dark ::-webkit-scrollbar-thumb { background: #374151; }
+/* ── ListView header (back-arrow bar) ─────────────────────────── */
+.dark .flex.flex-row.bg-white.shadow-sm {
+	background-color: #0d0d0d !important;
+	border-bottom-color: #262626 !important;
+}
+
+/* ── ListFiltersActionSheet ───────────────────────────────────── */
+.dark .bg-white.w-full.flex.flex-col { background-color: #111111 !important; }
+
+/* Sticky filter title row */
+.dark .w-full.pt-8.pb-5.border-b.text-center.sticky {
+	background-color: #111111 !important;
+	border-bottom-color: #262626 !important;
+}
+
+/* Sticky action buttons row */
+.dark .flex.w-full.flex-row.items-center.justify-between.gap-3.sticky {
+	background-color: #111111 !important;
+	border-top-color:  #262626 !important;
+}
+
+/* ── Attendance Calendar ──────────────────────────────────────── */
+.dark .flex.flex-col.gap-6.bg-white { background-color: #111111 !important; }
+
+/* Calendar day cells — keep colored status dots, dim neutral days */
+.dark .text-gray-800.text-sm.font-medium.m-auto { color: #e5e5e5 !important; }
+
+/* ── RequestSection / RequestList rows ────────────────────────── */
+.dark .flex.flex-col.bg-white.rounded,
+.dark .flex.flex-col.bg-white.rounded.mt-5,
+.dark .flex.flex-col.bg-white.rounded.overflow-auto { background-color: #111111 !important; }
+
+/* "Show more" button inside lists */
+.dark .w-full.\!text-gray-600 { color: #a3a3a3 !important; }
+
+/* ── Salary slip dashboard ────────────────────────────────────── */
+.dark .flex.flex-col.w-full.bg-white.rounded { background-color: #111111 !important; }
+
+/* ── LeaveBalance cards ───────────────────────────────────────── */
+.dark .flex.flex-col.bg-white.border-none.rounded-lg { background-color: #111111 !important; }
+
+/* ── CheckInPanel card ────────────────────────────────────────── */
+.dark .flex.flex-col.bg-white.rounded.w-full { background-color: #111111 !important; }
+
+/* ── QuickLinks rows ──────────────────────────────────────────── */
+.dark .flex.flex-col.bg-white.rounded > div { border-bottom-color: #262626 !important; }
+
+/* ── Profile / Notifications / Settings page headers ─────────── */
+.dark .flex.flex-row.bg-white.shadow-sm.py-4.px-3 {
+	background-color: #0d0d0d !important;
+	border-bottom-color: #262626 !important;
+}
+
+/* Profile avatar placeholder */
+.dark .bg-gray-200.uppercase { background-color: #262626 !important; }
+
+/* ── PermissionBalanceBanner ──────────────────────────────────── */
+.dark .bg-white.rounded-xl { background-color: #111111 !important; }
+.dark .border-gray-100      { border-color: #262626 !important; }
+
+/* Progress bar track */
+.dark .bg-gray-100.rounded-full.h-2 { background-color: #262626 !important; }
+
+/* ── Scrollbar ────────────────────────────────────────────────── */
+.dark ::-webkit-scrollbar-track { background: #000000; }
+.dark ::-webkit-scrollbar-thumb { background: #262626; border-radius: 4px; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #333333; }

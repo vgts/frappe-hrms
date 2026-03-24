@@ -1,13 +1,13 @@
 <template>
-	<div class="flex p-1 bg-gray-200 rounded">
+	<div class="flex p-1 rounded transition-colors duration-200 bg-gray-200 dark:bg-[#1a1a1a]">
 		<button
 			v-for="button in buttons"
 			:key="button.key ?? button.label ?? button"
 			class="px-8 py-2.5 transition-all rounded-[7px] flex-auto font-medium text-base"
 			:class="
 				modelValue === (button.key ?? button.label ?? button)
-					? 'bg-white drop-shadow text-gray-900'
-					: 'text-gray-600'
+					? 'bg-white dark:bg-[#2a2a2a] drop-shadow text-gray-900 dark:text-[#fafafa]'
+					: 'text-gray-600 dark:text-[#525252]'
 			"
 			@click="$emit('update:modelValue', button.key ?? button.label ?? button)"
 		>
@@ -17,6 +17,9 @@
 </template>
 
 <script setup>
+import { inject } from "vue"
+const __ = inject("$translate")
+
 const props = defineProps({
 	buttons: {
 		type: Array,
