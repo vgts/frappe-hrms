@@ -81,3 +81,32 @@ http://ionicframework.com/docs/theming/ */
 	--ion-color-light-shade: #d7d8da;
 	--ion-color-light-tint: #f5f6f9;
 }
+
+/* ────────────────────────────────────────────
+   Dark theme — applied when <html class="dark">
+   ──────────────────────────────────────────── */
+.dark {
+	color-scheme: dark;
+
+	--ion-background-color: #111827;
+	--ion-background-color-rgb: 17, 24, 39;
+
+	--ion-text-color: #f9fafb;
+	--ion-text-color-rgb: 249, 250, 251;
+
+	--ion-tab-bar-background: #1f2937;
+	--ion-tab-bar-background-focused: #374151;
+	--ion-tab-bar-color: #9ca3af;
+	--ion-tab-bar-color-selected: #f9fafb;
+	--ion-tab-bar-border-color: #374151;
+
+	--ion-item-background: #1f2937;
+	--ion-card-background: #1f2937;
+	--ion-toolbar-background: #1f2937;
+
+	--ion-color-light: #1f2937;
+	--ion-color-light-rgb: 31, 41, 55;
+	--ion-color-light-contrast: #f9fafb;
+	--ion-color-light-shade: #111827;
+	--ion-color-light-tint: #374151;
+}

@@ -28,3 +28,83 @@ body {
 	-ms-overflow-style: none; /* IE and Edge */
 	scrollbar-width: none; /* Firefox */
 }
+
+/* ── Dark mode global overrides ─────────────────────────────────────────── */
+
+/* White surfaces → dark card surface */
+.dark .bg-white {
+	background-color: #1f2937 !important;
+}
+
+/* Page/app background */
+.dark ion-content {
+	--background: #111827;
+}
+.dark ion-page {
+	--background: #111827;
+	background-color: #111827;
+}
+.dark ion-header {
+	--background: #1f2937;
+}
+
+/* Tab bar */
+.dark ion-tab-bar {
+	background: #1f2937 !important;
+	border-top: 1px solid #374151 !important;
+}
+.dark ion-tab-button {
+	background: #1f2937 !important;
+	--color: #9ca3af;
+	--color-selected: #f9fafb;
+}
+
+/* Modals and action sheets */
+.dark ion-modal {
+	--background: #1f2937;
+}
+
+/* Gray text shades */
+.dark .text-gray-900 { color: #f9fafb !important; }
+.dark .text-gray-800 { color: #f3f4f6 !important; }
+.dark .text-gray-700 { color: #e5e7eb !important; }
+.dark .text-gray-600 { color: #d1d5db !important; }
+.dark .text-gray-500 { color: #9ca3af !important; }
+.dark .text-gray-400 { color: #6b7280 !important; }
+
+/* Borders */
+.dark .border-gray-200 { border-color: #374151 !important; }
+.dark .border-gray-100 { border-color: #374151 !important; }
+.dark .border-b { border-bottom-color: #374151 !important; }
+.dark .border-t { border-top-color: #374151 !important; }
+.dark .divide-gray-200 > * { border-color: #374151 !important; }
+
+/* Gray backgrounds */
+.dark .bg-gray-50  { background-color: #111827 !important; }
+.dark .bg-gray-100 { background-color: #1f2937 !important; }
+.dark .bg-gray-200 { background-color: #374151 !important; }
+
+/* Input / textarea fields */
+.dark input:not([type="checkbox"]):not([type="radio"]),
+.dark textarea,
+.dark select {
+	background-color: #374151 !important;
+	color: #f9fafb !important;
+	border-color: #4b5563 !important;
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+	color: #6b7280 !important;
+}
+
+/* Shadows */
+.dark .shadow-sm  { box-shadow: 0 1px 3px 0 rgba(0,0,0,.5) !important; }
+.dark .shadow-md  { box-shadow: 0 4px 6px -1px rgba(0,0,0,.5) !important; }
+.dark .drop-shadow-md { filter: drop-shadow(0 4px 6px rgba(0,0,0,.5)) !important; }
+
+/* Notification / badge border fix */
+.dark .border-white { border-color: #1f2937 !important; }
+
+/* Scrollbar in dark mode */
+.dark ::-webkit-scrollbar-track { background: #111827; }
+.dark ::-webkit-scrollbar-thumb { background: #374151; }
