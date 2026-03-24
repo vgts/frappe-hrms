@@ -220,6 +220,10 @@ body {
 /* Progress bar track */
 .dark .bg-gray-100.rounded-full.h-2 { background-color: #262626 !important; }
 
+/* ── Default Present badge (green pill on profile) ───────────── */
+.dark .bg-green-100  { background-color: rgba(22,163,74,0.18) !important; }
+.dark .border-green-300 { border-color: rgba(22,163,74,0.4) !important; }
+
 /* ── Scrollbar ────────────────────────────────────────────────── */
 .dark ::-webkit-scrollbar-track { background: #000000; }
 .dark ::-webkit-scrollbar-thumb { background: #262626; border-radius: 4px; }

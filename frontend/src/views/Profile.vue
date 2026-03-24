@@ -33,13 +33,24 @@
 							{{ user.data.first_name[0] }}
 						</div>
 
-						<div class="flex flex-col gap-1.5 items-center mt-2 mb-5">
+						<div class="flex flex-col gap-1.5 items-center mt-2 mb-3">
 							<span v-if="employee" class="text-lg font-bold text-gray-900">{{
 								employee?.data?.employee_name
 							}}</span>
 							<span v-if="employee" class="font-normal text-sm text-gray-500">{{
 								employee?.data?.designation
 							}}</span>
+
+							<!-- Default Present Badge -->
+							<div
+								v-if="isDefaultPresent"
+								class="flex items-center gap-1.5 mt-1 px-3 py-1 rounded-full bg-green-100 border border-green-300"
+							>
+								<span class="h-2 w-2 rounded-full bg-green-500 flex-shrink-0"></span>
+								<span class="text-xs font-semibold text-green-700">
+									{{ __("Default Present") }}
+								</span>
+							</div>
 						</div>
 
 						<!-- Profile Links -->
@@ -222,6 +233,16 @@ const allowPushNotifications = computed(
 		arePushNotificationsEnabled.data
 )
 
+// ── Default Present status ────────────────────────────────────────────────
+const defaultPresentResource = createResource({
+	url: "vgts.default_present.default_present.is_default_present",
+	params: { employee: employee.data.name },
+	auto: true,
+})
+
+const isDefaultPresent = computed(() => !!defaultPresentResource.data)
+
+// ── Profile modal ─────────────────────────────────────────────────────────
 const openInfoModal = async (request) => {
 	selectedItem.value = request
 	isInfoModalOpen.value = true
@@ -271,6 +292,7 @@ onMounted(() => {
 	socket.on("list_update", (data) => {
 		if (data.doctype === DOCTYPE && data.name === employee.data.name) {
 			employeeDoc.reload()
+			defaultPresentResource.reload()
 		}
 	})
 })
