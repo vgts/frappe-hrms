@@ -201,30 +201,41 @@ const nextAction = computed(() => {
 		: { action: "IN", label: __("Check In") }
 })
 
-// Earliest IN today — timer start anchor
-const firstCheckinTime = computed(() => {
-	if (!checkins.data) return null
-	const inLogs = checkins.data.filter(l => l.log_type === "IN")
-	if (!inLogs.length) return null
-	return inLogs[inLogs.length - 1].time   // desc order → last = earliest
+// ── Actual checked-in time — IN→OUT pair summation ───────────────────────
+//
+// Walk logs ascending, pair each IN with the next OUT.
+// Mirrors api.py's all_logs_today loop exactly so both sides agree.
+//
+//   completedSeconds — sum of all finished IN→OUT pairs
+//   lastInTime       — most recent IN if currently checked in (null otherwise)
+//   firstInTime      — earliest IN today (for "since X" label)
+const checkedInState = computed(() => {
+	if (!checkins.data) return { completedSeconds: 0, lastInTime: null, firstInTime: null }
+
+	const logs = [...checkins.data].sort((a, b) => (a.time < b.time ? -1 : 1))
+
+	let completedSeconds = 0
+	let lastIn           = null
+	let firstIn          = null
+
+	for (const log of logs) {
+		if (log.log_type === "IN") {
+			if (!firstIn) firstIn = log.time
+			lastIn = log.time
+		} else if (log.log_type === "OUT" && lastIn) {
+			const diff = Math.floor(
+				(new Date(log.time.replace(" ", "T")) - new Date(lastIn.replace(" ", "T"))) / 1000
+			)
+			completedSeconds += Math.max(0, diff)
+			lastIn = null
+		}
+	}
+
+	return { completedSeconds, lastInTime: lastIn, firstInTime: firstIn }
 })
 
-// Latest OUT today
-const lastCheckoutTime = computed(() => {
-	if (!checkins.data) return null
-	const outLogs = checkins.data.filter(l => l.log_type === "OUT")
-	if (!outLogs.length) return null
-	return outLogs[0].time   // desc order → first = latest
-})
-
-// Same string-comparison logic as api.py is_checked_in
-const isCheckedIn = computed(() => {
-	if (!checkins.data) return false
-	const latestIn  = checkins.data.find(l => l.log_type === "IN")
-	const lastInStr  = latestIn?.time           || ""
-	const lastOutStr = lastCheckoutTime.value   || ""
-	return Boolean(lastInStr) && (!lastOutStr || lastInStr > lastOutStr)
-})
+const isCheckedIn      = computed(() => checkedInState.value.lastInTime !== null)
+const firstCheckinTime = computed(() => checkedInState.value.firstInTime)
 
 // ── UI classes based on state ────────────────────────────────────────────
 
@@ -269,20 +280,25 @@ function stopTimer() {
 
 function startTimer() {
 	stopTimer()
-	if (!firstCheckinTime.value) {
+	const { completedSeconds, lastInTime } = checkedInState.value
+
+	if (!completedSeconds && !lastInTime) {
 		timerSeconds.value = 0
 		return
 	}
-	const start = new Date(firstCheckinTime.value.replace(" ", "T"))
-	if (isCheckedIn.value) {
+
+	if (lastInTime) {
+		// Live: completed pairs + elapsed since last check-in
+		const lastIn = new Date(lastInTime.replace(" ", "T"))
 		const tick = () => {
-			timerSeconds.value = Math.max(0, Math.floor((Date.now() - start.getTime()) / 1000))
+			const live = Math.max(0, Math.floor((Date.now() - lastIn.getTime()) / 1000))
+			timerSeconds.value = completedSeconds + live
 		}
 		tick()
 		timerInterval.value = setInterval(tick, 1000)
-	} else if (lastCheckoutTime.value) {
-		const end = new Date(lastCheckoutTime.value.replace(" ", "T"))
-		timerSeconds.value = Math.max(0, Math.floor((end.getTime() - start.getTime()) / 1000))
+	} else {
+		// Static: just the sum of completed IN→OUT pairs
+		timerSeconds.value = completedSeconds
 	}
 }
 
@@ -295,8 +311,8 @@ const timerParts = computed(() => {
 	}
 })
 
-// Restart timer whenever check-in state changes
-watch([isCheckedIn, firstCheckinTime], () => startTimer())
+// Restart timer whenever check-in state changes (data reload after socket/poll)
+watch(checkedInState, () => startTimer(), { deep: true })
 
 // ── Real-time sync ───────────────────────────────────────────────────────
 
