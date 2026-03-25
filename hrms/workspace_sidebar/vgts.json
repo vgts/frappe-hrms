@@ -1,0 +1,28 @@
+{
+ "app": "hrms",
+ "docstatus": 0,
+ "doctype": "Workspace Sidebar",
+ "header_icon": "layout-dashboard",
+ "idx": 0,
+ "items": [
+  {
+   "child": 0,
+   "collapsible": 0,
+   "icon": "layout-dashboard",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "VGTS Dashboard",
+   "link_to": "vgts-dashboard",
+   "link_type": "Page",
+   "show_arrow": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2024-01-01 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "VGTS",
+ "owner": "Administrator",
+ "standard": 1,
+ "title": "VGTS"
+}
