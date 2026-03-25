@@ -1,7 +1,7 @@
 <template>
 	<div class="flex flex-col bg-white rounded-xl w-full py-5 px-4 shadow-sm border border-gray-100">
 
-		<!-- Header row -->
+		<!-- Header -->
 		<div class="flex items-start justify-between">
 			<div>
 				<h2 class="text-lg font-bold text-gray-900">
@@ -37,7 +37,7 @@
 					</span>
 				</div>
 
-				<!-- Since / total sub-label -->
+				<!-- Sub-label -->
 				<div class="text-xs text-gray-400 -mt-0.5" v-if="firstCheckinTime">
 					{{
 						isCheckedIn
@@ -120,7 +120,6 @@
 				<span v-if="locationStatus" class="font-medium text-gray-500 text-sm">
 					{{ locationStatus }}
 				</span>
-
 				<div class="rounded border-4 translate-z-0 block overflow-hidden w-full h-170">
 					<iframe
 						width="100%"
@@ -131,8 +130,7 @@
 						marginwidth="0"
 						style="border: 0"
 						:src="`https://maps.google.com/maps?q=${latitude},${longitude}&hl=en&z=15&amp;output=embed`"
-					>
-					</iframe>
+					></iframe>
 				</div>
 			</template>
 
@@ -150,123 +148,68 @@
 
 <script setup>
 import { createResource, createListResource, toast, FeatherIcon } from "frappe-ui"
-import { computed, inject, ref, onMounted, onBeforeUnmount, watch } from "vue"
+import { computed, inject, ref, watch, onMounted, onBeforeUnmount } from "vue"
 import { IonModal, modalController } from "@ionic/vue"
-
 import { formatTimestamp } from "@/utils/formatters"
 
 const DOCTYPE = "Employee Checkin"
 
-const socket      = inject("$socket")
-const employee    = inject("$employee")
-const dayjs       = inject("$dayjs")
-const __          = inject("$translate")
+const socket   = inject("$socket")
+const employee = inject("$employee")
+const dayjs    = inject("$dayjs")
+const __       = inject("$translate")
 
 const checkinTimestamp = ref(null)
 const latitude         = ref(0)
 const longitude        = ref(0)
 const locationStatus   = ref("")
 
-const settings = createResource({
-	url: "hrms.api.get_hr_settings",
+const settings = createResource({ url: "hrms.api.get_hr_settings", auto: true })
+
+// ── Checkin status — fetched from server (same calculation as VGTS dashboard) ──
+// This is the single source of truth for timer and button state.
+const checkinStatus = createResource({
+	url: "vgts.api.get_checkin_status",
 	auto: true,
 })
 
-// ── Checkin list — today only ────────────────────────────────────────────
-// pageLength 50 covers any realistic number of daily swipes
-const todayStart = dayjs().format("YYYY-MM-DD") + " 00:00:00"
+const isCheckedIn      = computed(() => checkinStatus.data?.is_checked_in      ?? false)
+const checkedInSeconds = computed(() => checkinStatus.data?.checked_in_seconds ?? 0)
+const lastCheckinTime  = computed(() => checkinStatus.data?.last_checkin_time  ?? null)
+const firstCheckinTime = computed(() => checkinStatus.data?.first_checkin_time ?? null)
 
-const checkins = createListResource({
-	doctype: DOCTYPE,
-	fields: ["name", "employee", "employee_name", "log_type", "time", "device_id"],
-	filters: {
-		employee: employee.data.name,
-		time: [">=", todayStart],
-	},
-	orderBy: "time desc",
-	pageLength: 50,
-})
-checkins.reload()
-
-// ── Core computed state ──────────────────────────────────────────────────
-
-const lastLog = computed(() => {
-	if (checkins.list.loading || !checkins.data) return {}
-	return checkins.data[0]
-})
-
-const nextAction = computed(() => {
-	return lastLog?.value?.log_type === "IN"
+const nextAction = computed(() =>
+	isCheckedIn.value
 		? { action: "OUT", label: __("Check Out") }
-		: { action: "IN", label: __("Check In") }
-})
+		: { action: "IN",  label: __("Check In") }
+)
 
-// ── Actual checked-in time — IN→OUT pair summation ───────────────────────
-//
-// Walk logs ascending, pair each IN with the next OUT.
-// Mirrors api.py's all_logs_today loop exactly so both sides agree.
-//
-//   completedSeconds — sum of all finished IN→OUT pairs
-//   lastInTime       — most recent IN if currently checked in (null otherwise)
-//   firstInTime      — earliest IN today (for "since X" label)
-const checkedInState = computed(() => {
-	if (!checkins.data) return { completedSeconds: 0, lastInTime: null, firstInTime: null }
-
-	const logs = [...checkins.data].sort((a, b) => (a.time < b.time ? -1 : 1))
-
-	let completedSeconds = 0
-	let lastIn           = null
-	let firstIn          = null
-
-	for (const log of logs) {
-		if (log.log_type === "IN") {
-			if (!firstIn) firstIn = log.time
-			lastIn = log.time
-		} else if (log.log_type === "OUT" && lastIn) {
-			const diff = Math.floor(
-				(new Date(log.time.replace(" ", "T")) - new Date(lastIn.replace(" ", "T"))) / 1000
-			)
-			completedSeconds += Math.max(0, diff)
-			lastIn = null
-		}
-	}
-
-	return { completedSeconds, lastInTime: lastIn, firstInTime: firstIn }
-})
-
-const isCheckedIn      = computed(() => checkedInState.value.lastInTime !== null)
-const firstCheckinTime = computed(() => checkedInState.value.firstInTime)
-
-// ── UI classes based on state ────────────────────────────────────────────
+// ── UI state ─────────────────────────────────────────────────────────────
 
 const cardBgClass = computed(() => {
 	if (!firstCheckinTime.value) return "bg-gray-50 border border-gray-100"
-	return isCheckedIn.value
-		? "bg-green-50 border border-green-100"
-		: "bg-gray-50 border border-gray-100"
+	return isCheckedIn.value ? "bg-green-50 border border-green-100" : "bg-gray-50 border border-gray-100"
 })
-
 const dotClass = computed(() => {
 	if (!firstCheckinTime.value) return "bg-gray-300"
 	return isCheckedIn.value ? "bg-green-500" : "bg-gray-400"
 })
-
 const statusTextClass = computed(() => {
 	if (!firstCheckinTime.value) return "text-gray-400"
 	return isCheckedIn.value ? "text-green-600" : "text-gray-500"
 })
-
 const digitClass = computed(() => {
 	if (!firstCheckinTime.value) return "text-gray-300"
 	return isCheckedIn.value ? "text-green-700" : "text-gray-600"
 })
-
 const statusLabel = computed(() => {
 	if (!firstCheckinTime.value) return __("Not Checked In")
 	return isCheckedIn.value ? __("Checked In") : __("Checked Out")
 })
 
-// ── Timer ────────────────────────────────────────────────────────────────
+// ── Timer ─────────────────────────────────────────────────────────────────
+// live   = checked_in_seconds (completed pairs) + (now − last_checkin_time)
+// static = checked_in_seconds
 
 const timerSeconds  = ref(0)
 const timerInterval = ref(null)
@@ -280,25 +223,23 @@ function stopTimer() {
 
 function startTimer() {
 	stopTimer()
-	const { completedSeconds, lastInTime } = checkedInState.value
+	const base   = checkedInSeconds.value
+	const lastIn = lastCheckinTime.value
 
-	if (!completedSeconds && !lastInTime) {
+	if (!base && !lastIn) {
 		timerSeconds.value = 0
 		return
 	}
 
-	if (lastInTime) {
-		// Live: completed pairs + elapsed since last check-in
-		const lastIn = new Date(lastInTime.replace(" ", "T"))
+	if (isCheckedIn.value && lastIn) {
+		const lastInMs = new Date(lastIn.replace(" ", "T")).getTime()
 		const tick = () => {
-			const live = Math.max(0, Math.floor((Date.now() - lastIn.getTime()) / 1000))
-			timerSeconds.value = completedSeconds + live
+			timerSeconds.value = base + Math.max(0, Math.floor((Date.now() - lastInMs) / 1000))
 		}
 		tick()
 		timerInterval.value = setInterval(tick, 1000)
 	} else {
-		// Static: just the sum of completed IN→OUT pairs
-		timerSeconds.value = completedSeconds
+		timerSeconds.value = base
 	}
 }
 
@@ -311,36 +252,46 @@ const timerParts = computed(() => {
 	}
 })
 
-// Restart timer whenever check-in state changes (data reload after socket/poll)
-watch(checkedInState, () => startTimer(), { deep: true })
+// Restart timer whenever server data changes
+watch(() => checkinStatus.data, () => startTimer(), { deep: true })
 
-// ── Real-time sync ───────────────────────────────────────────────────────
+// ── List resource — only used for insert (submit action) ─────────────────
+const checkins = createListResource({
+	doctype: DOCTYPE,
+	fields:  ["name", "log_type", "time"],
+	filters: { employee: employee.data.name },
+	orderBy: "time desc",
+	pageLength: 1,
+})
 
-// Reload when the browser tab / app becomes visible again
-// (covers: user was on dashboard, checked in, switches back to HRMS app)
-function onVisibilityChange() {
-	if (!document.hidden) checkins.reload()
+// ── Real-time sync ────────────────────────────────────────────────────────
+
+function refreshStatus() {
+	checkinStatus.reload()
 }
 
-// 30-second polling fallback in case socket missed an event
+// Reload when tab becomes visible (user switches back from dashboard)
+function onVisibilityChange() {
+	if (!document.hidden) refreshStatus()
+}
+
+// 5-second polling — catches any missed socket events quickly
 const pollInterval = ref(null)
 
-// ── Geolocation ──────────────────────────────────────────────────────────
+// ── Geolocation ───────────────────────────────────────────────────────────
 
-function handleLocationSuccess(position) {
-	latitude.value  = position.coords.latitude
-	longitude.value = position.coords.longitude
+function handleLocationSuccess(pos) {
+	latitude.value  = pos.coords.latitude
+	longitude.value = pos.coords.longitude
 	locationStatus.value = [
 		__("Latitude: {0}°",  [Number(latitude.value).toFixed(5)]),
 		__("Longitude: {0}°", [Number(longitude.value).toFixed(5)]),
 	].join(", ")
 }
-
-function handleLocationError(error) {
+function handleLocationError(err) {
 	locationStatus.value = "Unable to retrieve your location"
-	if (error) locationStatus.value += `: ERROR(${error.code}): ${error.message}`
+	if (err) locationStatus.value += `: ERROR(${err.code}): ${err.message}`
 }
-
 const fetchLocation = () => {
 	if (!navigator.geolocation) {
 		locationStatus.value = __("Geolocation is not supported by your current browser")
@@ -350,7 +301,7 @@ const fetchLocation = () => {
 	}
 }
 
-// ── Actions ──────────────────────────────────────────────────────────────
+// ── Actions ───────────────────────────────────────────────────────────────
 
 const handleEmployeeCheckin = () => {
 	checkinTimestamp.value = dayjs().format("YYYY-MM-DD HH:mm:ss")
@@ -370,11 +321,13 @@ const submitLog = (logType) => {
 		{
 			onSuccess() {
 				modalController.dismiss()
+				// Immediately refresh status so timer and button update at once
+				refreshStatus()
 				toast({
 					title: __("Success"),
 					text:  __("{0} successful!", [actionLabel]),
 					icon:  "check-circle",
-					position:   "bottom-center",
+					position:    "bottom-center",
 					iconClasses: "text-green-500",
 				})
 			},
@@ -384,7 +337,7 @@ const submitLog = (logType) => {
 						title: __("Error"),
 						text:  message || __("{0} failed!", [actionLabel]),
 						icon:  "alert-circle",
-						position:   "bottom-center",
+						position:    "bottom-center",
 						iconClasses: "text-red-500",
 					})
 				}
@@ -393,20 +346,20 @@ const submitLog = (logType) => {
 	)
 }
 
-// ── Lifecycle ────────────────────────────────────────────────────────────
+// ── Lifecycle ─────────────────────────────────────────────────────────────
 
 onMounted(() => {
-	// Socket: real-time updates when any Employee Checkin is created/changed
+	// Socket: instant update when any Employee Checkin record changes
 	socket.emit("doctype_subscribe", DOCTYPE)
 	socket.on("list_update", (data) => {
-		if (data.doctype === DOCTYPE) checkins.reload()
+		if (data.doctype === DOCTYPE) refreshStatus()
 	})
 
-	// Visibility: reload when user switches back from another tab/app
+	// Visibility: refresh when user comes back to this tab/app
 	document.addEventListener("visibilitychange", onVisibilityChange)
 
-	// Polling: fallback every 30 s — catches any missed socket events
-	pollInterval.value = setInterval(() => checkins.reload(), 30000)
+	// Polling: 5-second fallback for missed socket events
+	pollInterval.value = setInterval(refreshStatus, 5000)
 
 	startTimer()
 })
