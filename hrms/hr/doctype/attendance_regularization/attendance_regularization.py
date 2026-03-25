@@ -79,16 +79,25 @@ class AttendanceRegularization(Document):
 		if self.leave_approver:
 			return
 
-		leave_approver, department = frappe.db.get_value(
-			"Employee", self.employee, ["leave_approver", "department"]
-		)
+		# First: custom_project_reporting → user_id
+		project_reporting = frappe.db.get_value("Employee", self.employee, "custom_project_reporting")
+		if project_reporting:
+			leave_approver = frappe.db.get_value("Employee", project_reporting, "user_id")
+		else:
+			leave_approver = None
 
-		if not leave_approver and department:
-			leave_approver = frappe.db.get_value(
-				"Department Approver",
-				{"parent": department, "parentfield": "leave_approvers", "idx": 1},
-				"approver",
+		# Fallback: Employee.leave_approver or Department Approver
+		if not leave_approver:
+			leave_approver, department = frappe.db.get_value(
+				"Employee", self.employee, ["leave_approver", "department"]
 			)
+
+			if not leave_approver and department:
+				leave_approver = frappe.db.get_value(
+					"Department Approver",
+					{"parent": department, "parentfield": "leave_approvers", "idx": 1},
+					"approver",
+				)
 
 		if leave_approver:
 			self.leave_approver = leave_approver
@@ -518,6 +527,13 @@ def get_regularization_approval_details(attendance_regularization):
 @frappe.whitelist()
 def get_leave_approver(employee):
 	"""Return the leave approver for an employee."""
+	# First: custom_project_reporting → user_id
+	project_reporting = frappe.db.get_value("Employee", employee, "custom_project_reporting")
+	if project_reporting:
+		approver = frappe.db.get_value("Employee", project_reporting, "user_id")
+		if approver:
+			return approver
+
 	leave_approver, department = frappe.db.get_value(
 		"Employee", employee, ["leave_approver", "department"]
 	)

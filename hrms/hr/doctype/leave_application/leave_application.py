@@ -1659,6 +1659,14 @@ def get_approved_leaves_for_period(employee, leave_type, from_date, to_date):
 
 @frappe.whitelist()
 def get_leave_approver(employee):
+	# First: custom_project_reporting → user_id (VGTS override)
+	project_reporting = frappe.db.get_value("Employee", employee, "custom_project_reporting")
+	if project_reporting:
+		approver = frappe.db.get_value("Employee", project_reporting, "user_id")
+		if approver:
+			return approver
+
+	# Fallback: Employee.leave_approver field
 	leave_approver, department = frappe.db.get_value("Employee", employee, ["leave_approver", "department"])
 
 	if not leave_approver and department:

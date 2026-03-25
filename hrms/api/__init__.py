@@ -670,18 +670,28 @@ def get_holidays_for_employee(employee: str) -> list[dict]:
 
 @frappe.whitelist()
 def get_leave_approval_details(employee: str) -> dict:
-	leave_approver, department = frappe.get_cached_value(
-		"Employee",
-		employee,
-		["leave_approver", "department"],
-	)
+	# First: custom_project_reporting → user_id
+	project_reporting = frappe.db.get_value("Employee", employee, "custom_project_reporting")
+	if project_reporting:
+		leave_approver = frappe.db.get_value("Employee", project_reporting, "user_id")
+	else:
+		leave_approver = None
 
-	if not leave_approver and department:
-		leave_approver = frappe.db.get_value(
-			"Department Approver",
-			{"parent": department, "parentfield": "leave_approvers", "idx": 1},
-			"approver",
+	if not leave_approver:
+		leave_approver, department = frappe.get_cached_value(
+			"Employee",
+			employee,
+			["leave_approver", "department"],
 		)
+
+		if not leave_approver and department:
+			leave_approver = frappe.db.get_value(
+				"Department Approver",
+				{"parent": department, "parentfield": "leave_approvers", "idx": 1},
+				"approver",
+			)
+	else:
+		department = frappe.db.get_value("Employee", employee, "department")
 
 	leave_approver_name = frappe.db.get_value("User", leave_approver, "full_name", cache=True)
 	department_approvers = get_department_approvers(department, "leave_approvers")
