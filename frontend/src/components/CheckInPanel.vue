@@ -12,6 +12,17 @@
 					<span @click="navigate" class="underline">View List</span>
 				</router-link>
 			</div>
+
+			<!-- Timer display -->
+			<div v-if="firstCheckinTime" class="mt-3 mb-1 flex flex-col items-center gap-1">
+				<div class="font-mono text-3xl font-bold text-gray-800 tracking-widest">
+					{{ timerDisplay }}
+				</div>
+				<div class="text-xs text-gray-400">
+					{{ isCheckedIn ? __("Time elapsed since check-in") : __("Total time worked today") }}
+				</div>
+			</div>
+
 			<Button
 				class="mt-4 mb-1 drop-shadow-sm py-5 text-base"
 				id="open-checkin-modal"
@@ -78,7 +89,7 @@
 
 <script setup>
 import { createResource, createListResource, toast, FeatherIcon } from "frappe-ui"
-import { computed, inject, ref, onMounted, onBeforeUnmount } from "vue"
+import { computed, inject, ref, onMounted, onBeforeUnmount, watch } from "vue"
 import { IonModal, modalController } from "@ionic/vue"
 
 import { formatTimestamp } from "@/utils/formatters"
@@ -98,13 +109,19 @@ const settings = createResource({
 	auto: true,
 })
 
+// Filter to today's logs only — sufficient for button state and timer
+// pageLength 50 handles any realistic number of daily swipes
+const todayStart = dayjs().format("YYYY-MM-DD") + " 00:00:00"
+
 const checkins = createListResource({
 	doctype: DOCTYPE,
 	fields: ["name", "employee", "employee_name", "log_type", "time", "device_id"],
 	filters: {
 		employee: employee.data.name,
+		time: [">=", todayStart],
 	},
 	orderBy: "time desc",
+	pageLength: 50,
 })
 checkins.reload()
 
@@ -122,6 +139,82 @@ const nextAction = computed(() => {
 		? { action: "OUT", label: __("Check Out") }
 		: { action: "IN", label: __("Check In") }
 })
+
+// ── Timer computeds (mirrors VGTS dashboard calculation exactly) ─────────
+
+// Earliest IN today — timer start anchor
+const firstCheckinTime = computed(() => {
+	if (!checkins.data) return null
+	const inLogs = checkins.data.filter(l => l.log_type === "IN")
+	if (!inLogs.length) return null
+	// data is desc order → last element is earliest
+	return inLogs[inLogs.length - 1].time
+})
+
+// Latest OUT today
+const lastCheckoutTime = computed(() => {
+	if (!checkins.data) return null
+	const outLogs = checkins.data.filter(l => l.log_type === "OUT")
+	if (!outLogs.length) return null
+	// data is desc order → first element is latest
+	return outLogs[0].time
+})
+
+// Same string-comparison logic as api.py is_checked_in
+const isCheckedIn = computed(() => {
+	if (!checkins.data) return false
+	const latestInLog = checkins.data.find(l => l.log_type === "IN")
+	const lastInStr  = latestInLog?.time  || ""
+	const lastOutStr = lastCheckoutTime.value || ""
+	return Boolean(lastInStr) && (!lastOutStr || lastInStr > lastOutStr)
+})
+
+// ── Timer tick ───────────────────────────────────────────────────────────
+
+const timerSeconds = ref(0)
+const timerInterval = ref(null)
+
+function stopTimer() {
+	if (timerInterval.value) {
+		clearInterval(timerInterval.value)
+		timerInterval.value = null
+	}
+}
+
+function startTimer() {
+	stopTimer()
+	if (!firstCheckinTime.value) return
+
+	const start = new Date(firstCheckinTime.value.replace(" ", "T"))
+
+	if (isCheckedIn.value) {
+		// Live counter: elapsed since first check-in today
+		const tick = () => {
+			timerSeconds.value = Math.max(0, Math.floor((Date.now() - start.getTime()) / 1000))
+		}
+		tick()
+		timerInterval.value = setInterval(tick, 1000)
+	} else if (lastCheckoutTime.value) {
+		// Static total: last checkout − first check-in
+		const end = new Date(lastCheckoutTime.value.replace(" ", "T"))
+		timerSeconds.value = Math.max(0, Math.floor((end.getTime() - start.getTime()) / 1000))
+	}
+}
+
+const timerDisplay = computed(() => {
+	const s = timerSeconds.value
+	const hh = String(Math.floor(s / 3600)).padStart(2, "0")
+	const mm = String(Math.floor((s % 3600) / 60)).padStart(2, "0")
+	const ss = String(s % 60).padStart(2, "0")
+	return `${hh}:${mm}:${ss}`
+})
+
+// Restart timer whenever checkin state changes (socket reload updates checkins.data)
+watch([isCheckedIn, firstCheckinTime], () => {
+	startTimer()
+})
+
+// ── Geolocation ──────────────────────────────────────────────────────────
 
 function handleLocationSuccess(position) {
 	latitude.value = position.coords.latitude
@@ -201,9 +294,11 @@ onMounted(() => {
 			checkins.reload()
 		}
 	})
+	startTimer()
 })
 
 onBeforeUnmount(() => {
+	stopTimer()
 	socket.emit("doctype_unsubscribe", DOCTYPE)
 	socket.off("list_update")
 })
