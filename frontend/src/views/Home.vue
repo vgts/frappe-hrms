@@ -1,22 +1,21 @@
 <template>
 	<BaseLayout @refresh="refreshAll">
 		<template #body>
-			<!-- Mobile: single column · Desktop (lg+): two-column side-by-side -->
-			<div class="my-7 p-4 lg:max-w-5xl lg:mx-auto lg:grid lg:grid-cols-[360px_1fr] lg:gap-8 lg:items-start
-			            flex flex-col gap-7 lg:flex-none">
+			<div class="p-4 pb-8 lg:p-6 lg:pb-10 lg:max-w-6xl lg:mx-auto flex flex-col gap-5 lg:gap-6">
 
-				<!-- Left column: check-in card + team summary -->
-				<div class="flex flex-col gap-7 lg:sticky lg:top-6">
+				<!-- Check-in card — full width on mobile, constrained on desktop -->
+				<div class="lg:max-w-md">
 					<CheckInPanel />
-					<TeamCheckinSummary ref="teamSummary" />
 				</div>
 
-				<!-- Right column: requests panel -->
-				<div class="flex flex-col gap-7">
-					<RequestPanel ref="requestPanel" />
-					<!-- Quick Links: mobile only (desktop shows them in sidebar) -->
-					<QuickLinks class="lg:hidden" :items="quickLinks" :title="__('Quick Links')" />
-				</div>
+				<!-- Team check-in summary -->
+				<TeamCheckinSummary ref="teamSummary" />
+
+				<!-- Requests: stacked on mobile, side-by-side on desktop -->
+				<RequestPanel ref="requestPanel" />
+
+				<!-- Quick Links: mobile only -->
+				<QuickLinks class="lg:hidden" :items="quickLinks" :title="__('Quick Links')" />
 			</div>
 		</template>
 	</BaseLayout>
