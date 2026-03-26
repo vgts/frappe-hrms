@@ -218,7 +218,7 @@ def get_checkin_status() -> dict:
 
 	return {
 		"is_checked_in":      active_in is not None,
-		"checked_in_seconds": elapsed + live,
+		"checked_in_seconds": live,
 		"last_checkin_time":  str(active_in) if active_in else None,
 		"first_checkin_time": str(active_in) if active_in else None,
 	}
