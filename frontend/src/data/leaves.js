@@ -60,7 +60,9 @@ export const leaveBalance = createResource({
 		return Object.fromEntries(
 			Object.entries(data).map(([leave_type, allocation]) => {
 				allocation.balance_percentage =
-					(allocation.balance_leaves / allocation.allocated_leaves) * 100
+					allocation.allocated_leaves > 0
+						? (allocation.balance_leaves / allocation.allocated_leaves) * 100
+						: 0
 				return [leave_type, allocation]
 			})
 		)

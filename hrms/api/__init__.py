@@ -742,6 +742,7 @@ def get_leave_balance_map() -> dict[str, dict[str, float]]:
 	        'Casual Leave': {'allocated_leaves': 10.0, 'balance_leaves': 5.0},
 	        'Earned Leave': {'allocated_leaves': 3.0, 'balance_leaves': 3.0},
 	}
+	All active leave types are included even if the employee has no allocation.
 	"""
 	from hrms.hr.doctype.leave_application.leave_application import get_leave_details
 
@@ -750,6 +751,17 @@ def get_leave_balance_map() -> dict[str, dict[str, float]]:
 	date = getdate()
 	leave_map = {}
 
+	# Include all active, non-LWP leave types first (with 0 balance as default)
+	all_leave_types = frappe.get_all(
+		"Leave Type",
+		filters={"is_lwp": 0, "disabled": 0},
+		pluck="name",
+		order_by="name asc",
+	)
+	for lt in all_leave_types:
+		leave_map[lt] = {"allocated_leaves": 0.0, "balance_leaves": 0.0}
+
+	# Overwrite with actual allocation data where it exists
 	leave_details = get_leave_details(employee, date)
 	allocation = leave_details["leave_allocation"]
 
