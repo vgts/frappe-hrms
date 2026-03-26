@@ -308,6 +308,76 @@ def get_team_checkins(date: str | None = None, manager: str | None = None) -> li
 	return result
 
 
+@frappe.whitelist()
+def get_department_checkins(date: str | None = None) -> list[dict]:
+	"""Get today's checkin/checkout status for employees in the same department as the current user."""
+	current_emp = get_current_employee()
+	if not date:
+		date = frappe.utils.today()
+
+	department = frappe.db.get_value("Employee", current_emp, "department")
+	if not department:
+		return []
+
+	team_members = frappe.get_all(
+		"Employee",
+		filters={"department": department, "status": "Active", "name": ("!=", current_emp)},
+		fields=["name", "employee_name", "designation", "department", "image"],
+		order_by="employee_name asc",
+	)
+
+	if not team_members:
+		return []
+
+	team_ids = [m.name for m in team_members]
+
+	checkins = frappe.get_all(
+		"Employee Checkin",
+		filters={
+			"employee": ("in", team_ids),
+			"time": ("between", [f"{date} 00:00:00", f"{date} 23:59:59"]),
+		},
+		fields=["employee", "log_type", "time"],
+		order_by="time asc",
+	)
+
+	checkin_map = {}
+	for c in checkins:
+		emp = c.employee
+		if emp not in checkin_map:
+			checkin_map[emp] = {"first_in": None, "last_out": None}
+		if c.log_type == "IN" and not checkin_map[emp]["first_in"]:
+			checkin_map[emp]["first_in"] = c.time
+		if c.log_type == "OUT":
+			checkin_map[emp]["last_out"] = c.time
+
+	result = []
+	for member in team_members:
+		data = checkin_map.get(member.name, {})
+		first_in = data.get("first_in")
+		last_out = data.get("last_out")
+
+		if first_in and last_out:
+			status = "Checked Out"
+		elif first_in:
+			status = "Checked In"
+		else:
+			status = "Not Checked In"
+
+		result.append({
+			"employee": member.name,
+			"employee_name": member.employee_name,
+			"designation": member.designation,
+			"department": member.department,
+			"image": member.image,
+			"status": status,
+			"first_in": str(first_in) if first_in else None,
+			"last_out": str(last_out) if last_out else None,
+		})
+
+	return result
+
+
 # Attendance
 @frappe.whitelist()
 def get_attendance_calendar_events(from_date: str, to_date: str) -> dict[str, str]:
@@ -393,7 +463,22 @@ def get_attendance_requests(
 	for_approval: bool = False,
 	limit: int | None = None,
 ) -> list[dict]:
-	filters = get_filters("Attendance Request", employee, None, for_approval)
+	filters = frappe._dict()
+	if for_approval:
+		# Only show requests from employees who report to current user
+		direct_reports = frappe.get_all(
+			"Employee",
+			filters={"reports_to": employee, "status": "Active"},
+			pluck="name",
+		)
+		if not direct_reports:
+			return []
+		filters.docstatus = 0
+		filters.employee = ("in", direct_reports)
+	else:
+		filters.docstatus = ("!=", 2)
+		filters.employee = employee
+
 	fields = [
 		"name",
 		"reason",

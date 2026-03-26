@@ -5,19 +5,47 @@ const activeComponent = shallowRef(null)
 const modalTitle = ref("")
 
 const formComponentMap = {
-	AttendanceRequestFormView: defineAsyncComponent(() => import("@/views/attendance/AttendanceRequestForm.vue")),
-	LeaveApplicationFormView: defineAsyncComponent(() => import("@/views/leave/Form.vue")),
-	ShiftRequestFormView: defineAsyncComponent(() => import("@/views/attendance/ShiftRequestForm.vue")),
-	ExpenseClaimFormView: defineAsyncComponent(() => import("@/views/expense_claim/Form.vue")),
-	PermissionFormView: defineAsyncComponent(() => import("@/views/permission/Form.vue")),
-	RegularizationFormView: defineAsyncComponent(() => import("@/views/regularization/Form.vue")),
+	AttendanceRequestFormView: {
+		component: defineAsyncComponent(() => import("@/views/attendance/AttendanceRequestForm.vue")),
+		title: "Request Attendance",
+		icon: "clipboard",
+	},
+	LeaveApplicationFormView: {
+		component: defineAsyncComponent(() => import("@/views/leave/Form.vue")),
+		title: "Request Leave",
+		icon: "calendar",
+	},
+	ShiftRequestFormView: {
+		component: defineAsyncComponent(() => import("@/views/attendance/ShiftRequestForm.vue")),
+		title: "Request Shift",
+		icon: "clock",
+	},
+	ExpenseClaimFormView: {
+		component: defineAsyncComponent(() => import("@/views/expense_claim/Form.vue")),
+		title: "Claim Expense",
+		icon: "credit-card",
+	},
+	PermissionFormView: {
+		component: defineAsyncComponent(() => import("@/views/permission/Form.vue")),
+		title: "Request Permission",
+		icon: "shield",
+	},
+	RegularizationFormView: {
+		component: defineAsyncComponent(() => import("@/views/regularization/Form.vue")),
+		title: "Regularization",
+		icon: "check-square",
+	},
 }
+
+const modalIcon = ref("")
 
 export function useFormModal() {
 	function openForm(routeName) {
-		const comp = formComponentMap[routeName]
-		if (comp) {
-			activeComponent.value = comp
+		const entry = formComponentMap[routeName]
+		if (entry) {
+			activeComponent.value = entry.component
+			modalTitle.value = entry.title
+			modalIcon.value = entry.icon
 			isOpen.value = true
 		}
 	}
@@ -26,7 +54,8 @@ export function useFormModal() {
 		isOpen.value = false
 		activeComponent.value = null
 		modalTitle.value = ""
+		modalIcon.value = ""
 	}
 
-	return { isOpen, activeComponent, modalTitle, openForm, closeForm }
+	return { isOpen, activeComponent, modalTitle, modalIcon, openForm, closeForm }
 }

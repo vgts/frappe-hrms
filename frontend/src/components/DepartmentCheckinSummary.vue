@@ -1,9 +1,9 @@
 <template>
-	<div v-if="teamCheckins.data?.length" class="w-full bg-white rounded-xl shadow-sm border border-gray-100 lg:h-full lg:flex lg:flex-col">
+	<div v-if="deptCheckins.data?.length" class="w-full bg-white rounded-xl shadow-sm border border-gray-100 lg:h-full lg:flex lg:flex-col">
 
 		<!-- Header -->
 		<div class="flex items-center justify-between px-4 pt-4 pb-3 lg:px-5 lg:pt-5">
-			<div class="text-base font-bold text-gray-800 lg:text-lg">{{ __("Reporting Check-ins") }}</div>
+			<div class="text-base font-bold text-gray-800 lg:text-lg">{{ __("Team Check-ins") }}</div>
 			<router-link :to="{ name: 'AttendanceDashboard' }" class="text-xs text-blue-600 font-medium hover:text-blue-700 transition-colors">
 				{{ __("View All") }}
 			</router-link>
@@ -25,11 +25,11 @@
 			</div>
 		</div>
 
-		<!-- Desktop: team member list preview -->
+		<!-- Desktop: total footer -->
 		<div class="hidden lg:block border-t border-gray-100 px-5 py-3">
 			<div class="flex items-center justify-between text-xs text-gray-500">
-				<span>{{ __("Reporting members") }}</span>
-				<span class="font-semibold text-gray-700">{{ teamCheckins.data.length }}</span>
+				<span>{{ __("Department members") }}</span>
+				<span class="font-semibold text-gray-700">{{ deptCheckins.data.length }}</span>
 			</div>
 		</div>
 	</div>
@@ -42,29 +42,28 @@ import { createResource } from "frappe-ui"
 const __ = inject("$translate")
 const dayjs = inject("$dayjs")
 
-const teamCheckins = createResource({
-	url: "hrms.api.get_team_checkins",
+const deptCheckins = createResource({
+	url: "hrms.api.get_department_checkins",
 	params: { date: dayjs().format("YYYY-MM-DD") },
 	auto: true,
-	cache: "hrms:team_checkins",
+	cache: "hrms:dept_checkins",
 })
 
-// Auto-refetch on app resume
 function onVisibilityChange() {
 	if (document.visibilityState === "visible") {
-		teamCheckins.reload()
+		deptCheckins.reload()
 	}
 }
 onMounted(() => document.addEventListener("visibilitychange", onVisibilityChange))
 onUnmounted(() => document.removeEventListener("visibilitychange", onVisibilityChange))
 
 const checkedInCount = computed(() =>
-	(teamCheckins.data || []).filter(m => m.status === "Checked In").length
+	(deptCheckins.data || []).filter(m => m.status === "Checked In").length
 )
 const checkedOutCount = computed(() =>
-	(teamCheckins.data || []).filter(m => m.status === "Checked Out").length
+	(deptCheckins.data || []).filter(m => m.status === "Checked Out").length
 )
 const notCheckedInCount = computed(() =>
-	(teamCheckins.data || []).filter(m => m.status === "Not Checked In").length
+	(deptCheckins.data || []).filter(m => m.status === "Not Checked In").length
 )
 </script>

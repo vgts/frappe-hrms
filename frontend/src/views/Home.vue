@@ -3,13 +3,21 @@
 		<template #body>
 			<div class="p-4 pb-8 lg:p-6 lg:pb-10 lg:max-w-6xl lg:mx-auto flex flex-col gap-5 lg:gap-6">
 
-				<!-- Check-in card — full width on mobile, constrained on desktop -->
-				<div class="lg:max-w-md">
+				<!-- Mobile: single column -->
+				<div class="lg:hidden flex flex-col gap-5">
 					<CheckInPanel />
+					<TeamCheckinSummary />
+					<DepartmentCheckinSummary />
 				</div>
 
-				<!-- Team check-in summary -->
-				<TeamCheckinSummary ref="teamSummary" />
+				<!-- Desktop top row: CheckIn + Reporting Check-ins side by side -->
+				<div class="hidden lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
+					<CheckInPanel />
+					<div class="flex flex-col gap-4">
+						<TeamCheckinSummary />
+						<DepartmentCheckinSummary />
+					</div>
+				</div>
 
 				<!-- Requests: stacked on mobile, side-by-side on desktop -->
 				<RequestPanel ref="requestPanel" />
@@ -26,6 +34,7 @@ import { inject, markRaw, onMounted, onUnmounted, ref } from "vue"
 
 import CheckInPanel from "@/components/CheckInPanel.vue"
 import TeamCheckinSummary from "@/components/TeamCheckinSummary.vue"
+import DepartmentCheckinSummary from "@/components/DepartmentCheckinSummary.vue"
 import QuickLinks from "@/components/QuickLinks.vue"
 import BaseLayout from "@/components/BaseLayout.vue"
 import RequestPanel from "@/components/RequestPanel.vue"
@@ -33,8 +42,6 @@ import AttendanceIcon from "@/components/icons/AttendanceIcon.vue"
 import ShiftIcon from "@/components/icons/ShiftIcon.vue"
 import LeaveIcon from "@/components/icons/LeaveIcon.vue"
 import ExpenseIcon from "@/components/icons/ExpenseIcon.vue"
-import EmployeeAdvanceIcon from "@/components/icons/EmployeeAdvanceIcon.vue"
-import SalaryIcon from "@/components/icons/SalaryIcon.vue"
 
 import { myLeaves, teamLeaves } from "@/data/leaves"
 import { myAttendanceRequests, myShiftRequests, teamShiftRequests, teamAttendanceRequests } from "@/data/attendance"

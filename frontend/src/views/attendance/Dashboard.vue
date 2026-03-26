@@ -53,87 +53,157 @@
 				</div>
 
 				<!-- Team Attendance Tab -->
-				<div v-else-if="activeTab === 'Team Attendance'" class="flex flex-col gap-4">
-					<!-- Breadcrumb for nested navigation -->
-					<div v-if="breadcrumb.length > 1" class="flex items-center gap-1 text-sm overflow-x-auto">
-						<template v-for="(crumb, idx) in breadcrumb" :key="crumb.employee">
-							<span
-								v-if="idx > 0"
-								class="text-gray-400 flex-shrink-0"
-							>/</span>
-							<span
-								@click="navigateTo(idx)"
-								class="cursor-pointer flex-shrink-0"
-								:class="idx === breadcrumb.length - 1 ? 'text-gray-900 font-medium' : 'text-blue-600'"
+				<div v-else-if="activeTab === 'Team Attendance'" class="flex flex-col gap-6">
+
+					<!-- ===== Reporting Check-ins Section ===== -->
+					<div class="flex flex-col gap-4">
+						<div class="text-lg text-gray-800 font-bold">{{ __("Reporting Check-ins") }}</div>
+
+						<!-- Breadcrumb for nested navigation -->
+						<div v-if="breadcrumb.length > 1" class="flex items-center gap-1 text-sm overflow-x-auto">
+							<template v-for="(crumb, idx) in breadcrumb" :key="crumb.employee">
+								<span
+									v-if="idx > 0"
+									class="text-gray-400 flex-shrink-0"
+								>/</span>
+								<span
+									@click="navigateTo(idx)"
+									class="cursor-pointer flex-shrink-0"
+									:class="idx === breadcrumb.length - 1 ? 'text-gray-900 font-medium' : 'text-blue-600'"
+								>
+									{{ crumb.name }}
+								</span>
+							</template>
+						</div>
+
+						<!-- Reporting Summary Chips -->
+						<div v-if="reportingData.data?.length" class="flex gap-2 flex-wrap">
+							<div class="flex items-center gap-1.5 bg-green-50 text-green-700 rounded-full px-3 py-1.5 text-xs font-medium">
+								<div class="w-2 h-2 rounded-full bg-green-500"></div>
+								{{ reportingCheckedIn }} {{ __("In") }}
+							</div>
+							<div class="flex items-center gap-1.5 bg-blue-50 text-blue-700 rounded-full px-3 py-1.5 text-xs font-medium">
+								<div class="w-2 h-2 rounded-full bg-blue-500"></div>
+								{{ reportingCheckedOut }} {{ __("Out") }}
+							</div>
+							<div class="flex items-center gap-1.5 bg-gray-100 text-gray-600 rounded-full px-3 py-1.5 text-xs font-medium">
+								<div class="w-2 h-2 rounded-full bg-gray-400"></div>
+								{{ reportingAbsent }} {{ __("Absent") }}
+							</div>
+						</div>
+
+						<!-- Reporting Members List -->
+						<div v-if="reportingData.data?.length" class="flex flex-col bg-white rounded-lg overflow-hidden border border-gray-100">
+							<div
+								v-for="member in reportingData.data"
+								:key="member.employee"
+								class="flex items-center gap-3 p-3 border-b last:border-b-0 cursor-pointer hover:bg-gray-50 transition-colors"
+								@click="member.has_reports ? drillDown(member) : null"
 							>
-								{{ crumb.name }}
-							</span>
-						</template>
-					</div>
-
-					<!-- Summary Chips -->
-					<div v-if="teamData.data?.length" class="flex gap-2 flex-wrap">
-						<div class="flex items-center gap-1.5 bg-green-50 text-green-700 rounded-full px-3 py-1.5 text-xs font-medium">
-							<div class="w-2 h-2 rounded-full bg-green-500"></div>
-							{{ checkedInCount }} {{ __("In") }}
-						</div>
-						<div class="flex items-center gap-1.5 bg-blue-50 text-blue-700 rounded-full px-3 py-1.5 text-xs font-medium">
-							<div class="w-2 h-2 rounded-full bg-blue-500"></div>
-							{{ checkedOutCount }} {{ __("Out") }}
-						</div>
-						<div class="flex items-center gap-1.5 bg-gray-100 text-gray-600 rounded-full px-3 py-1.5 text-xs font-medium">
-							<div class="w-2 h-2 rounded-full bg-gray-400"></div>
-							{{ notCheckedInCount }} {{ __("Absent") }}
-						</div>
-					</div>
-
-					<!-- Team Members List -->
-					<div v-if="teamData.data?.length" class="flex flex-col bg-white rounded-lg overflow-hidden">
-						<div
-							v-for="member in teamData.data"
-							:key="member.employee"
-							class="flex items-center gap-3 p-3 border-b last:border-b-0 cursor-pointer"
-							@click="member.has_reports ? drillDown(member) : null"
-						>
-							<Avatar
-								:label="member.employee_name"
-								:image="member.image"
-								size="lg"
-							/>
-							<div class="flex-1 min-w-0">
-								<div class="text-sm font-medium text-gray-900 truncate">
-									{{ member.employee_name }}
-								</div>
-								<div class="text-xs text-gray-500 truncate">
-									{{ member.designation || member.department }}
-								</div>
-							</div>
-							<div class="flex flex-col items-end gap-1">
-								<Badge
-									:theme="statusTheme(member.status)"
-									:label="statusLabel(member.status)"
-									variant="subtle"
-									size="sm"
+								<Avatar
+									:label="member.employee_name"
+									:image="member.image"
+									size="lg"
 								/>
-								<div v-if="member.first_in" class="text-[10px] text-gray-500">
-									<span class="text-green-600">{{ formatTime(member.first_in) }}</span>
-									<span v-if="member.last_out" class="mx-0.5">-</span>
-									<span v-if="member.last_out" class="text-blue-600">{{ formatTime(member.last_out) }}</span>
+								<div class="flex-1 min-w-0">
+									<div class="text-sm font-medium text-gray-900 truncate">
+										{{ member.employee_name }}
+									</div>
+									<div class="text-xs text-gray-500 truncate">
+										{{ member.designation || member.department }}
+									</div>
 								</div>
+								<div class="flex flex-col items-end gap-1">
+									<Badge
+										:theme="statusTheme(member.status)"
+										:label="statusLabel(member.status)"
+										variant="subtle"
+										size="sm"
+									/>
+									<div v-if="member.first_in" class="text-[10px] text-gray-500">
+										<span class="text-green-600">{{ formatTime(member.first_in) }}</span>
+										<span v-if="member.last_out" class="mx-0.5">-</span>
+										<span v-if="member.last_out" class="text-blue-600">{{ formatTime(member.last_out) }}</span>
+									</div>
+								</div>
+								<FeatherIcon
+									v-if="member.has_reports"
+									name="chevron-right"
+									class="h-4 w-4 text-gray-400 flex-shrink-0"
+								/>
 							</div>
-							<!-- Drill-down arrow for members with reports -->
-							<FeatherIcon
-								v-if="member.has_reports"
-								name="chevron-right"
-								class="h-4 w-4 text-gray-400 flex-shrink-0"
-							/>
 						</div>
+
+						<EmptyState
+							v-else
+							:message="reportingData.loading ? __('Loading...') : __('No reporting members found')"
+						/>
 					</div>
 
-					<EmptyState
-						v-else
-						:message="teamData.loading ? __('Loading...') : __('No team members found')"
-					/>
+					<!-- Divider -->
+					<div class="border-t border-gray-200"></div>
+
+					<!-- ===== Team Check-ins Section (Department) ===== -->
+					<div class="flex flex-col gap-4">
+						<div class="text-lg text-gray-800 font-bold">{{ __("Team Check-ins") }}</div>
+
+						<!-- Department Summary Chips -->
+						<div v-if="deptData.data?.length" class="flex gap-2 flex-wrap">
+							<div class="flex items-center gap-1.5 bg-green-50 text-green-700 rounded-full px-3 py-1.5 text-xs font-medium">
+								<div class="w-2 h-2 rounded-full bg-green-500"></div>
+								{{ deptCheckedIn }} {{ __("In") }}
+							</div>
+							<div class="flex items-center gap-1.5 bg-blue-50 text-blue-700 rounded-full px-3 py-1.5 text-xs font-medium">
+								<div class="w-2 h-2 rounded-full bg-blue-500"></div>
+								{{ deptCheckedOut }} {{ __("Out") }}
+							</div>
+							<div class="flex items-center gap-1.5 bg-gray-100 text-gray-600 rounded-full px-3 py-1.5 text-xs font-medium">
+								<div class="w-2 h-2 rounded-full bg-gray-400"></div>
+								{{ deptAbsent }} {{ __("Absent") }}
+							</div>
+						</div>
+
+						<!-- Department Members List -->
+						<div v-if="deptData.data?.length" class="flex flex-col bg-white rounded-lg overflow-hidden border border-gray-100">
+							<div
+								v-for="member in deptData.data"
+								:key="member.employee"
+								class="flex items-center gap-3 p-3 border-b last:border-b-0"
+							>
+								<Avatar
+									:label="member.employee_name"
+									:image="member.image"
+									size="lg"
+								/>
+								<div class="flex-1 min-w-0">
+									<div class="text-sm font-medium text-gray-900 truncate">
+										{{ member.employee_name }}
+									</div>
+									<div class="text-xs text-gray-500 truncate">
+										{{ member.designation || member.department }}
+									</div>
+								</div>
+								<div class="flex flex-col items-end gap-1">
+									<Badge
+										:theme="statusTheme(member.status)"
+										:label="statusLabel(member.status)"
+										variant="subtle"
+										size="sm"
+									/>
+									<div v-if="member.first_in" class="text-[10px] text-gray-500">
+										<span class="text-green-600">{{ formatTime(member.first_in) }}</span>
+										<span v-if="member.last_out" class="mx-0.5">-</span>
+										<span v-if="member.last_out" class="text-blue-600">{{ formatTime(member.last_out) }}</span>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<EmptyState
+							v-else
+							:message="deptData.loading ? __('Loading...') : __('No department members found')"
+						/>
+					</div>
 				</div>
 			</div>
 		</template>
@@ -168,14 +238,13 @@ const employee = inject("$employee")
 const activeTab = ref("My Attendance")
 const TAB_BUTTONS = ["My Attendance", "Team Attendance"]
 
-// Current manager being viewed (for nested drill-down)
+// ===== Reporting Check-ins (reports_to) =====
 const currentManager = ref(null)
 const breadcrumb = reactive([
 	{ employee: null, name: employee.data?.employee_name || "My Team" },
 ])
 
-// Team checkin data
-const teamData = createResource({
+const reportingData = createResource({
 	url: "hrms.api.get_team_checkins",
 	params: {
 		date: dayjs().format("YYYY-MM-DD"),
@@ -185,33 +254,49 @@ const teamData = createResource({
 	cache: "hrms:team_checkins",
 })
 
-// Drill down into a team member's reports
 function drillDown(member) {
 	currentManager.value = member.employee
 	breadcrumb.push({ employee: member.employee, name: member.employee_name })
-	teamData.fetch({ date: dayjs().format("YYYY-MM-DD"), manager: member.employee })
+	reportingData.fetch({ date: dayjs().format("YYYY-MM-DD"), manager: member.employee })
 }
 
-// Navigate back in breadcrumb
 function navigateTo(idx) {
 	if (idx === breadcrumb.length - 1) return
 	const crumb = breadcrumb[idx]
 	currentManager.value = crumb.employee
 	breadcrumb.splice(idx + 1)
-	teamData.fetch({ date: dayjs().format("YYYY-MM-DD"), manager: crumb.employee })
+	reportingData.fetch({ date: dayjs().format("YYYY-MM-DD"), manager: crumb.employee })
 }
 
-// Summary counts
-const checkedInCount = computed(() =>
-	(teamData.data || []).filter(m => m.status === "Checked In").length
+const reportingCheckedIn = computed(() =>
+	(reportingData.data || []).filter(m => m.status === "Checked In").length
 )
-const checkedOutCount = computed(() =>
-	(teamData.data || []).filter(m => m.status === "Checked Out").length
+const reportingCheckedOut = computed(() =>
+	(reportingData.data || []).filter(m => m.status === "Checked Out").length
 )
-const notCheckedInCount = computed(() =>
-	(teamData.data || []).filter(m => m.status === "Not Checked In").length
+const reportingAbsent = computed(() =>
+	(reportingData.data || []).filter(m => m.status === "Not Checked In").length
 )
 
+// ===== Team Check-ins (Department) =====
+const deptData = createResource({
+	url: "hrms.api.get_department_checkins",
+	params: { date: dayjs().format("YYYY-MM-DD") },
+	auto: true,
+	cache: "hrms:dept_checkins",
+})
+
+const deptCheckedIn = computed(() =>
+	(deptData.data || []).filter(m => m.status === "Checked In").length
+)
+const deptCheckedOut = computed(() =>
+	(deptData.data || []).filter(m => m.status === "Checked Out").length
+)
+const deptAbsent = computed(() =>
+	(deptData.data || []).filter(m => m.status === "Not Checked In").length
+)
+
+// ===== Shared helpers =====
 const formatTime = (datetime) => {
 	if (!datetime) return ""
 	return dayjs(datetime).format("hh:mm A")
@@ -229,7 +314,7 @@ const statusLabel = (status) => {
 	return __("Absent")
 }
 
-// Shifts data (for My Attendance tab)
+// ===== Shifts data (for My Attendance tab) =====
 const shifts = createResource({
 	url: "hrms.api.get_shifts",
 	auto: true,
