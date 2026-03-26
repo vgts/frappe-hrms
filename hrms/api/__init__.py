@@ -199,7 +199,7 @@ def get_checkin_status() -> dict:
 	"""
 	Returns the current checked-in state for the logged-in employee.
 	Cross-midnight sessions (IN yesterday, no OUT yet today) are fully supported.
-	Elapsed seconds = completed IN→OUT pairs + live seconds since last open IN.
+	checked_in_seconds = completed IN→OUT pairs only (frontend adds live tick).
 	"""
 	from hrms.hr.doctype.employee_checkin.employee_checkin import get_today_checkin_seconds
 
@@ -212,11 +212,11 @@ def get_checkin_status() -> dict:
 			"first_checkin_time": None,
 		}
 
-	active_in, total_seconds = get_today_checkin_seconds(employee)
+	active_in, elapsed = get_today_checkin_seconds(employee)
 
 	return {
 		"is_checked_in":      active_in is not None,
-		"checked_in_seconds": total_seconds,
+		"checked_in_seconds": elapsed,
 		"last_checkin_time":  str(active_in) if active_in else None,
 		"first_checkin_time": str(active_in) if active_in else None,
 	}

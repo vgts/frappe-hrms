@@ -254,25 +254,27 @@ def resolve_active_session(employee):
 
 def get_today_checkin_seconds(employee):
 	"""
-	Returns (active_in, total_seconds) for the timer display.
+	Returns (active_in, elapsed_seconds) for the timer display.
 
-	- Sums all completed IN→OUT pairs from today midnight onwards.
-	- Adds live seconds if currently checked in.
-	- For cross-midnight sessions (active IN started before midnight),
-	  falls back to now − active_in so the full session is shown.
+	elapsed_seconds = sum of completed IN→OUT pairs from today midnight only.
+	The frontend is responsible for adding (now − active_in) as the live tick.
+
+	For cross-midnight sessions (active IN before midnight):
+	  elapsed_seconds = 0  (frontend ticks from active_in which is before midnight)
 
 	Returns:
-	    active_in     – datetime of the current open IN, or None
-	    total_seconds – total worked seconds to display on timer
+	    active_in       – datetime of the current open IN, or None
+	    elapsed_seconds – completed pairs accumulated today (does NOT include live)
 	"""
 	today_midnight = get_datetime(today() + " 00:00:00")
 
 	# resolve the currently active IN (cross-midnight aware)
 	active_in, _ = resolve_active_session(employee)
 
-	# cross-midnight: IN was before today's midnight → show full session
+	# cross-midnight: IN was before today's midnight
+	# elapsed = 0; frontend ticks from active_in directly
 	if active_in and active_in < today_midnight:
-		return active_in, int((now_datetime() - active_in).total_seconds())
+		return active_in, 0
 
 	# get all logs from midnight today
 	logs = frappe.db.get_all(
@@ -281,20 +283,16 @@ def get_today_checkin_seconds(employee):
 		fields=["log_type", "time"],
 		order_by="time asc",
 	)
-	elapsed   = 0
+	elapsed    = 0
 	current_in = None
-	first_in   = None
 	for log in logs:
 		if log.log_type == "IN":
-			if first_in is None:
-				first_in = log.time
 			current_in = log.time
 		elif log.log_type == "OUT" and current_in:
 			elapsed   += max(0, int((log.time - current_in).total_seconds()))
 			current_in = None
 
-	live = int((now_datetime() - current_in).total_seconds()) if current_in else 0
-	return current_in, elapsed + live
+	return current_in, elapsed
 
 
 def process_attendance_from_checkin(employee, out_time):
