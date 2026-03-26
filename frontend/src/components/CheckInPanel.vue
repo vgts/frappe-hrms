@@ -81,8 +81,7 @@
 			<!-- Check-in / Check-out button -->
 			<Button
 				class="mt-4 mb-1 drop-shadow-sm py-5 text-base"
-				id="open-checkin-modal"
-				@click="handleEmployeeCheckin"
+				@click="openCheckinModal"
 			>
 				<template #prefix>
 					<FeatherIcon
@@ -99,10 +98,12 @@
 		</div>
 	</div>
 
+	<!-- Confirmation modal — works on both mobile (sheet) and desktop -->
 	<ion-modal
 		v-if="settings.data?.allow_employee_checkin_from_mobile_app"
 		ref="modal"
-		trigger="open-checkin-modal"
+		:is-open="showModal"
+		@didDismiss="showModal = false"
 		:initial-breakpoint="1"
 		:breakpoints="[0, 1]"
 	>
@@ -163,6 +164,7 @@ const checkinTimestamp = ref(null)
 const latitude         = ref(0)
 const longitude        = ref(0)
 const locationStatus   = ref("")
+const showModal        = ref(false)
 
 const settings = createResource({ url: "hrms.api.get_hr_settings", auto: true })
 
@@ -303,9 +305,10 @@ const fetchLocation = () => {
 
 // ── Actions ───────────────────────────────────────────────────────────────
 
-const handleEmployeeCheckin = () => {
+const openCheckinModal = () => {
 	checkinTimestamp.value = dayjs().format("YYYY-MM-DD HH:mm:ss")
 	if (settings.data?.allow_geolocation_tracking) fetchLocation()
+	showModal.value = true
 }
 
 const submitLog = (logType) => {
@@ -320,7 +323,7 @@ const submitLog = (logType) => {
 		},
 		{
 			onSuccess() {
-				modalController.dismiss()
+				showModal.value = false
 				// Immediately refresh status so timer and button update at once
 				refreshStatus()
 				toast({

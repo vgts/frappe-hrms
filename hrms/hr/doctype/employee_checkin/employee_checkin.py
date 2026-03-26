@@ -313,8 +313,7 @@ def process_attendance_from_checkin(employee, out_time):
 	logs  = frappe.db.get_all(
 		"Employee Checkin",
 		filters={"employee": employee,
-		         "time":     [">=", since],
-		         "time":     ["<=", out_time]},
+		         "time":     ["between", [since, out_time]]},
 		fields=["log_type", "time"],
 		order_by="time asc",
 	)
@@ -360,16 +359,20 @@ def process_attendance(employee, attendance_date, in_time, out_time, force_absen
 		if att.docstatus == 1:
 			att.flags.ignore_permissions = True
 			att.cancel()
-			att = frappe.get_doc("Attendance", existing.name)  # reload after cancel
-		att.status        = status
-		att.in_time       = in_time
-		att.out_time      = out_time
-		att.working_hours = working_hours
-		att.flags.ignore_permissions = True
-		att.save(ignore_permissions=True)
-		att.flags.ignore_permissions = True
-		att.submit()
-	else:
+			# Cancelled doc (docstatus=2) cannot be edited — create a new one
+			existing = None
+		elif att.docstatus == 0:
+			# Draft — update in place
+			att.status        = status
+			att.in_time       = in_time
+			att.out_time      = out_time
+			att.working_hours = working_hours
+			att.flags.ignore_permissions = True
+			att.save(ignore_permissions=True)
+			att.flags.ignore_permissions = True
+			att.submit()
+
+	if not existing:
 		att = frappe.new_doc("Attendance")
 		att.employee        = employee
 		att.attendance_date = attendance_date
