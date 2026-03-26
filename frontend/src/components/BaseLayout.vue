@@ -18,7 +18,7 @@
 								class="text-xl font-bold transition-colors duration-200"
 								:class="isDark() ? 'text-gray-50' : 'text-gray-900'"
 							>
-								{{ props.pageTitle || __("Frappe HR") }}
+								{{ props.pageTitle || __("VGTS-HRMS") }}
 							</h2>
 						</div>
 						<div class="flex flex-row items-center gap-3 ml-auto">
