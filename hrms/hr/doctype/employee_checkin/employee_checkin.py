@@ -353,13 +353,16 @@ def process_attendance(employee, attendance_date, in_time, out_time, force_absen
 	if existing:
 		att = frappe.get_doc("Attendance", existing.name)
 		if att.docstatus == 1:
+			att.flags.ignore_permissions = True
 			att.cancel()
 			att = frappe.get_doc("Attendance", existing.name)  # reload after cancel
 		att.status        = status
 		att.in_time       = in_time
 		att.out_time      = out_time
 		att.working_hours = working_hours
+		att.flags.ignore_permissions = True
 		att.save(ignore_permissions=True)
+		att.flags.ignore_permissions = True
 		att.submit()
 	else:
 		att = frappe.new_doc("Attendance")
@@ -370,7 +373,9 @@ def process_attendance(employee, attendance_date, in_time, out_time, force_absen
 		att.out_time        = out_time
 		att.working_hours   = working_hours
 		att.company         = company
+		att.flags.ignore_permissions = True
 		att.insert(ignore_permissions=True)
+		att.flags.ignore_permissions = True
 		att.submit()
 
 	return att
@@ -555,7 +560,9 @@ def create_or_update_attendance(
 						"actual_overtime_duration": overtime_data.get("actual_overtime_duration"),
 					}
 				)
+		attendance.flags.ignore_permissions = True
 		attendance.save()
+		attendance.flags.ignore_permissions = True
 		attendance.submit()
 
 	return attendance
