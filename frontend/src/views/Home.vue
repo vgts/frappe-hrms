@@ -2,7 +2,7 @@
 	<BaseLayout @refresh="refreshAll">
 		<template #body>
 			<!-- Mobile: single column · Desktop (lg+): two-column side-by-side -->
-			<div class="my-7 p-4 lg:max-w-6xl lg:mx-auto lg:grid lg:grid-cols-[380px_1fr] lg:gap-8 lg:items-start
+			<div class="my-7 p-4 lg:max-w-5xl lg:mx-auto lg:grid lg:grid-cols-[360px_1fr] lg:gap-8 lg:items-start
 			            flex flex-col gap-7 lg:flex-none">
 
 				<!-- Left column: check-in card + team summary -->
@@ -11,10 +11,11 @@
 					<TeamCheckinSummary ref="teamSummary" />
 				</div>
 
-				<!-- Right column: requests + quick links -->
+				<!-- Right column: requests panel -->
 				<div class="flex flex-col gap-7">
 					<RequestPanel ref="requestPanel" />
-					<QuickLinks :items="quickLinks" :title="__('Quick Links')" />
+					<!-- Quick Links: mobile only (desktop shows them in sidebar) -->
+					<QuickLinks class="lg:hidden" :items="quickLinks" :title="__('Quick Links')" />
 				</div>
 			</div>
 		</template>

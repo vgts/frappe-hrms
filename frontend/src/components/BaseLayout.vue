@@ -16,24 +16,21 @@
 							</h2>
 						</div>
 						<div class="flex flex-row items-center gap-3 ml-auto">
-							<!-- Theme toggle: moon = switch to dark, sun = switch to light -->
+							<!-- Theme toggle -->
 							<button
 								@click="toggleTheme"
 								class="flex items-center justify-center w-8 h-8 rounded-full transition-colors duration-200 focus:outline-none"
 								:class="isDark() ? 'text-yellow-300 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-100'"
 								:aria-label="isDark() ? __('Switch to light mode') : __('Switch to dark mode')"
 							>
-								<FeatherIcon
-									:name="isDark() ? 'sun' : 'moon'"
-									class="h-5 w-5"
-								/>
+								<FeatherIcon :name="isDark() ? 'sun' : 'moon'" class="h-5 w-5" />
 							</button>
 
-							<!-- Bell / Notifications -->
+							<!-- Bell / Notifications — mobile only (sidebar has it on desktop) -->
 							<router-link
 								:to="{ name: 'Notifications' }"
 								v-slot="{ navigate }"
-								class="flex flex-col items-center"
+								class="flex flex-col items-center lg:hidden"
 							>
 								<span class="relative inline-block" @click="navigate">
 									<FeatherIcon
@@ -46,21 +43,16 @@
 										class="absolute top-0 right-0.5 inline-block w-2 h-2 bg-red-600 rounded-full"
 										:class="isDark() ? 'border-gray-800' : 'border-white'"
 										style="border-width: 1px; border-style: solid;"
-									>
-									</span>
+									></span>
 								</span>
 							</router-link>
 
-							<!-- User avatar -->
+							<!-- User avatar — mobile only (sidebar has it on desktop) -->
 							<router-link
 								:to="{ name: 'Profile' }"
-								class="flex flex-col items-center"
+								class="flex flex-col items-center lg:hidden"
 							>
-								<Avatar
-									:image="user.data.user_image"
-									:label="user.data.first_name"
-									size="xl"
-								/>
+								<Avatar :image="user.data.user_image" :label="user.data.first_name" size="xl" />
 							</router-link>
 						</div>
 					</div>
