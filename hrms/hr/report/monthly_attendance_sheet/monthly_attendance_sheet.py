@@ -294,11 +294,26 @@ def get_attendance_map(filters: Filters) -> dict:
 		for assigned_shift, dates in leave_days.items():
 			# no attendance records exist except leaves
 			if employee not in attendance_map:
-				attendance_map.setdefault(employee, {}).setdefault(assigned_shift, {})
+				attendance_map.setdefault(employee, {}).setdefault(assigned_shift or "", {})
 
 			for d in dates:
 				for shift in attendance_map[employee].keys():
 					attendance_map[employee][shift][d] = "On Leave"
+
+	# Merge blank-shift records into named shifts to avoid duplicate rows.
+	# This happens when some attendance records are saved without a shift assignment
+	# while the same employee also has records with a named shift.
+	for employee in list(attendance_map.keys()):
+		shifts = list(attendance_map[employee].keys())
+		named_shifts = [s for s in shifts if s]  # non-empty shift names
+
+		if "" in shifts and named_shifts:
+			empty_data = attendance_map[employee].pop("")
+			for d, status in empty_data.items():
+				for shift in named_shifts:
+					# only fill in days that are not already recorded under a named shift
+					if d not in attendance_map[employee][shift]:
+						attendance_map[employee][shift][d] = status
 
 	return attendance_map
 
