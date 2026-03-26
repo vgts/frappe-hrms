@@ -201,8 +201,7 @@ def get_checkin_status() -> dict:
 	Cross-midnight sessions (IN yesterday, no OUT yet today) are fully supported.
 	Elapsed seconds = completed IN→OUT pairs + live seconds since last open IN.
 	"""
-	from hrms.hr.doctype.employee_checkin.employee_checkin import resolve_active_session
-	from frappe.utils import now_datetime
+	from hrms.hr.doctype.employee_checkin.employee_checkin import get_today_checkin_seconds
 
 	employee = frappe.db.get_value("Employee", {"user_id": frappe.session.user}, "name")
 	if not employee:
@@ -213,12 +212,11 @@ def get_checkin_status() -> dict:
 			"first_checkin_time": None,
 		}
 
-	active_in, elapsed = resolve_active_session(employee)
-	live = int((now_datetime() - active_in).total_seconds()) if active_in else 0
+	active_in, total_seconds = get_today_checkin_seconds(employee)
 
 	return {
 		"is_checked_in":      active_in is not None,
-		"checked_in_seconds": live,
+		"checked_in_seconds": total_seconds,
 		"last_checkin_time":  str(active_in) if active_in else None,
 		"first_checkin_time": str(active_in) if active_in else None,
 	}
