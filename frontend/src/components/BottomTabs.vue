@@ -61,10 +61,5 @@ const tabItems = [
 		title: __("Expenses"),
 		route: "/dashboard/expense-claims",
 	},
-	{
-		icon: SalaryIcon,
-		title: __("Salary"),
-		route: "/dashboard/salary-slips",
-	},
 ]
 </script>

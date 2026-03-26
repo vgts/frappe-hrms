@@ -107,15 +107,5 @@ const quickLinks = [
 		title: __("Regularization"),
 		route: "RegularizationFormView",
 	},
-	{
-		icon: markRaw(EmployeeAdvanceIcon),
-		title: __("Request an Advance"),
-		route: "EmployeeAdvanceFormView",
-	},
-	{
-		icon: markRaw(SalaryIcon),
-		title: __("View Salary Slips"),
-		route: "SalarySlipsDashboard",
-	},
 ]
 </script>

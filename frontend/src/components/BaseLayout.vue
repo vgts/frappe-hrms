@@ -3,6 +3,9 @@
 		<!-- Desktop sidebar — fixed position, only visible on lg+ -->
 		<DesktopSidebar />
 
+		<!-- Desktop form modal for quick links -->
+		<DesktopFormModal />
+
 		<ion-header class="ion-no-border">
 			<div class="w-full">
 				<div
@@ -67,7 +70,7 @@
 			<ion-refresher slot="fixed" @ionRefresh="handleRefresh">
 				<ion-refresher-content></ion-refresher-content>
 			</ion-refresher>
-			<div class="flex flex-col h-screen w-screen lg:pl-56">
+			<div class="flex flex-col min-h-full w-full lg:pl-56">
 				<slot name="body"></slot>
 			</div>
 		</ion-content>
@@ -81,6 +84,7 @@ import { FeatherIcon, Avatar } from "frappe-ui"
 import { unreadNotificationsCount } from "@/data/notifications"
 import { useTheme } from "@/composables/useTheme"
 import DesktopSidebar from "@/components/DesktopSidebar.vue"
+import DesktopFormModal from "@/components/DesktopFormModal.vue"
 
 import { inject } from "vue"
 

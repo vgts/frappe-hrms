@@ -35,15 +35,15 @@
 			<div class="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
 				{{ __("Quick Links") }}
 			</div>
-			<router-link
+			<button
 				v-for="link in quickLinks"
 				:key="link.route"
-				:to="{ name: link.route }"
-				class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+				@click="openForm(link.route)"
+				class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors text-left"
 			>
 				<component :is="link.icon" class="h-4 w-4 shrink-0 text-gray-400" />
 				{{ link.title }}
-			</router-link>
+			</button>
 		</div>
 
 		<!-- Bottom: user + notifications -->
@@ -71,6 +71,7 @@ import { useRoute } from "vue-router"
 import { FeatherIcon, Avatar } from "frappe-ui"
 
 import { unreadNotificationsCount } from "@/data/notifications"
+import { useFormModal } from "@/composables/useFormModal"
 import HomeIcon from "@/components/icons/HomeIcon.vue"
 import LeaveIcon from "@/components/icons/LeaveIcon.vue"
 import ExpenseIcon from "@/components/icons/ExpenseIcon.vue"
@@ -79,6 +80,7 @@ import AttendanceIcon from "@/components/icons/AttendanceIcon.vue"
 const __ = inject("$translate")
 const user = inject("$user")
 const route = useRoute()
+const { openForm } = useFormModal()
 
 const navItems = [
 	{ icon: markRaw(HomeIcon),       label: __("Home"),       route: "/home" },

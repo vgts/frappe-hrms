@@ -25,7 +25,7 @@
 		</div>
 
 		<!-- Desktop: My Requests + Team Requests side-by-side -->
-		<div class="hidden lg:grid lg:grid-cols-2 lg:gap-6">
+		<div class="hidden lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
 
 			<!-- My Requests card -->
 			<div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
