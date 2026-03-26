@@ -1,5 +1,8 @@
 <template>
 	<ion-page>
+		<!-- Desktop sidebar — fixed position, only visible on lg+ -->
+		<DesktopSidebar />
+
 		<ion-header class="ion-no-border">
 			<div class="w-full">
 				<div
@@ -77,6 +80,7 @@ import { FeatherIcon, Avatar } from "frappe-ui"
 
 import { unreadNotificationsCount } from "@/data/notifications"
 import { useTheme } from "@/composables/useTheme"
+import DesktopSidebar from "@/components/DesktopSidebar.vue"
 
 import { inject } from "vue"
 
