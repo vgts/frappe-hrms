@@ -1,67 +1,99 @@
 <template>
 	<ion-page>
 		<ion-content class="ion-padding">
-			<div class="flex h-screen w-screen flex-col justify-center bg-white">
-				<div class="flex flex-col mx-auto gap-3 items-center">
-					<FrappeHRLogo class="h-8 w-8" />
-					<div class="text-3xl font-semibold text-gray-900 text-center">
-						{{ __("Login to VGTSHRMS") }}
-					</div>
-				</div>
+			<div class="flex h-screen w-screen items-center justify-center bg-gradient-to-br from-gray-50 to-white">
+				<div class="w-full max-w-sm mx-auto px-6">
 
-				<div class="mx-auto mt-10 w-full px-8 sm:w-96">
-					<form v-if="!user_pass_login_disabled.data" class="flex flex-col space-y-4" @submit.prevent="submit">
-						<Input
-							:label="__('Email')"
-							:placeholder="__('johndoe@mail.com')"
-							v-model="email"
-							type="text"
-							autocomplete="username"
-						/>
-						<Input
-							:label="__('Password')"
-							type="password"
-							placeholder="••••••"
-							v-model="password"
-							autocomplete="current-password"
-						/>
-						<ErrorMessage :message="errorMessage" />
-						<Button
-							:loading="session.login.loading"
-							variant="solid"
-							class="disabled:bg-gray-700 disabled:text-white !mt-6"
-						>
-							{{ __("Login") }}
-						</Button>
-					</form>
-
-					<template v-if="authProviders.data?.length">
-						<div v-if="!user_pass_login_disabled.data" class="text-center text-sm text-gray-600 my-4">or</div>
-						<div class="space-y-4">
-							<a
-								v-for="provider in authProviders.data"
-								:key="provider.name"
-								class="flex items-center justify-center gap-2 transition-colors focus:outline-none text-gray-800 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 focus-visible:ring focus-visible:ring-gray-400 h-7 text-base p-2 rounded"
-								:href="provider.auth_url"
-							>
-								<img class="h-4 w-4" :src="provider.icon" :alt="provider.provider_name" />
-								<span>Login with {{ provider.provider_name }}</span>
-							</a>
+					<!-- Logo + Title -->
+					<div class="flex flex-col items-center gap-4 mb-10">
+						<VGTSLogo class="h-10 w-auto text-gray-800" />
+						<div>
+							<h1 class="text-2xl font-bold text-gray-900 text-center">
+								{{ __("Welcome back") }}
+							</h1>
+							<p class="text-sm text-gray-500 text-center mt-1">
+								{{ __("Sign in to VGTSHRMS") }}
+							</p>
 						</div>
-					</template>
+					</div>
 
-					<div v-else-if="user_pass_login_disabled.data" class="text-center text-gray-600 py-8">{{ __("No login methods are available. Please contact your administrator.") }}</div>
+					<!-- Login Form -->
+					<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+						<form v-if="!user_pass_login_disabled.data" class="flex flex-col gap-5" @submit.prevent="submit">
+							<div>
+								<label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __("Email") }}</label>
+								<input
+									type="text"
+									v-model="email"
+									:placeholder="__('Enter your email')"
+									autocomplete="username"
+									class="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-green-500 focus:ring-2 focus:ring-green-500/20 outline-none transition-all placeholder:text-gray-400"
+								/>
+							</div>
+
+							<div>
+								<label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __("Password") }}</label>
+								<div class="relative">
+									<input
+										:type="showPassword ? 'text' : 'password'"
+										v-model="password"
+										placeholder="••••••••"
+										autocomplete="current-password"
+										class="w-full px-3.5 py-2.5 pr-10 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-green-500 focus:ring-2 focus:ring-green-500/20 outline-none transition-all placeholder:text-gray-400"
+									/>
+									<button
+										type="button"
+										@click="showPassword = !showPassword"
+										class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+									>
+										<FeatherIcon :name="showPassword ? 'eye-off' : 'eye'" class="h-4 w-4" />
+									</button>
+								</div>
+							</div>
+
+							<ErrorMessage :message="errorMessage" />
+
+							<Button
+								:loading="session.login.loading"
+								variant="solid"
+								class="w-full !py-2.5 !text-sm !font-semibold !rounded-lg !bg-gray-900 hover:!bg-gray-800 disabled:!bg-gray-400"
+							>
+								{{ __("Sign in") }}
+							</Button>
+						</form>
+
+						<template v-if="authProviders.data?.length">
+							<div v-if="!user_pass_login_disabled.data" class="flex items-center gap-3 my-5">
+								<div class="flex-1 h-px bg-gray-200"></div>
+								<span class="text-xs text-gray-400 uppercase tracking-wide">{{ __("or") }}</span>
+								<div class="flex-1 h-px bg-gray-200"></div>
+							</div>
+							<div class="flex flex-col gap-3">
+								<a
+									v-for="provider in authProviders.data"
+									:key="provider.name"
+									class="flex items-center justify-center gap-2.5 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all"
+									:href="provider.auth_url"
+								>
+									<img class="h-4 w-4" :src="provider.icon" :alt="provider.provider_name" />
+									<span>{{ __("Continue with {0}", [provider.provider_name]) }}</span>
+								</a>
+							</div>
+						</template>
+
+						<div v-else-if="user_pass_login_disabled.data" class="text-center text-sm text-gray-500 py-6">
+							{{ __("No login methods are available. Please contact your administrator.") }}
+						</div>
+					</div>
 				</div>
 			</div>
 
 			<Dialog v-model="resetPassword.showDialog">
 				<template #body-title>
-					<h2 class="text-lg font-bold">{{ __("Reset Password") }} </h2>
+					<h2 class="text-lg font-bold">{{ __("Reset Password") }}</h2>
 				</template>
 				<template #body-content>
-					<p>
-						{{ __("Your password has expired. Please reset your password to continue") }}
-					</p>
+					<p>{{ __("Your password has expired. Please reset your password to continue") }}</p>
 				</template>
 				<template #actions>
 					<a
@@ -82,7 +114,6 @@
 					<p class="mb-4" v-if="otp.verification.prompt">
 						{{ otp.verification.prompt }}
 					</p>
-
 					<form class="flex flex-col space-y-4" @submit.prevent="submit">
 						<Input
 							:label="__('OTP Code')"
@@ -109,12 +140,13 @@
 <script setup>
 import { IonPage, IonContent } from "@ionic/vue"
 import { inject, reactive, ref } from "vue"
-import { Input, Button, ErrorMessage, Dialog, createResource } from "frappe-ui"
+import { Input, Button, ErrorMessage, Dialog, createResource, FeatherIcon } from "frappe-ui"
 
-import FrappeHRLogo from "@/components/icons/FrappeHRLogo.vue"
+import VGTSLogo from "@/components/icons/FrappeHRLogo.vue"
 
 const email = ref(null)
 const password = ref(null)
+const showPassword = ref(false)
 const errorMessage = ref("")
 
 const resetPassword = reactive({
@@ -148,14 +180,12 @@ async function submit(e) {
 			resetPassword.link = ""
 		}
 
-		// OTP verification
 		if (response.verification) {
 			if (response.verification.setup) {
 				otp.showDialog = true
 				otp.tmp_id = response.tmp_id
 				otp.verification = response.verification
 			} else {
-				// Don't bother handling impossible OTP setup (e.g. no phone number).
 				window.open("/login?redirect-to=" + encodeURIComponent(window.location.pathname), "_blank")
 			}
 		}

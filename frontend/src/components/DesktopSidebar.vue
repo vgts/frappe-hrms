@@ -5,10 +5,8 @@
 	>
 		<!-- Brand -->
 		<div class="flex items-center gap-2 px-5 py-5 border-b border-gray-100">
-			<div class="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center">
-				<span class="text-white text-xs font-bold">HR</span>
-			</div>
-			<span class="text-base font-bold text-gray-900">Frappe HR</span>
+			<VGTSLogo class="h-6 w-auto text-gray-800" />
+			<span class="text-base font-bold text-gray-900">VGTSHRMS</span>
 		</div>
 
 		<!-- Navigation links -->
@@ -72,6 +70,7 @@ import { FeatherIcon, Avatar } from "frappe-ui"
 
 import { unreadNotificationsCount } from "@/data/notifications"
 import { useFormModal } from "@/composables/useFormModal"
+import VGTSLogo from "@/components/icons/FrappeHRLogo.vue"
 import HomeIcon from "@/components/icons/HomeIcon.vue"
 import LeaveIcon from "@/components/icons/LeaveIcon.vue"
 import ExpenseIcon from "@/components/icons/ExpenseIcon.vue"
