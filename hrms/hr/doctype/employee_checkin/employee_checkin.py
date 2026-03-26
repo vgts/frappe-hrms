@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import cint, get_datetime
+from frappe.utils import cint, get_datetime, now_datetime
 
 from hrms.hr.doctype.shift_assignment.shift_assignment import get_actual_start_end_datetime_of_shift
 from hrms.hr.utils import (
@@ -15,6 +15,10 @@ from hrms.hr.utils import (
 	set_geolocation_from_coordinates,
 	validate_active_employee,
 )
+
+# ── Attendance constants ───────────────────────────────────────────────────────
+PRESENT_THRESHOLD_HOURS = 9.5        # 9 hrs 30 min → Present
+MAX_SESSION_HOURS       = 23 + 59/60 # 23 h 59 m max session window
 
 
 class CheckinRadiusExceededError(frappe.ValidationError):
@@ -92,6 +96,22 @@ class EmployeeCheckin(Document):
 			self.shift_start = shift_actual_timings.start_datetime
 			self.shift_end = shift_actual_timings.end_datetime
 			self.overtime_type = shift_actual_timings.overtime_type or None
+
+	def after_insert(self):
+		"""
+		Fires for every Employee Checkin insert from ANY source:
+		Frappe HR PWA, VGTS dashboard, REST API, biometric device, etc.
+
+		On OUT log → resolve matching IN → calculate hours → mark attendance.
+		  ≥ 9 h 30 m  → Present
+		  < 9 h 30 m  → Absent
+		Attendance date = date of the IN log (handles cross-midnight sessions).
+		Auto-checkout logs are skipped to avoid recursion.
+		"""
+		if self.device_id == "Auto Checkout":
+			return
+		if self.log_type == "OUT":
+			process_attendance_from_checkin(self.employee, get_datetime(self.time))
 
 	def validate_distance_from_shift_location(self):
 		if not frappe.db.get_single_value("HR Settings", "allow_geolocation_tracking"):
@@ -196,6 +216,185 @@ def bulk_fetch_shift(checkins: list[str] | str) -> None:
 		doc.flags.ignore_validate = True
 		doc.save()
 
+
+# ══════════════════════════════════════════════════════════════════════════════
+# VGTS Attendance Logic — shared by HRMS & VGTS dashboard
+# ══════════════════════════════════════════════════════════════════════════════
+
+def resolve_active_session(employee):
+	"""
+	Look back MAX_SESSION_HOURS (23 h 59 m) and return the currently open session.
+
+	Pairs IN/OUT logs chronologically. If an IN has no following OUT it is
+	the active session.  Fully cross-midnight aware.
+
+	Returns:
+	    (active_in_time, elapsed_seconds)
+	    active_in_time  – datetime of the open IN log, or None if not checked in
+	    elapsed_seconds – seconds already accumulated in completed IN→OUT pairs
+	                      within the same look-back window
+	"""
+	since = now_datetime() - timedelta(hours=23, minutes=59)
+	logs  = frappe.db.get_all(
+		"Employee Checkin",
+		filters={"employee": employee, "time": [">=", since]},
+		fields=["log_type", "time"],
+		order_by="time asc",
+	)
+	active_in = None
+	elapsed   = 0
+	for log in logs:
+		if log.log_type == "IN":
+			active_in = log.time
+		elif log.log_type == "OUT" and active_in:
+			elapsed  += max(0, int((log.time - active_in).total_seconds()))
+			active_in = None
+	return active_in, elapsed
+
+
+def process_attendance_from_checkin(employee, out_time):
+	"""
+	Called after an OUT log is inserted.
+	Walks back through the last 23 h 59 m to find the matching open IN log,
+	then calls process_attendance() with force_absent=False.
+
+	Attendance date = date of the IN log (cross-midnight sessions belong to
+	the check-in date, not the check-out date).
+	"""
+	since = out_time - timedelta(hours=23, minutes=59)
+	logs  = frappe.db.get_all(
+		"Employee Checkin",
+		filters={"employee": employee,
+		         "time":     [">=", since],
+		         "time":     ["<=", out_time]},
+		fields=["log_type", "time"],
+		order_by="time asc",
+	)
+	active_in = None
+	for log in logs:
+		if log.log_type == "IN":
+			active_in = log.time
+		elif log.log_type == "OUT" and active_in:
+			if log.time == out_time:
+				break          # this is the OUT we just inserted
+			active_in = None   # closed by a prior OUT
+
+	if not active_in:
+		return  # no open IN found — nothing to process
+
+	process_attendance(employee, active_in.date(), active_in, out_time, force_absent=False)
+
+
+def process_attendance(employee, attendance_date, in_time, out_time, force_absent=False):
+	"""
+	Create or update (cancel → amend) the Attendance record for one session.
+
+	Rules:
+	  force_absent=True  → always Absent  (used for auto-checkout sessions)
+	  working_hours >= PRESENT_THRESHOLD_HOURS → Present
+	  working_hours <  PRESENT_THRESHOLD_HOURS → Absent
+
+	Returns the saved Attendance document.
+	"""
+	working_hours = round((out_time - in_time).total_seconds() / 3600, 2)
+	status  = "Absent" if force_absent or working_hours < PRESENT_THRESHOLD_HOURS else "Present"
+	company = frappe.db.get_value("Employee", employee, "company")
+
+	existing = frappe.db.get_value(
+		"Attendance",
+		{"employee": employee, "attendance_date": attendance_date, "docstatus": ["!=", 2]},
+		["name", "docstatus"],
+		as_dict=True,
+	)
+
+	if existing:
+		att = frappe.get_doc("Attendance", existing.name)
+		if att.docstatus == 1:
+			att.cancel()
+			att = frappe.get_doc("Attendance", existing.name)  # reload after cancel
+		att.status        = status
+		att.in_time       = in_time
+		att.out_time      = out_time
+		att.working_hours = working_hours
+		att.save(ignore_permissions=True)
+		att.submit()
+	else:
+		att = frappe.new_doc("Attendance")
+		att.employee        = employee
+		att.attendance_date = attendance_date
+		att.status          = status
+		att.in_time         = in_time
+		att.out_time        = out_time
+		att.working_hours   = working_hours
+		att.company         = company
+		att.insert(ignore_permissions=True)
+		att.submit()
+
+	return att
+
+
+def auto_checkout_and_mark_absent():
+	"""
+	Scheduled hourly job.
+	Finds every employee whose last open IN log is ≥ 23 h 59 m old (no OUT
+	within the window), creates an OUT log at IN + 23:59, and marks Absent.
+	"""
+	cutoff = now_datetime() - timedelta(hours=23, minutes=59)
+
+	open_ins = frappe.db.sql("""
+		SELECT ci.name, ci.employee, ci.time
+		FROM `tabEmployee Checkin` ci
+		WHERE ci.log_type = 'IN'
+		  AND ci.time    <= %s
+		  AND NOT EXISTS (
+		      SELECT 1 FROM `tabEmployee Checkin` co
+		      WHERE co.employee = ci.employee
+		        AND co.log_type = 'OUT'
+		        AND co.time > ci.time
+		        AND co.time <= ci.time + INTERVAL 23*60+59 MINUTE
+		  )
+	""", (cutoff,), as_dict=True)
+
+	for row in open_ins:
+		auto_out = row.time + timedelta(hours=23, minutes=59)
+
+		out_doc = frappe.new_doc("Employee Checkin")
+		out_doc.employee  = row.employee
+		out_doc.log_type  = "OUT"
+		out_doc.time      = auto_out
+		out_doc.device_id = "Auto Checkout"
+		out_doc.insert(ignore_permissions=True)
+
+		# force_absent=True — auto-checkout always marks Absent regardless of hours
+		process_attendance(row.employee, row.time.date(), row.time, auto_out, force_absent=True)
+
+	if open_ins:
+		frappe.db.commit()
+
+
+def on_attendance_request_submit(doc, method=None):
+	"""
+	Doc event: Attendance Request → on_submit.
+	When an attendance regularization is approved, recalculate attendance.
+	If corrected working hours ≥ 9 h 30 m → Present, else Absent.
+	"""
+	if not doc.employee:
+		return
+
+	in_time  = doc.get("checkin_time") or doc.get("in_time")  or doc.get("from_date")
+	out_time = doc.get("checkout_time") or doc.get("out_time") or doc.get("to_date")
+
+	if not in_time or not out_time:
+		return
+
+	in_dt  = get_datetime(in_time)
+	out_dt = get_datetime(out_time)
+
+	process_attendance(doc.employee, in_dt.date(), in_dt, out_dt, force_absent=False)
+	frappe.db.commit()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 
 def mark_attendance_and_link_log(
 	logs,

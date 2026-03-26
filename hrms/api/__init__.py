@@ -193,6 +193,37 @@ def get_attendance_regularizations(
 	return regularizations
 
 
+# Checkin Status (cross-midnight aware)
+@frappe.whitelist()
+def get_checkin_status() -> dict:
+	"""
+	Returns the current checked-in state for the logged-in employee.
+	Cross-midnight sessions (IN yesterday, no OUT yet today) are fully supported.
+	Elapsed seconds = completed IN→OUT pairs + live seconds since last open IN.
+	"""
+	from hrms.hr.doctype.employee_checkin.employee_checkin import resolve_active_session
+	from frappe.utils import now_datetime
+
+	employee = frappe.db.get_value("Employee", {"user_id": frappe.session.user}, "name")
+	if not employee:
+		return {
+			"is_checked_in":      False,
+			"checked_in_seconds": 0,
+			"last_checkin_time":  None,
+			"first_checkin_time": None,
+		}
+
+	active_in, elapsed = resolve_active_session(employee)
+	live = int((now_datetime() - active_in).total_seconds()) if active_in else 0
+
+	return {
+		"is_checked_in":      active_in is not None,
+		"checked_in_seconds": elapsed + live,
+		"last_checkin_time":  str(active_in) if active_in else None,
+		"first_checkin_time": str(active_in) if active_in else None,
+	}
+
+
 # Team Checkin Dashboard
 @frappe.whitelist()
 def get_team_checkins(date: str | None = None, manager: str | None = None) -> list[dict]:
