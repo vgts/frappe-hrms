@@ -61,4 +61,18 @@ try {
 
 self.skipWaiting()
 clientsClaim()
-console.log("Service Worker Initialized")
+
+// Force clear all old caches so updated manifest/icons are fetched fresh
+self.addEventListener("activate", (event) => {
+	event.waitUntil(
+		caches.keys().then((keys) =>
+			Promise.all(
+				keys
+					.filter((key) => !key.includes("workbox-precache"))
+					.map((key) => caches.delete(key))
+			)
+		)
+	)
+})
+
+console.log("Service Worker Initialized - VGTS-HRMS v2")
