@@ -64,7 +64,7 @@
 			<ion-refresher slot="fixed" @ionRefresh="handleRefresh">
 				<ion-refresher-content></ion-refresher-content>
 			</ion-refresher>
-			<div class="flex flex-col h-screen w-screen">
+			<div class="flex flex-col h-screen w-screen lg:pl-56">
 				<slot name="body"></slot>
 			</div>
 		</ion-content>

@@ -1,16 +1,10 @@
 <template>
 	<ion-page>
-		<!-- Desktop sidebar (lg+) -->
 		<DesktopSidebar />
-
-		<!-- Content shifts right on desktop to clear sidebar -->
-		<div class="lg:pl-56 h-full">
-			<ion-tabs>
-				<ion-router-outlet></ion-router-outlet>
-				<!-- Bottom tabs: mobile only -->
-				<BottomTabs class="lg:hidden" />
-			</ion-tabs>
-		</div>
+		<ion-tabs>
+			<ion-router-outlet></ion-router-outlet>
+			<BottomTabs class="lg:hidden" />
+		</ion-tabs>
 	</ion-page>
 </template>
 
