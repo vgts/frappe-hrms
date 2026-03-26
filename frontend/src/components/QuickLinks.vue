@@ -1,10 +1,9 @@
 <template>
 	<div class="flex flex-col gap-5 my-4 w-full">
 		<div class="text-lg font-medium text-gray-900">{{ title || __("Quick Links") }}</div>
-		<div class="flex flex-col bg-white rounded">
+		<div class="bg-white rounded lg:grid lg:grid-cols-2 lg:divide-x-0 divide-y lg:divide-y-0 overflow-hidden border border-gray-100">
 			<router-link
-				class="flex flex-row flex-start p-4 items-center justify-between"
-				:class="link !== props.items[props.items.length - 1] && 'border-b'"
+				class="flex flex-row flex-start p-4 items-center justify-between border-b lg:border-b lg:border-r lg:even:border-r-0 last:border-b-0 lg:last:border-b-0"
 				v-for="link in props.items"
 				:key="link.title"
 				:to="{ name: link.route }"

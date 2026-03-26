@@ -1,11 +1,21 @@
 <template>
 	<BaseLayout @refresh="refreshAll">
 		<template #body>
-			<div class="flex flex-col items-center my-7 p-4 gap-7">
-				<CheckInPanel />
-				<TeamCheckinSummary ref="teamSummary" />
-				<RequestPanel ref="requestPanel" />
-				<QuickLinks :items="quickLinks" :title="__('Quick Links')" />
+			<!-- Mobile: single column · Desktop (lg+): two-column side-by-side -->
+			<div class="my-7 p-4 lg:max-w-6xl lg:mx-auto lg:grid lg:grid-cols-[380px_1fr] lg:gap-8 lg:items-start
+			            flex flex-col gap-7 lg:flex-none">
+
+				<!-- Left column: check-in card + team summary -->
+				<div class="flex flex-col gap-7 lg:sticky lg:top-6">
+					<CheckInPanel />
+					<TeamCheckinSummary ref="teamSummary" />
+				</div>
+
+				<!-- Right column: requests + quick links -->
+				<div class="flex flex-col gap-7">
+					<RequestPanel ref="requestPanel" />
+					<QuickLinks :items="quickLinks" :title="__('Quick Links')" />
+				</div>
 			</div>
 		</template>
 	</BaseLayout>
