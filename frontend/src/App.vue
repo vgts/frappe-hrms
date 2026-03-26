@@ -1,5 +1,6 @@
 <template>
 	<ion-app>
+		<SplashScreen />
 		<ion-router-outlet id="main-content" />
 		<Toasts />
 
@@ -14,6 +15,7 @@ import { IonApp, IonRouterOutlet } from "@ionic/vue"
 import { Toasts } from "frappe-ui"
 
 import InstallPrompt from "@/components/InstallPrompt.vue"
+import SplashScreen from "@/components/SplashScreen.vue"
 import { showNotification } from "@/utils/pushNotifications"
 import { useTheme } from "@/composables/useTheme"
 

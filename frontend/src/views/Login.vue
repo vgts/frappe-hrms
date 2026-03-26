@@ -1,8 +1,8 @@
 <template>
 	<ion-page>
-		<ion-content class="ion-padding">
-			<div class="flex h-screen w-screen items-center justify-center bg-gradient-to-br from-gray-50 to-white">
-				<div class="w-full max-w-sm mx-auto px-6">
+		<ion-content>
+			<div class="flex min-h-full items-center justify-center bg-gradient-to-br from-gray-50 to-white px-4 py-10">
+				<div class="w-full max-w-sm mx-auto">
 
 					<!-- Logo + Title -->
 					<div class="flex flex-col items-center gap-4 mb-10">
@@ -12,7 +12,7 @@
 								{{ __("Welcome back") }}
 							</h1>
 							<p class="text-sm text-gray-500 text-center mt-1">
-								{{ __("Sign in to VGTSHRMS") }}
+								{{ __("Sign in to VGTS-HRMS") }}
 							</p>
 						</div>
 					</div>

@@ -6,7 +6,7 @@
 		<!-- Brand -->
 		<div class="flex items-center gap-2 px-5 py-5 border-b border-gray-100">
 			<VGTSLogo class="h-6 w-auto text-gray-800" />
-			<span class="text-base font-bold text-gray-900">VGTSHRMS</span>
+			<span class="text-base font-bold text-gray-900">VGTS-HRMS</span>
 		</div>
 
 		<!-- Navigation links -->
