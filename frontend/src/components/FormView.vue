@@ -1,6 +1,6 @@
 <template>
 	<div class="flex flex-col h-full w-full" v-if="isFormReady">
-		<div class="w-full h-full sm:w-96 flex flex-col bg-white dark:bg-[#000000]">
+		<div class="w-full h-full flex flex-col bg-white dark:bg-[#000000]">
 			<header
 				class="flex flex-row shadow-sm py-4 px-3 items-center sticky top-0 z-[1000] bg-white dark:bg-[#0d0d0d] border-b border-transparent dark:border-[#262626]"
 			>
@@ -179,7 +179,7 @@
 			<!-- custom form button eg: Download button in salary slips -->
 			<div
 				v-if="!showFormButton"
-				class="px-4 pt-4 pb-4 standalone:pb-safe-bottom sm:w-96 sticky bottom-0 w-full drop-shadow-xl z-40 border-t rounded-t-lg bg-white dark:bg-[#0d0d0d] border-gray-200 dark:border-[#262626]"
+				class="px-4 pt-4 pb-4 standalone:pb-safe-bottom sticky bottom-0 w-full drop-shadow-xl z-40 border-t rounded-t-lg bg-white dark:bg-[#0d0d0d] border-gray-200 dark:border-[#262626]"
 			>
 				<slot name="formButton"></slot>
 			</div>
@@ -195,7 +195,7 @@
 			<!-- save/submit/cancel -->
 			<div
 				v-else-if="isFormDirty || (!workflow?.hasWorkflow && formButton)"
-				class="px-4 pt-4 pb-4 standalone:pb-safe-bottom sm:w-96 sticky bottom-0 w-full drop-shadow-xl z-40 border-t rounded-t-lg bg-white dark:bg-[#0d0d0d] border-gray-200 dark:border-[#262626]"
+				class="px-4 pt-4 pb-4 standalone:pb-safe-bottom sticky bottom-0 w-full drop-shadow-xl z-40 border-t rounded-t-lg bg-white dark:bg-[#0d0d0d] border-gray-200 dark:border-[#262626]"
 			>
 				<ErrorMessage
 					class="mb-2"

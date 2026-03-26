@@ -1,7 +1,7 @@
 <template>
 	<ion-page>
 		<ion-header class="ion-no-border">
-			<div class="w-full sm:w-96">
+			<div class="w-full">
 				<div
 					class="flex flex-col shadow-sm p-4 transition-colors duration-200"
 					:class="isDark() ? 'bg-gray-800' : 'bg-white'"
@@ -72,7 +72,7 @@
 			<ion-refresher slot="fixed" @ionRefresh="handleRefresh">
 				<ion-refresher-content></ion-refresher-content>
 			</ion-refresher>
-			<div class="flex flex-col h-screen w-screen sm:w-96">
+			<div class="flex flex-col h-screen w-screen">
 				<slot name="body"></slot>
 			</div>
 		</ion-content>

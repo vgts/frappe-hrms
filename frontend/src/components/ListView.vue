@@ -1,6 +1,6 @@
 <template>
 	<ion-header class="ion-no-border">
-		<div class="w-full sm:w-96">
+		<div class="w-full">
 			<div
 				class="flex flex-row shadow-sm py-4 px-3 items-center justify-between border-b bg-white dark:bg-[#0d0d0d] border-gray-200 dark:border-[#262626]"
 			>
@@ -45,7 +45,7 @@
 		</ion-refresher>
 
 		<div
-			class="flex flex-col items-center mb-7 p-4 h-full w-full sm:w-96 overflow-y-auto"
+			class="flex flex-col items-center mb-7 p-4 h-full w-full overflow-y-auto"
 			ref="scrollContainer"
 			@scroll="() => handleScroll()"
 		>

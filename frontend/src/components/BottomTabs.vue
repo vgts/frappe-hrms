@@ -1,7 +1,7 @@
 <template>
 	<ion-tab-bar
 		slot="bottom"
-		class="shadow-md sm:w-96 py-2 pb-2 standalone:pb-safe-bottom transition-colors duration-200"
+		class="shadow-md py-2 pb-2 standalone:pb-safe-bottom transition-colors duration-200"
 		:class="isDark() ? 'bg-gray-800 border-t border-gray-700' : 'bg-white'"
 	>
 		<ion-tab-button
