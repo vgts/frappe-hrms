@@ -1,93 +1,92 @@
 <template>
 	<ion-page>
-		<ion-content>
-			<div class="flex min-h-full items-center justify-center bg-gradient-to-br from-gray-50 to-white px-4 py-10">
-				<div class="w-full max-w-sm mx-auto">
+		<ion-content :scroll-y="true">
+			<div class="login-wrap">
+				<div class="login-container">
 
 					<!-- Logo + Title -->
-					<div class="flex flex-col items-center gap-4 mb-10">
-						<VGTSLogo class="h-10 w-auto text-gray-800" />
-						<div>
-							<h1 class="text-2xl font-bold text-gray-900 text-center">
-								{{ __("Welcome back") }}
-							</h1>
-							<p class="text-sm text-gray-500 text-center mt-1">
-								{{ __("Sign in to VGTS-HRMS") }}
-							</p>
+					<div class="logo-section">
+						<VGTSLogo class="logo-icon" />
+						<div class="logo-text-wrap">
+							<h1 class="login-title">{{ __("Welcome back") }}</h1>
+							<p class="login-subtitle">{{ __("Sign in to VGTS-HRMS") }}</p>
 						</div>
 					</div>
 
-					<!-- Login Form -->
-					<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-						<form v-if="!user_pass_login_disabled.data" class="flex flex-col gap-5" @submit.prevent="submit">
-							<div>
-								<label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __("Email") }}</label>
+					<!-- Login Form Card -->
+					<div class="login-card">
+						<form v-if="!user_pass_login_disabled.data" class="login-form" @submit.prevent="submit">
+
+							<!-- Email -->
+							<div class="field-group">
+								<label class="field-label">{{ __("Email") }}</label>
 								<input
 									type="text"
 									v-model="email"
 									:placeholder="__('Enter your email')"
 									autocomplete="username"
-									class="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-green-500 focus:ring-2 focus:ring-green-500/20 outline-none transition-all placeholder:text-gray-400"
+									class="field-input"
 								/>
 							</div>
 
-							<div>
-								<label class="block text-sm font-medium text-gray-700 mb-1.5">{{ __("Password") }}</label>
-								<div class="relative">
+							<!-- Password -->
+							<div class="field-group">
+								<label class="field-label">{{ __("Password") }}</label>
+								<div class="password-wrap">
 									<input
 										:type="showPassword ? 'text' : 'password'"
 										v-model="password"
 										placeholder="••••••••"
 										autocomplete="current-password"
-										class="w-full px-3.5 py-2.5 pr-10 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-green-500 focus:ring-2 focus:ring-green-500/20 outline-none transition-all placeholder:text-gray-400"
+										class="field-input password-input"
 									/>
 									<button
 										type="button"
 										@click="showPassword = !showPassword"
-										class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+										class="eye-btn"
 									>
-										<FeatherIcon :name="showPassword ? 'eye-off' : 'eye'" class="h-4 w-4" />
+										<FeatherIcon :name="showPassword ? 'eye-off' : 'eye'" class="eye-icon" />
 									</button>
 								</div>
 							</div>
 
 							<ErrorMessage :message="errorMessage" />
 
-							<Button
-								:loading="session.login.loading"
-								variant="solid"
-								class="w-full !py-2.5 !text-sm !font-semibold !rounded-lg !bg-gray-900 hover:!bg-gray-800 disabled:!bg-gray-400"
-							>
-								{{ __("Sign in") }}
-							</Button>
+							<button type="submit" class="submit-btn" :disabled="session.login.loading">
+								<span v-if="session.login.loading" class="spinner"></span>
+								<span v-else>{{ __("Sign in") }}</span>
+							</button>
 						</form>
 
+						<!-- OAuth divider -->
 						<template v-if="authProviders.data?.length">
-							<div v-if="!user_pass_login_disabled.data" class="flex items-center gap-3 my-5">
-								<div class="flex-1 h-px bg-gray-200"></div>
-								<span class="text-xs text-gray-400 uppercase tracking-wide">{{ __("or") }}</span>
-								<div class="flex-1 h-px bg-gray-200"></div>
+							<div v-if="!user_pass_login_disabled.data" class="divider">
+								<div class="divider-line"></div>
+								<span class="divider-text">{{ __("or") }}</span>
+								<div class="divider-line"></div>
 							</div>
-							<div class="flex flex-col gap-3">
+							<div class="oauth-list">
 								<a
 									v-for="provider in authProviders.data"
 									:key="provider.name"
-									class="flex items-center justify-center gap-2.5 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all"
+									class="oauth-btn"
 									:href="provider.auth_url"
 								>
-									<img class="h-4 w-4" :src="provider.icon" :alt="provider.provider_name" />
+									<img class="oauth-icon" :src="provider.icon" :alt="provider.provider_name" />
 									<span>{{ __("Continue with {0}", [provider.provider_name]) }}</span>
 								</a>
 							</div>
 						</template>
 
-						<div v-else-if="user_pass_login_disabled.data" class="text-center text-sm text-gray-500 py-6">
+						<div v-else-if="user_pass_login_disabled.data" class="no-login-msg">
 							{{ __("No login methods are available. Please contact your administrator.") }}
 						</div>
 					</div>
+
 				</div>
 			</div>
 
+			<!-- Reset Password Dialog -->
 			<Dialog v-model="resetPassword.showDialog">
 				<template #body-title>
 					<h2 class="text-lg font-bold">{{ __("Reset Password") }}</h2>
@@ -97,7 +96,7 @@
 				</template>
 				<template #actions>
 					<a
-						class="inline-flex items-center justify-center gap-2 transition-colors focus:outline-none text-white bg-gray-900 hover:bg-gray-800 active:bg-gray-700 focus-visible:ring focus-visible:ring-gray-400 h-7 text-base px-2 rounded"
+						class="inline-flex items-center justify-center gap-2 transition-colors focus:outline-none text-white bg-gray-900 hover:bg-gray-800 h-7 text-base px-2 rounded"
 						:href="resetPassword.link"
 						target="_blank"
 					>
@@ -106,14 +105,13 @@
 				</template>
 			</Dialog>
 
+			<!-- OTP Dialog -->
 			<Dialog v-model="otp.showDialog">
 				<template #body-title>
 					<h2 class="text-lg font-bold">{{ __("OTP Verification") }}</h2>
 				</template>
 				<template #body-content>
-					<p class="mb-4" v-if="otp.verification.prompt">
-						{{ otp.verification.prompt }}
-					</p>
+					<p class="mb-4" v-if="otp.verification.prompt">{{ otp.verification.prompt }}</p>
 					<form class="flex flex-col space-y-4" @submit.prevent="submit">
 						<Input
 							:label="__('OTP Code')"
@@ -123,11 +121,7 @@
 							autocomplete="one-time-code"
 						/>
 						<ErrorMessage :message="errorMessage" />
-						<Button
-							:loading="session.otp.loading"
-							variant="solid"
-							class="disabled:bg-gray-700 disabled:text-white !mt-6"
-						>
+						<Button :loading="session.otp.loading" variant="solid" class="disabled:bg-gray-700 disabled:text-white !mt-6">
 							{{ __("Verify") }}
 						</Button>
 					</form>
@@ -149,21 +143,13 @@ const password = ref(null)
 const showPassword = ref(false)
 const errorMessage = ref("")
 
-const resetPassword = reactive({
-	showDialog: false,
-	link: "",
-})
-const otp = reactive({
-	showDialog: false,
-	tmp_id: "",
-	code: "",
-	verification: {},
-})
+const resetPassword = reactive({ showDialog: false, link: "" })
+const otp = reactive({ showDialog: false, tmp_id: "", code: "", verification: {} })
 
 const session = inject("$session")
 const __ = inject("$translate")
 
-async function submit(e) {
+async function submit() {
 	try {
 		let response
 		if (otp.showDialog) {
@@ -196,7 +182,7 @@ async function submit(e) {
 
 const user_pass_login_disabled = createResource({
 	url: "hrms.api.system_settings.get_user_pass_login_disabled",
-	method: 'GET',
+	method: "GET",
 	initialData: 1,
 	auto: true,
 })
@@ -206,3 +192,240 @@ const authProviders = createResource({
 	auto: true,
 })
 </script>
+
+<style scoped>
+/* Force light mode on login page — never dark */
+ion-content {
+	--background: #f4f6f8;
+}
+
+.login-wrap {
+	min-height: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: linear-gradient(145deg, #f0fdf4 0%, #f4f6f8 50%, #ffffff 100%);
+	padding: 40px 20px;
+}
+
+.login-container {
+	width: 100%;
+	max-width: 400px;
+	margin: 0 auto;
+}
+
+/* Logo section */
+.logo-section {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 16px;
+	margin-bottom: 32px;
+}
+
+.logo-icon {
+	height: 52px;
+	width: auto;
+}
+
+.logo-text-wrap {
+	text-align: center;
+}
+
+.login-title {
+	font-size: 1.5rem;
+	font-weight: 700;
+	color: #111827;
+	margin: 0;
+}
+
+.login-subtitle {
+	font-size: 0.875rem;
+	color: #6b7280;
+	margin: 4px 0 0;
+}
+
+/* Card */
+.login-card {
+	background: #ffffff;
+	border-radius: 16px;
+	border: 1px solid #e5e7eb;
+	box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0,0,0,0.04);
+	padding: 28px 24px;
+}
+
+/* Form */
+.login-form {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+}
+
+.field-group {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.field-label {
+	font-size: 0.8125rem;
+	font-weight: 600;
+	color: #374151;
+}
+
+.field-input {
+	width: 100%;
+	padding: 10px 14px;
+	font-size: 0.875rem;
+	border: 1.5px solid #e5e7eb;
+	border-radius: 10px;
+	background: #f9fafb;
+	color: #111827;
+	outline: none;
+	transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+	box-sizing: border-box;
+}
+
+.field-input:focus {
+	background: #ffffff;
+	border-color: #22c55e;
+	box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+}
+
+.field-input::placeholder {
+	color: #9ca3af;
+}
+
+/* Password */
+.password-wrap {
+	position: relative;
+}
+
+.password-input {
+	padding-right: 44px;
+}
+
+.eye-btn {
+	position: absolute;
+	right: 12px;
+	top: 50%;
+	transform: translateY(-50%);
+	background: none;
+	border: none;
+	padding: 4px;
+	cursor: pointer;
+	color: #9ca3af;
+	display: flex;
+	align-items: center;
+}
+
+.eye-btn:hover {
+	color: #6b7280;
+}
+
+.eye-icon {
+	height: 16px;
+	width: 16px;
+}
+
+/* Submit button */
+.submit-btn {
+	width: 100%;
+	padding: 12px;
+	font-size: 0.9375rem;
+	font-weight: 600;
+	color: #ffffff;
+	background: #111827;
+	border: none;
+	border-radius: 10px;
+	cursor: pointer;
+	transition: background 0.15s;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+}
+
+.submit-btn:hover:not(:disabled) {
+	background: #1f2937;
+}
+
+.submit-btn:disabled {
+	background: #9ca3af;
+	cursor: not-allowed;
+}
+
+.spinner {
+	width: 16px;
+	height: 16px;
+	border: 2px solid rgba(255,255,255,0.3);
+	border-top-color: #ffffff;
+	border-radius: 50%;
+	animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+	to { transform: rotate(360deg); }
+}
+
+/* Divider */
+.divider {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin: 20px 0;
+}
+
+.divider-line {
+	flex: 1;
+	height: 1px;
+	background: #e5e7eb;
+}
+
+.divider-text {
+	font-size: 0.75rem;
+	color: #9ca3af;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+/* OAuth */
+.oauth-list {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.oauth-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+	padding: 10px 16px;
+	font-size: 0.875rem;
+	font-weight: 500;
+	color: #374151;
+	background: #ffffff;
+	border: 1.5px solid #e5e7eb;
+	border-radius: 10px;
+	text-decoration: none;
+	transition: background 0.15s, border-color 0.15s;
+}
+
+.oauth-btn:hover {
+	background: #f9fafb;
+	border-color: #d1d5db;
+}
+
+.oauth-icon {
+	height: 18px;
+	width: 18px;
+}
+
+.no-login-msg {
+	text-align: center;
+	font-size: 0.875rem;
+	color: #6b7280;
+	padding: 24px 0;
+}
+</style>
