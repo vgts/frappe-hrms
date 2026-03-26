@@ -751,10 +751,11 @@ def get_leave_balance_map() -> dict[str, dict[str, float]]:
 	date = getdate()
 	leave_map = {}
 
-	# Include all active, non-LWP leave types first (with 0 balance as default)
+	# Include all non-LWP leave types first (with 0 balance as default)
+	# Leave Type has no "disabled" column — filter only on is_lwp
 	all_leave_types = frappe.get_all(
 		"Leave Type",
-		filters={"is_lwp": 0, "disabled": 0},
+		filters={"is_lwp": 0},
 		pluck="name",
 		order_by="name asc",
 	)
