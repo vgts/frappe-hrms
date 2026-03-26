@@ -254,7 +254,7 @@ def resolve_active_session(employee):
 
 def get_today_checkin_seconds(employee):
 	"""
-	Returns (active_in, elapsed_seconds) for the timer display.
+	Returns (active_in, elapsed_seconds, first_in) for the timer display.
 
 	elapsed_seconds = sum of completed IN→OUT pairs from today midnight only.
 	The frontend is responsible for adding (now − active_in) as the live tick.
@@ -265,6 +265,8 @@ def get_today_checkin_seconds(employee):
 	Returns:
 	    active_in       – datetime of the current open IN, or None
 	    elapsed_seconds – completed pairs accumulated today (does NOT include live)
+	    first_in        – datetime of the very first IN log today, or active_in for
+	                      cross-midnight sessions (used to display "since HH:MM")
 	"""
 	today_midnight = get_datetime(today() + " 00:00:00")
 
@@ -274,7 +276,7 @@ def get_today_checkin_seconds(employee):
 	# cross-midnight: IN was before today's midnight
 	# elapsed = 0; frontend ticks from active_in directly
 	if active_in and active_in < today_midnight:
-		return active_in, 0
+		return active_in, 0, active_in
 
 	# get all logs from midnight today
 	logs = frappe.db.get_all(
@@ -285,14 +287,17 @@ def get_today_checkin_seconds(employee):
 	)
 	elapsed    = 0
 	current_in = None
+	first_in   = None
 	for log in logs:
 		if log.log_type == "IN":
+			if first_in is None:
+				first_in = log.time   # first IN of the day
 			current_in = log.time
 		elif log.log_type == "OUT" and current_in:
 			elapsed   += max(0, int((log.time - current_in).total_seconds()))
 			current_in = None
 
-	return current_in, elapsed
+	return current_in, elapsed, first_in
 
 
 def process_attendance_from_checkin(employee, out_time):
