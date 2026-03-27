@@ -866,14 +866,11 @@ def get_department_approvers(department: str, parentfield: str) -> list[str]:
 
 @frappe.whitelist()
 def get_leave_types(employee: str, date: str) -> list:
-	from hrms.hr.doctype.leave_application.leave_application import get_leave_details
-
-	date = date or getdate()
-
-	leave_details = get_leave_details(employee, date)
-	leave_types = list(leave_details["leave_allocation"].keys()) + leave_details["lwps"]
-
-	return leave_types
+	return frappe.get_all(
+		"Leave Type",
+		pluck="name",
+		order_by="name asc",
+	)
 
 
 # Expense Claims
