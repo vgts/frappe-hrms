@@ -389,9 +389,10 @@ def process_attendance(employee, attendance_date, in_time, out_time, force_absen
 	return att
 
 
+@frappe.whitelist()
 def auto_checkout_and_mark_absent():
 	"""
-	Scheduled hourly job.
+	Scheduled hourly job (also callable via API).
 	Finds every employee whose last open IN log is ≥ 23 h 59 m old (no OUT
 	within the window), creates an OUT log at IN + 23:59, and marks Absent.
 	"""
@@ -407,7 +408,7 @@ def auto_checkout_and_mark_absent():
 		      WHERE co.employee = ci.employee
 		        AND co.log_type = 'OUT'
 		        AND co.time > ci.time
-		        AND co.time <= ci.time + INTERVAL 23*60+59 MINUTE
+		        AND co.time <= ci.time + INTERVAL 1439 MINUTE
 		  )
 	""", (cutoff,), as_dict=True)
 
