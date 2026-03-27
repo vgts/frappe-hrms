@@ -45,11 +45,11 @@
 						</div>
 
 						<div class="desk-card p-8 flex flex-col gap-5">
-							<div class="flex items-center justify-between">
+							<div class="w-full flex items-center justify-between gap-4">
 								<div class="section-title">{{ __("Employee Advance Balance") }}</div>
 								<router-link
 									:to="{ name: 'EmployeeAdvanceListView' }"
-									class="text-sm text-blue-600 font-medium hover:text-blue-700"
+									class="text-sm text-blue-600 font-medium hover:text-blue-700 shrink-0"
 								>
 									{{ __("View All") }}
 								</router-link>
@@ -62,11 +62,13 @@
 					<div class="flex flex-col gap-6">
 						<div class="desk-card p-8 flex flex-col gap-5">
 							<div class="section-title">{{ __("Expense Claims") }}</div>
-							<router-link :to="{ name: 'ExpenseClaimFormView' }" v-slot="{ navigate }">
-								<Button @click="navigate" variant="solid" class="w-full py-5 text-sm">
-									{{ __("+ Claim an Expense") }}
-								</Button>
-							</router-link>
+							<Button
+								@click="openForm('ExpenseClaimFormView')"
+								variant="solid"
+								class="w-full py-5 text-sm"
+							>
+								{{ __("+ Claim an Expense") }}
+							</Button>
 							<RequestList
 								:component="markRaw(ExpenseClaimItem)"
 								:items="myClaims.data"
@@ -90,11 +92,13 @@ import ExpenseClaimSummary from "@/components/ExpenseClaimSummary.vue"
 import RequestList from "@/components/RequestList.vue"
 import ExpenseClaimItem from "@/components/ExpenseClaimItem.vue"
 import EmployeeAdvanceBalance from "@/components/EmployeeAdvanceBalance.vue"
+import { useFormModal } from "@/composables/useFormModal"
 
 import { myClaims } from "@/data/claims"
 import { advanceBalance } from "@/data/advances"
 
 const __ = inject("$translate")
+const { openForm } = useFormModal()
 </script>
 
 <style scoped>

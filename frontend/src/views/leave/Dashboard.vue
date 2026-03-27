@@ -26,7 +26,7 @@
 				<!-- Desktop: two-column -->
 				<div class="hidden lg:grid lg:grid-cols-5 lg:gap-8 lg:items-start lg:mt-2">
 
-					<!-- Left: leave balance (wider) -->
+					<!-- Left: leave balance (wider) + holidays -->
 					<div class="lg:col-span-3 flex flex-col gap-5">
 						<div class="desk-card p-6">
 							<LeaveBalance />
@@ -41,11 +41,13 @@
 					<div class="lg:col-span-2 flex flex-col gap-5">
 						<div class="desk-card p-6 flex flex-col gap-4">
 							<div class="section-title">{{ __("Leave Requests") }}</div>
-							<router-link :to="{ name: 'LeaveApplicationFormView' }" v-slot="{ navigate }">
-								<Button @click="navigate" variant="solid" class="w-full py-4 text-sm">
-									{{ __("+ Request a Leave") }}
-								</Button>
-							</router-link>
+							<Button
+								@click="openForm('LeaveApplicationFormView')"
+								variant="solid"
+								class="w-full py-4 text-sm"
+							>
+								{{ __("+ Request a Leave") }}
+							</Button>
 							<RequestList
 								:component="markRaw(LeaveRequestItem)"
 								:items="myLeaves.data"
@@ -69,10 +71,12 @@ import LeaveBalance from "@/components/LeaveBalance.vue"
 import RequestList from "@/components/RequestList.vue"
 import LeaveRequestItem from "@/components/LeaveRequestItem.vue"
 import Holidays from "@/components/Holidays.vue"
+import { useFormModal } from "@/composables/useFormModal"
 
 import { myLeaves } from "@/data/leaves"
 
 const __ = inject("$translate")
+const { openForm } = useFormModal()
 </script>
 
 <style scoped>

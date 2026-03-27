@@ -65,11 +65,9 @@
 						<div class="flex flex-col gap-5">
 							<div class="desk-card p-5 flex flex-col gap-4">
 								<div class="section-title">{{ __("Attendance Requests") }}</div>
-								<router-link :to="{ name: 'AttendanceRequestFormView' }" v-slot="{ navigate }">
-									<Button @click="navigate" variant="solid" class="w-full py-4 text-sm">
-										{{ __("+ Request Attendance") }}
-									</Button>
-								</router-link>
+								<Button @click="openForm('AttendanceRequestFormView')" variant="solid" class="w-full py-4 text-sm">
+									{{ __("+ Request Attendance") }}
+								</Button>
 								<RequestList
 									:component="markRaw(AttendanceRequestItem)"
 									:items="myAttendanceRequests?.data?.slice(0, 5)"
@@ -80,11 +78,9 @@
 
 							<div class="desk-card p-5 flex flex-col gap-4">
 								<div class="section-title">{{ __("Shifts") }}</div>
-								<router-link :to="{ name: 'ShiftRequestFormView' }" v-slot="{ navigate }">
-									<Button @click="navigate" variant="solid" class="w-full py-4 text-sm">
-										{{ __("+ Request a Shift") }}
-									</Button>
-								</router-link>
+								<Button @click="openForm('ShiftRequestFormView')" variant="solid" class="w-full py-4 text-sm">
+									{{ __("+ Request a Shift") }}
+								</Button>
 								<div class="text-sm font-semibold text-gray-600 mt-1">{{ __("Upcoming Shifts") }}</div>
 								<RequestList
 									:component="markRaw(ShiftAssignmentItem)"
@@ -160,6 +156,7 @@ import ShiftAssignmentItem from "@/components/ShiftAssignmentItem.vue"
 import RequestList from "@/components/RequestList.vue"
 import AttendanceCalendar from "@/components/AttendanceCalendar.vue"
 import EmptyState from "@/components/EmptyState.vue"
+import { useFormModal } from "@/composables/useFormModal"
 
 import {
 	getShiftDates,
@@ -170,6 +167,7 @@ import {
 } from "@/data/attendance"
 
 const __ = inject("$translate")
+const { openForm } = useFormModal()
 const dayjs = inject("$dayjs")
 const employee = inject("$employee")
 
