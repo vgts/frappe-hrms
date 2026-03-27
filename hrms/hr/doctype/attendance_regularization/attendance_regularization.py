@@ -109,9 +109,21 @@ class AttendanceRegularization(Document, PWANotificationsMixin):
 
 	def on_update(self):
 		share_doc_with_approver(self, self.leave_approver)
-		self.notify_approval_status()
-		self.publish_update()
 		self.handle_secondary_approval_flow()
+
+		if not self._is_pending_secondary():
+			self.notify_approval_status()
+
+		self.publish_update()
+
+	def _is_pending_secondary(self):
+		return (
+			self.custom_secondary_leave_approver
+			and self.custom_approval_stage in (
+				"Pending Project Reporting Approval",
+				"Pending Secondary Reporting Approval",
+			)
+		)
 
 	def before_submit(self):
 		"""Gate submission: only secondary approver (or normal flow without secondary) can submit."""
@@ -405,6 +417,8 @@ class AttendanceRegularization(Document, PWANotificationsMixin):
 		notification.reference_document_type = self.doctype
 		notification.reference_document_name = self.name
 		notification.insert(ignore_permissions=True)
+
+		self._trigger_notification_count_refetch(to_user)
 
 
 # ---------------------------------------------------------------------------

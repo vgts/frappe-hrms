@@ -130,9 +130,22 @@ class LeaveApplication(Document, PWANotificationsMixin):
 				self.notify_leave_approver()
 
 		share_doc_with_approver(self, self.leave_approver)
-		self.publish_update()
-		self.notify_approval_status()
 		self.handle_secondary_approval_flow()
+
+		# Only notify employee if NOT still pending secondary approval
+		if not self._is_pending_secondary():
+			self.notify_approval_status()
+
+		self.publish_update()
+
+	def _is_pending_secondary(self):
+		return (
+			self.custom_secondary_leave_approver
+			and self.custom_approval_stage in (
+				"Pending Project Reporting Approval",
+				"Pending Secondary Reporting Approval",
+			)
+		)
 
 	def before_submit(self):
 		"""Gate submission: only secondary approver (or normal flow without secondary) can submit."""
@@ -1024,6 +1037,8 @@ class LeaveApplication(Document, PWANotificationsMixin):
 		notification.reference_document_type = self.doctype
 		notification.reference_document_name = self.name
 		notification.insert(ignore_permissions=True)
+
+		self._trigger_notification_count_refetch(to_user)
 
 		# Email notification
 		if cint(self.follow_via_email):
