@@ -39,28 +39,31 @@ const formFields = createResource({
 		const excludeFields = [
 			"naming_series",
 			"leave_allocation",
-			"column_break_8",
+			"column_break_2",
+			"column_break_4",
+			"worked_on",
+			"amended_from",
 		]
-		const employeeFields = ["employee", "employee_name", "department", "company", "status"]
+		const employeeFields = ["employee", "employee_name", "department"]
 		if (!props.id) excludeFields.push(...employeeFields)
 
 		let fields = data.filter((f) => !excludeFields.includes(f.fieldname))
 
-		// default leave type to Compensatory Off
+		// Default leave type to Compensatory Off and lock it
 		const leaveTypeField = fields.find((f) => f.fieldname === "leave_type")
 		if (leaveTypeField && !props.id) {
 			leaveTypeField.default = "Compensatory Off"
 			leaveTypeField.read_only = 1
 		}
 
-		// default work_from_date and work_end_date to today
+		// Default work dates to today
 		const fromField = fields.find((f) => f.fieldname === "work_from_date")
 		if (fromField && !props.id) fromField.default = today
 
 		const toField = fields.find((f) => f.fieldname === "work_end_date")
 		if (toField && !props.id) toField.default = today
 
-		// hide half_day_date initially
+		// Hide half_day_date initially
 		const halfDayDate = fields.find((f) => f.fieldname === "half_day_date")
 		if (halfDayDate) halfDayDate.hidden = !compRequest.value.half_day
 
@@ -69,6 +72,7 @@ const formFields = createResource({
 })
 formFields.reload()
 
+// Show/hide half_day_date when half_day is toggled
 watch(
 	() => compRequest.value.half_day,
 	(half_day) => {
@@ -81,6 +85,7 @@ watch(
 	}
 )
 
+// Make form read-only when viewing another employee's request
 watch(
 	() => compRequest.value.employee,
 	(employee_id) => {

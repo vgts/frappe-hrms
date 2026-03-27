@@ -114,5 +114,10 @@ const quickLinks = [
 		title: __("Regularization"),
 		route: "RegularizationFormView",
 	},
+	{
+		icon: markRaw(LeaveIcon),
+		title: __("Compensatory Off"),
+		route: "CompensatoryLeaveFormView",
+	},
 ]
 </script>

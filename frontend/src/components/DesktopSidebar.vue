@@ -95,6 +95,7 @@ const quickLinks = [
 	{ icon: markRaw(ExpenseIcon),    title: __("Claim Expense"),        route: "ExpenseClaimFormView" },
 	{ icon: markRaw(AttendanceIcon), title: __("Request Permission"),   route: "PermissionFormView" },
 	{ icon: markRaw(AttendanceIcon), title: __("Regularization"),       route: "RegularizationFormView" },
+	{ icon: markRaw(LeaveIcon),      title: __("Compensatory Off"),     route: "CompensatoryLeaveFormView" },
 ]
 
 function isActive(path) {
