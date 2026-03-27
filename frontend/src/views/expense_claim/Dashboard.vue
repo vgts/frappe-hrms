@@ -1,7 +1,7 @@
 <template>
 	<BaseLayout :pageTitle="__('Expense Claims')">
 		<template #body>
-			<div class="px-4 pt-4 pb-8 lg:px-8 lg:pt-6 lg:pb-12 lg:max-w-6xl lg:mx-auto">
+			<div class="px-4 pt-4 pb-8 lg:px-10 lg:pt-8 lg:pb-14 lg:max-w-6xl lg:mx-auto">
 
 				<!-- Mobile: single column -->
 				<div class="lg:hidden flex flex-col gap-7 mt-3">
@@ -35,18 +35,18 @@
 				</div>
 
 				<!-- Desktop: two-column -->
-				<div class="hidden lg:grid lg:grid-cols-2 lg:gap-8 lg:items-start lg:mt-2">
+				<div class="hidden lg:grid lg:grid-cols-2 lg:gap-10 lg:items-start lg:mt-4">
 
-					<!-- Left: summary + claim button -->
-					<div class="flex flex-col gap-5">
-						<div class="desk-card p-6">
-							<div class="section-title mb-4">{{ __("Expense Summary") }}</div>
+					<!-- Left: summary + advance balance -->
+					<div class="flex flex-col gap-6">
+						<div class="desk-card p-8">
+							<div class="section-title mb-5">{{ __("Expense Summary") }}</div>
 							<ExpenseClaimSummary />
 						</div>
 
-						<div class="desk-card p-6 flex flex-col gap-4">
-							<div class="section-title">{{ __("Employee Advance Balance") }}</div>
-							<div class="flex justify-end">
+						<div class="desk-card p-8 flex flex-col gap-5">
+							<div class="flex items-center justify-between">
+								<div class="section-title">{{ __("Employee Advance Balance") }}</div>
 								<router-link
 									:to="{ name: 'EmployeeAdvanceListView' }"
 									class="text-sm text-blue-600 font-medium hover:text-blue-700"
@@ -58,12 +58,12 @@
 						</div>
 					</div>
 
-					<!-- Right: recent expenses -->
-					<div class="flex flex-col gap-5">
-						<div class="desk-card p-6 flex flex-col gap-4">
+					<!-- Right: expense claims list -->
+					<div class="flex flex-col gap-6">
+						<div class="desk-card p-8 flex flex-col gap-5">
 							<div class="section-title">{{ __("Expense Claims") }}</div>
 							<router-link :to="{ name: 'ExpenseClaimFormView' }" v-slot="{ navigate }">
-								<Button @click="navigate" variant="solid" class="w-full py-4 text-sm">
+								<Button @click="navigate" variant="solid" class="w-full py-5 text-sm">
 									{{ __("+ Claim an Expense") }}
 								</Button>
 							</router-link>
@@ -99,7 +99,7 @@ const __ = inject("$translate")
 
 <style scoped>
 .section-title {
-	font-size: 1rem;
+	font-size: 1.0625rem;
 	font-weight: 700;
 	color: #1f2937;
 }
@@ -107,7 +107,7 @@ const __ = inject("$translate")
 .desk-card {
 	background: #ffffff;
 	border: 1px solid #e5e7eb;
-	border-radius: 12px;
-	box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+	border-radius: 14px;
+	box-shadow: 0 2px 6px rgba(0,0,0,0.07);
 }
 </style>
