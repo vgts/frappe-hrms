@@ -1,126 +1,108 @@
 <template>
 	<ion-page>
-		<ion-content class="ion-padding">
-			<div class="flex flex-col min-h-full">
-				<div class="w-full profile-container">
-					<header
-						class="flex flex-row bg-white shadow-sm py-4 px-3 items-center justify-between border-b sticky top-0 z-10"
-					>
-						<div class="flex flex-row items-center">
-							<Button
-								variant="ghost"
-								class="!pl-0 hover:bg-white"
-								@click="router.back()"
-							>
-								<FeatherIcon name="chevron-left" class="h-5 w-5" />
-							</Button>
-							<h2 class="text-xl font-semibold text-gray-900">{{ __("Profile") }}</h2>
-						</div>
+		<ion-content :scroll-y="true">
+			<div class="profile-page">
+				<div class="profile-container">
+
+					<!-- Header -->
+					<header class="profile-nav">
+						<Button
+							variant="ghost"
+							class="!pl-0 hover:bg-white"
+							@click="router.back()"
+						>
+							<FeatherIcon name="chevron-left" class="h-5 w-5" />
+						</Button>
+						<h2 class="nav-title">{{ __("Profile") }}</h2>
+						<div class="w-5"></div>
 					</header>
 
-					<div class="flex flex-col items-center mt-5 p-4">
-						<!-- Profile Image -->
+					<!-- Avatar card -->
+					<div class="avatar-card">
 						<img
 							v-if="user.data.user_image"
-							class="h-24 w-24 rounded-full object-cover"
+							class="avatar-img"
 							:src="user.data.user_image"
 							:alt="user.data.first_name"
 						/>
-						<div
-							v-else
-							class="flex items-center justify-center bg-gray-200 uppercase text-gray-600 h-24 w-24 rounded-full object-cover"
-						>
+						<div v-else class="avatar-fallback">
 							{{ user.data.first_name[0] }}
 						</div>
 
-						<div class="flex flex-col gap-1.5 items-center mt-2 mb-3">
-							<span v-if="employee" class="text-lg font-bold text-gray-900">{{
-								employee?.data?.employee_name
-							}}</span>
-							<span v-if="employee" class="font-normal text-sm text-gray-500">{{
-								employee?.data?.designation
-							}}</span>
+						<span v-if="employee" class="emp-name">{{ employee?.data?.employee_name }}</span>
+						<span v-if="employee" class="emp-designation">{{ employee?.data?.designation }}</span>
 
-							<!-- Default Present Badge -->
-							<div
-								v-if="isDefaultPresent"
-								class="flex items-center gap-1.5 mt-1 px-3 py-1 rounded-full bg-green-100 border border-green-300"
-							>
-								<span class="h-2 w-2 rounded-full bg-green-500 flex-shrink-0"></span>
-								<span class="text-xs font-semibold text-green-700">
-									{{ __("Default Present") }}
-								</span>
-							</div>
+						<!-- Quick info row -->
+						<div class="info-row" v-if="employee?.data">
+							<span v-if="employee.data.department" class="info-item">
+								<FeatherIcon name="briefcase" class="info-icon" />
+								{{ employee.data.department }}
+							</span>
+							<span v-if="employee.data.employee_number" class="info-item">
+								<FeatherIcon name="hash" class="info-icon" />
+								{{ employee.data.employee_number }}
+							</span>
 						</div>
 
-						<!-- Profile Links -->
-						<div class="flex flex-col gap-5 my-4 w-full">
-							<div class="flex flex-col bg-white rounded">
-								<div
-									class="flex flex-row cursor-pointer flex-start p-4 items-center justify-between border-b"
-									v-for="link in profileLinks"
-									:key="link.title"
-									@click="openInfoModal(link)"
-								>
-									<div class="flex flex-row items-center gap-3 grow">
-										<FeatherIcon
-											:name="link.icon"
-											class="h-5 w-5 text-gray-500"
-										/>
-										<div class="text-base font-normal text-gray-800">
-											{{ link.title }}
-										</div>
-									</div>
-									<FeatherIcon
-										name="chevron-right"
-										class="h-5 w-5 text-gray-500"
-									/>
-								</div>
+						<!-- Default Present Badge -->
+						<div
+							v-if="isDefaultPresent"
+							class="flex items-center gap-1.5 mt-1 px-3 py-1 rounded-full bg-green-100 border border-green-300"
+						>
+							<span class="h-2 w-2 rounded-full bg-green-500 flex-shrink-0"></span>
+							<span class="text-xs font-semibold text-green-700">
+								{{ __("Default Present") }}
+							</span>
+						</div>
+					</div>
+
+					<!-- Profile sections -->
+					<div class="sections-list">
+						<div
+							v-for="link in profileLinks"
+							:key="link.title"
+							class="section-row"
+							@click="openInfoModal(link)"
+						>
+							<div class="section-left">
+								<FeatherIcon :name="link.icon" class="section-icon" />
+								<span class="section-label">{{ link.title }}</span>
 							</div>
+							<FeatherIcon name="chevron-right" class="section-arrow" />
 						</div>
 
 						<!-- Settings -->
-						<div
-							class="flex flex-col gap-5 my-4 w-full"
+						<router-link
 							v-if="allowPushNotifications"
+							:to="{ name: 'Settings' }"
+							class="section-row"
 						>
-							<div class="flex flex-col bg-white rounded">
-								<router-link
-									:to="{ name: 'Settings' }"
-									class="flex flex-row cursor-pointer flex-start p-4 items-center justify-between border-b"
-								>
-									<div class="flex flex-row items-center gap-3 grow">
-										<FeatherIcon
-											name="settings"
-											class="h-5 w-5 text-gray-500"
-										/>
-										<div class="text-base font-normal text-gray-800">
-											{{ __("Settings") }}
-										</div>
-									</div>
-									<FeatherIcon
-										name="chevron-right"
-										class="h-5 w-5 text-gray-500"
-									/>
-								</router-link>
+							<div class="section-left">
+								<FeatherIcon name="settings" class="section-icon" />
+								<span class="section-label">{{ __("Settings") }}</span>
 							</div>
-						</div>
-
-						<Button
-							@click="logout"
-							variant="outline"
-							theme="red"
-							class="w-full shadow py-4 mt-5"
-						>
-							<template #prefix>
-								<FeatherIcon name="log-out" class="w-4" />
-							</template>
-							{{ __("Log Out") }}
-						</Button>
+							<FeatherIcon name="chevron-right" class="section-arrow" />
+						</router-link>
 					</div>
+
+					<!-- Logout -->
+					<Button
+						@click="logout"
+						variant="outline"
+						theme="red"
+						class="w-full shadow-sm py-4 mt-6 logout-btn"
+					>
+						<template #prefix>
+							<FeatherIcon name="log-out" class="w-4" />
+						</template>
+						{{ __("Log Out") }}
+					</Button>
+
+					<div class="footer-text">VGTS-HRMS</div>
 				</div>
 			</div>
 
+			<!-- Info modal -->
 			<ion-modal
 				ref="modal"
 				:is-open="isInfoModalOpen"
@@ -305,6 +287,12 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.profile-page {
+	min-height: 100%;
+	background: #f9fafb;
+	padding: 0 16px 40px;
+}
+
 .profile-container {
 	max-width: 100%;
 	margin: 0 auto;
@@ -314,5 +302,157 @@ onBeforeUnmount(() => {
 	.profile-container {
 		max-width: 520px;
 	}
+}
+
+/* Nav */
+.profile-nav {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 16px 0;
+	position: sticky;
+	top: 0;
+	z-index: 10;
+	background: #f9fafb;
+}
+
+.nav-title {
+	font-size: 1.125rem;
+	font-weight: 600;
+	color: #111827;
+	margin: 0;
+}
+
+/* Avatar card */
+.avatar-card {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	background: #ffffff;
+	border-radius: 16px;
+	border: 1px solid #e5e7eb;
+	padding: 24px 16px 20px;
+	gap: 4px;
+}
+
+.avatar-img {
+	height: 80px;
+	width: 80px;
+	border-radius: 50%;
+	object-fit: cover;
+	margin-bottom: 8px;
+}
+
+.avatar-fallback {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 80px;
+	width: 80px;
+	border-radius: 50%;
+	background: #f3f4f6;
+	color: #6b7280;
+	font-size: 1.75rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	margin-bottom: 8px;
+}
+
+.emp-name {
+	font-size: 1.125rem;
+	font-weight: 700;
+	color: #111827;
+}
+
+.emp-designation {
+	font-size: 0.8125rem;
+	color: #6b7280;
+}
+
+.info-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	margin-top: 8px;
+	justify-content: center;
+}
+
+.info-item {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 0.75rem;
+	color: #9ca3af;
+}
+
+.info-icon {
+	height: 12px;
+	width: 12px;
+}
+
+/* Section list */
+.sections-list {
+	margin-top: 16px;
+	background: #ffffff;
+	border-radius: 16px;
+	border: 1px solid #e5e7eb;
+	overflow: hidden;
+}
+
+.section-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 16px;
+	cursor: pointer;
+	border-bottom: 1px solid #f3f4f6;
+	text-decoration: none;
+	transition: background 0.1s;
+}
+
+.section-row:last-child {
+	border-bottom: none;
+}
+
+.section-row:active {
+	background: #f9fafb;
+}
+
+.section-left {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.section-icon {
+	height: 18px;
+	width: 18px;
+	color: #9ca3af;
+}
+
+.section-label {
+	font-size: 0.9375rem;
+	font-weight: 500;
+	color: #374151;
+}
+
+.section-arrow {
+	height: 16px;
+	width: 16px;
+	color: #d1d5db;
+}
+
+/* Logout */
+.logout-btn {
+	border-radius: 12px !important;
+}
+
+/* Footer */
+.footer-text {
+	text-align: center;
+	font-size: 0.6875rem;
+	color: #d1d5db;
+	padding: 20px 0 0;
+	letter-spacing: 0.05em;
 }
 </style>
