@@ -144,12 +144,16 @@ class EmployeePermission(Document, PWANotificationsMixin):
 		if self.is_new() and self.custom_secondary_leave_approver:
 			self.custom_approval_stage = "Pending Project Reporting Approval"
 
+	def after_insert(self):
+		self.notify_approver()
+
 	def on_update(self):
 		if self.status == "Open" and self.docstatus < 1:
 			if frappe.db.get_single_value("HR Settings", "send_leave_notification"):
 				self.notify_leave_approver()
 
 		share_doc_with_approver(self, self.leave_approver)
+		self.notify_approval_status()
 		self.handle_secondary_approval_flow()
 		self.publish_update()
 
