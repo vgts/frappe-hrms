@@ -8,6 +8,7 @@ import employeeAdvanceRoutes from "./advances"
 import salarySlipRoutes from "./salary_slips"
 import permissionRoutes from "./permissions"
 import regularizationRoutes from "./regularization"
+import compensatoryLeaveRoutes from "./compensatory_leave"
 
 const routes = [
 	{
@@ -81,6 +82,7 @@ const routes = [
 	...salarySlipRoutes,
 	...permissionRoutes,
 	...regularizationRoutes,
+	...compensatoryLeaveRoutes,
 ]
 
 const router = createRouter({
