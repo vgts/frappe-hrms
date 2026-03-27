@@ -19,15 +19,29 @@
 
 					<!-- Avatar card -->
 					<div class="avatar-card">
-						<img
-							v-if="user.data.user_image"
-							class="avatar-img"
-							:src="user.data.user_image"
-							:alt="user.data.first_name"
-						/>
-						<div v-else class="avatar-fallback">
-							{{ user.data.first_name[0] }}
+						<!-- Clickable avatar with camera overlay -->
+						<div class="avatar-wrapper" @click="triggerImageUpload">
+							<img
+								v-if="user.data.user_image"
+								class="avatar-img"
+								:src="user.data.user_image"
+								:alt="user.data.first_name"
+							/>
+							<div v-else class="avatar-fallback">
+								{{ user.data.first_name[0] }}
+							</div>
+							<div class="avatar-overlay">
+								<FeatherIcon v-if="!isUploading" name="camera" class="camera-icon" />
+								<div v-else class="upload-spinner"></div>
+							</div>
 						</div>
+						<input
+							ref="fileInput"
+							type="file"
+							accept="image/*"
+							class="hidden"
+							@change="onImageSelected"
+						/>
 
 						<span v-if="employee" class="emp-name">{{ employee?.data?.employee_name }}</span>
 						<span v-if="employee" class="emp-designation">{{ employee?.data?.designation }}</span>
@@ -133,7 +147,7 @@
 import { computed, inject, ref, onMounted, onBeforeUnmount } from "vue"
 import { useRouter } from "vue-router"
 import { IonModal, IonPage, IonContent } from "@ionic/vue"
-import { FeatherIcon, createDocumentResource, createResource } from "frappe-ui"
+import { FeatherIcon, createDocumentResource, createResource, call } from "frappe-ui"
 
 import { showErrorAlert } from "@/utils/dialogs"
 import { formatCurrency } from "@/utils/formatters"
@@ -151,6 +165,53 @@ const employee = inject("$employee")
 const __ = inject("$translate")
 
 const router = useRouter()
+
+// ── Profile image upload ───────────────────────────────────────────────────
+const fileInput = ref(null)
+const isUploading = ref(false)
+
+function triggerImageUpload() {
+	fileInput.value?.click()
+}
+
+async function onImageSelected(event) {
+	const file = event.target.files?.[0]
+	if (!file) return
+
+	isUploading.value = true
+	try {
+		const dataUrl = await readFileAsDataUrl(file)
+		const base64 = dataUrl.split(",")[1]
+		const fileDoc = await call("hrms.api.upload_base64_file", {
+			content: base64,
+			dt: "User",
+			dn: session.user,
+			filename: file.name,
+			fieldname: "user_image",
+		})
+		await call("frappe.client.set_value", {
+			doctype: "User",
+			name: session.user,
+			fieldname: "user_image",
+			value: fileDoc.file_url,
+		})
+		await user.reload()
+	} catch (e) {
+		console.error("Image upload failed", e)
+	} finally {
+		isUploading.value = false
+		event.target.value = ""
+	}
+}
+
+function readFileAsDataUrl(file) {
+	return new Promise((resolve, reject) => {
+		const reader = new FileReader()
+		reader.onload = () => resolve(reader.result)
+		reader.onerror = reject
+		reader.readAsDataURL(file)
+	})
+}
 
 const profileLinks = [
 	{
@@ -334,12 +395,19 @@ onBeforeUnmount(() => {
 	gap: 4px;
 }
 
+.avatar-wrapper {
+	position: relative;
+	width: 80px;
+	height: 80px;
+	margin-bottom: 8px;
+	cursor: pointer;
+}
+
 .avatar-img {
 	height: 80px;
 	width: 80px;
 	border-radius: 50%;
 	object-fit: cover;
-	margin-bottom: 8px;
 }
 
 .avatar-fallback {
@@ -354,7 +422,41 @@ onBeforeUnmount(() => {
 	font-size: 1.75rem;
 	font-weight: 700;
 	text-transform: uppercase;
-	margin-bottom: 8px;
+}
+
+.avatar-overlay {
+	position: absolute;
+	inset: 0;
+	border-radius: 50%;
+	background: rgba(0, 0, 0, 0.28);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	opacity: 1;
+	transition: background 0.15s;
+}
+
+.avatar-wrapper:hover .avatar-overlay {
+	background: rgba(0, 0, 0, 0.45);
+}
+
+.camera-icon {
+	height: 22px;
+	width: 22px;
+	color: #ffffff;
+}
+
+.upload-spinner {
+	width: 22px;
+	height: 22px;
+	border: 2.5px solid rgba(255,255,255,0.4);
+	border-top-color: #ffffff;
+	border-radius: 50%;
+	animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+	to { transform: rotate(360deg); }
 }
 
 .emp-name {
