@@ -311,6 +311,20 @@ onBeforeUnmount(() => {
 	border-radius: 0 0 24px 24px;
 }
 
+/* ── Desktop constraint — cap content width on large screens ── */
+@media (min-width: 768px) {
+	.header-nav,
+	.avatar-section,
+	.quick-info,
+	.sections-wrap,
+	.logout-wrap,
+	.version-text {
+		max-width: 520px;
+		margin-left: auto;
+		margin-right: auto;
+	}
+}
+
 .header-nav {
 	display: flex;
 	align-items: center;
