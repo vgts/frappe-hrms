@@ -30,9 +30,9 @@
 							<div v-else class="avatar-fallback">
 								{{ user.data.first_name[0] }}
 							</div>
-							<div class="avatar-overlay">
-								<FeatherIcon v-if="!isUploading" name="camera" class="camera-icon" />
-								<div v-else class="upload-spinner"></div>
+							<div class="avatar-edit-badge">
+								<FeatherIcon v-if="!isUploading" name="edit-2" class="edit-icon" />
+								<div v-else class="upload-spinner-sm"></div>
 							</div>
 						</div>
 						<input
@@ -424,33 +424,37 @@ onBeforeUnmount(() => {
 	text-transform: uppercase;
 }
 
-.avatar-overlay {
+.avatar-edit-badge {
 	position: absolute;
-	inset: 0;
+	bottom: 2px;
+	right: 2px;
+	width: 24px;
+	height: 24px;
 	border-radius: 50%;
-	background: rgba(0, 0, 0, 0.28);
+	background: #ffffff;
+	border: 1.5px solid #e5e7eb;
+	box-shadow: 0 1px 4px rgba(0,0,0,0.15);
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	opacity: 1;
 	transition: background 0.15s;
 }
 
-.avatar-wrapper:hover .avatar-overlay {
-	background: rgba(0, 0, 0, 0.45);
+.avatar-wrapper:hover .avatar-edit-badge {
+	background: #f3f4f6;
 }
 
-.camera-icon {
-	height: 22px;
-	width: 22px;
-	color: #ffffff;
+.edit-icon {
+	height: 12px;
+	width: 12px;
+	color: #6b7280;
 }
 
-.upload-spinner {
-	width: 22px;
-	height: 22px;
-	border: 2.5px solid rgba(255,255,255,0.4);
-	border-top-color: #ffffff;
+.upload-spinner-sm {
+	width: 12px;
+	height: 12px;
+	border: 2px solid rgba(107,114,128,0.3);
+	border-top-color: #6b7280;
 	border-radius: 50%;
 	animation: spin 0.7s linear infinite;
 }
