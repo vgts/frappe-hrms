@@ -820,13 +820,14 @@ def get_leave_approval_details(employee: str) -> dict:
 	if leave_approver and leave_approver not in [approver.name for approver in department_approvers]:
 		department_approvers.append({"name": leave_approver, "full_name": leave_approver_name})
 
-	# Secondary leave approver: custom_secondary_leave_approver on Employee (User link)
-	secondary_leave_approver = frappe.db.get_value("Employee", employee, "custom_secondary_leave_approver")
-	secondary_approver_name = (
-		frappe.db.get_value("User", secondary_leave_approver, "full_name", cache=True)
-		if secondary_leave_approver
-		else None
-	)
+	# Secondary leave approver: custom_secondary_reporting_ (Employee link) → user_id
+	secondary_leave_approver = None
+	secondary_approver_name = None
+	secondary_emp = frappe.db.get_value("Employee", employee, "custom_secondary_reporting_")
+	if secondary_emp:
+		secondary_leave_approver = frappe.db.get_value("Employee", secondary_emp, "user_id")
+		if secondary_leave_approver:
+			secondary_approver_name = frappe.db.get_value("User", secondary_leave_approver, "full_name", cache=True)
 
 	return dict(
 		leave_approver=leave_approver,

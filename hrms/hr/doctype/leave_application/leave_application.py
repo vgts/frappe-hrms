@@ -967,23 +967,16 @@ class LeaveApplication(Document, PWANotificationsMixin):
 	# ---- Two-level approval helpers ----
 
 	def set_secondary_leave_approver(self):
-		"""Auto-fetch secondary leave approver from employee master."""
+		"""Auto-fetch secondary leave approver from employee's custom_secondary_reporting_ → user_id."""
 		if self.custom_secondary_leave_approver or not self.employee:
 			return
 
-		# Check if the field exists on Employee before querying
-		employee_meta = frappe.get_meta("Employee")
-		if not employee_meta.has_field("custom_secondary_leave_approver"):
-			return
-
-		secondary = frappe.db.get_value(
-			"Employee", self.employee, "custom_secondary_leave_approver"
-		)
-		if secondary:
-			self.custom_secondary_leave_approver = secondary
-			self.custom_secondary_approver_name = frappe.db.get_value(
-				"User", secondary, "full_name"
-			)
+		secondary_emp = frappe.db.get_value("Employee", self.employee, "custom_secondary_reporting_")
+		if secondary_emp:
+			user_id = frappe.db.get_value("Employee", secondary_emp, "user_id")
+			if user_id:
+				self.custom_secondary_leave_approver = user_id
+				self.custom_secondary_approver_name = frappe.db.get_value("User", user_id, "full_name")
 
 	def set_approval_stage(self):
 		"""Set initial approval stage for new leave applications."""
