@@ -65,6 +65,7 @@ class PWANotificationsMixin:
 		APPROVAL_STATUS_FIELD = {
 			"Leave Application": "status",
 			"Employee Permission": "status",
+			"Attendance Regularization": "status",
 			"Expense Claim": "approval_status",
 			"Shift Request": "status",
 		}
@@ -74,6 +75,7 @@ class PWANotificationsMixin:
 		APPROVER_FIELD = {
 			"Leave Application": "leave_approver",
 			"Employee Permission": "leave_approver",
+			"Attendance Regularization": "leave_approver",
 			"Expense Claim": "expense_approver",
 			"Shift Request": "approver",
 		}

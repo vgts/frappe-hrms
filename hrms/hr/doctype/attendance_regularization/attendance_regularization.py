@@ -14,9 +14,10 @@ from hrms.hr.utils import (
 	share_doc_with_approver,
 	validate_active_employee,
 )
+from hrms.mixins.pwa_notifications import PWANotificationsMixin
 
 
-class AttendanceRegularization(Document):
+class AttendanceRegularization(Document, PWANotificationsMixin):
 	def validate(self):
 		validate_active_employee(self.employee)
 		set_employee_name(self)
@@ -103,8 +104,12 @@ class AttendanceRegularization(Document):
 			self.leave_approver = leave_approver
 			self.leave_approver_name = frappe.db.get_value("User", leave_approver, "full_name")
 
+	def after_insert(self):
+		self.notify_approver()
+
 	def on_update(self):
 		share_doc_with_approver(self, self.leave_approver)
+		self.notify_approval_status()
 		self.publish_update()
 		self.handle_secondary_approval_flow()
 
@@ -317,15 +322,15 @@ class AttendanceRegularization(Document):
 
 		# Notify the employee
 		if employee_user:
-			hrms.refetch_resource("hrms:my_leaves", employee_user)
+			hrms.refetch_resource("hrms:my_regularizations", employee_user)
 
 		# Notify the primary approver (project reporting)
 		if self.leave_approver:
-			hrms.refetch_resource("hrms:team_leaves", self.leave_approver)
+			hrms.refetch_resource("hrms:team_regularizations", self.leave_approver)
 
 		# Notify the secondary approver
 		if self.custom_secondary_leave_approver:
-			hrms.refetch_resource("hrms:team_leaves", self.custom_secondary_leave_approver)
+			hrms.refetch_resource("hrms:team_regularizations", self.custom_secondary_leave_approver)
 
 	# ---- Two-level approval helpers ----
 
