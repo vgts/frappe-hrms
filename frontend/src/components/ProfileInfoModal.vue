@@ -1,31 +1,35 @@
 <template>
-	<div class="modal-wrap">
+	<div
+		class="bg-white w-full flex flex-col items-center justify-center pb-5 max-h-[calc(100vh-5rem)]"
+	>
 		<!-- Header -->
-		<div class="modal-header">
-			<span class="modal-title">{{ title }}</span>
+		<div
+			class="w-full flex flex-row gap-2 pt-8 pb-5 border-b justify-center items-center sticky top-0 z-[100]"
+		>
+			<span class="text-gray-900 font-bold text-lg text-center">
+				{{ title }}
+			</span>
 		</div>
 
-		<!-- Fields -->
-		<div class="modal-body">
+		<div class="w-full flex flex-col items-center justify-center gap-4 p-4">
 			<div
 				v-for="item in data"
 				:key="item.fieldname"
-				class="field-row"
+				class="flex flex-row items-center justify-between w-full"
 			>
-				<div class="field-label">{{ item.label }}</div>
-				<div class="field-value">
-					<FormattedField
-						:value="item.value"
-						:fieldtype="item.fieldtype"
-						:fieldname="item.fieldname"
-					/>
-				</div>
+				<div class="text-gray-600 text-base">{{ item.label }}</div>
+				<FormattedField
+					:value="item.value"
+					:fieldtype="item.fieldtype"
+					:fieldname="item.fieldname"
+				/>
 			</div>
 		</div>
 	</div>
 </template>
 
 <script setup>
+import { FeatherIcon } from "frappe-ui"
 import FormattedField from "@/components/FormattedField.vue"
 
 const props = defineProps({
@@ -39,65 +43,3 @@ const props = defineProps({
 	},
 })
 </script>
-
-<style scoped>
-.modal-wrap {
-	background: #ffffff;
-	width: 100%;
-	display: flex;
-	flex-direction: column;
-	padding-bottom: 24px;
-	max-height: calc(100vh - 5rem);
-}
-
-.modal-header {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	padding: 24px 16px 16px;
-	border-bottom: 1px solid #f3f4f6;
-	position: sticky;
-	top: 0;
-	z-index: 100;
-	background: #ffffff;
-}
-
-.modal-title {
-	font-size: 1.125rem;
-	font-weight: 700;
-	color: #111827;
-}
-
-.modal-body {
-	display: flex;
-	flex-direction: column;
-	padding: 8px 20px;
-}
-
-.field-row {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: 14px 0;
-	border-bottom: 1px solid #f9fafb;
-	gap: 12px;
-}
-
-.field-row:last-child {
-	border-bottom: none;
-}
-
-.field-label {
-	font-size: 0.8125rem;
-	color: #6b7280;
-	flex-shrink: 0;
-}
-
-.field-value {
-	font-size: 0.875rem;
-	font-weight: 500;
-	color: #111827;
-	text-align: right;
-	word-break: break-word;
-}
-</style>
