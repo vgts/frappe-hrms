@@ -80,25 +80,7 @@ class AttendanceRegularization(Document, PWANotificationsMixin):
 		if self.leave_approver:
 			return
 
-		# First: custom_project_reporting → user_id
-		project_reporting = frappe.db.get_value("Employee", self.employee, "custom_project_reporting")
-		if project_reporting:
-			leave_approver = frappe.db.get_value("Employee", project_reporting, "user_id")
-		else:
-			leave_approver = None
-
-		# Fallback: Employee.leave_approver or Department Approver
-		if not leave_approver:
-			leave_approver, department = frappe.db.get_value(
-				"Employee", self.employee, ["leave_approver", "department"]
-			)
-
-			if not leave_approver and department:
-				leave_approver = frappe.db.get_value(
-					"Department Approver",
-					{"parent": department, "parentfield": "leave_approvers", "idx": 1},
-					"approver",
-				)
+		leave_approver = frappe.db.get_value("Employee", self.employee, "leave_approver")
 
 		if leave_approver:
 			self.leave_approver = leave_approver
