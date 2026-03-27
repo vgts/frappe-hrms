@@ -101,32 +101,31 @@
 					<div class="footer-text">VGTS-HRMS</div>
 				</div>
 			</div>
-
-			<!-- Info modal -->
-			<ion-modal
-				ref="modal"
-				:is-open="isInfoModalOpen"
-				@didDismiss="closeInfoModal"
-				:initial-breakpoint="1"
-				:breakpoints="[0, 1]"
-			>
-				<ProfileInfoModal
-					v-if="selectedItem && employeeDoc.doc"
-					:title="selectedItem.title"
-					:data="
-						selectedItem.fields.map((field) => {
-							const [label, fieldtype] = getFieldInfo(field)
-							return {
-								fieldname: field,
-								value: employeeDoc.doc?.[field] ?? null,
-								label: label,
-								fieldtype: fieldtype,
-							}
-						})
-					"
-				/>
-			</ion-modal>
 		</ion-content>
+
+		<!-- Info modal — direct child of ion-page so Ionic can present it correctly -->
+		<ion-modal
+			:is-open="isInfoModalOpen"
+			@didDismiss="closeInfoModal"
+			:initial-breakpoint="1"
+			:breakpoints="[0, 1]"
+		>
+			<ProfileInfoModal
+				v-if="selectedItem && employeeDoc.doc"
+				:title="selectedItem.title"
+				:data="
+					selectedItem.fields.map((field) => {
+						const [label, fieldtype] = getFieldInfo(field)
+						return {
+							fieldname: field,
+							value: employeeDoc.doc?.[field] ?? null,
+							label: label,
+							fieldtype: fieldtype,
+						}
+					})
+				"
+			/>
+		</ion-modal>
 	</ion-page>
 </template>
 
@@ -226,12 +225,12 @@ const defaultPresentResource = createResource({
 const isDefaultPresent = computed(() => !!defaultPresentResource.data)
 
 // ── Profile modal ─────────────────────────────────────────────────────────
-const openInfoModal = async (request) => {
+const openInfoModal = (request) => {
 	selectedItem.value = request
 	isInfoModalOpen.value = true
 }
 
-const closeInfoModal = async (_request) => {
+const closeInfoModal = () => {
 	isInfoModalOpen.value = false
 	selectedItem.value = null
 }
@@ -255,7 +254,7 @@ const employeeDocType = createResource({
 
 const getFieldInfo = (fieldname) => {
 	const field = employeeDocType.data?.find(
-		(field) => field.fieldname === fieldname
+		(f) => f.fieldname === fieldname
 	)
 	return [__(field?.label, null, "Employee"), field?.fieldtype]
 }
