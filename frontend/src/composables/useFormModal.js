@@ -35,6 +35,11 @@ const formComponentMap = {
 		title: "Regularization",
 		icon: "check-square",
 	},
+	CompensatoryLeaveFormView: {
+		component: defineAsyncComponent(() => import("@/views/compensatory_leave/Form.vue")),
+		title: "New Compensatory Leave Request",
+		icon: "calendar",
+	},
 }
 
 const modalIcon = ref("")

@@ -116,7 +116,7 @@ const quickLinks = [
 	},
 	{
 		icon: markRaw(LeaveIcon),
-		title: __("Compensatory Off"),
+		title: __("Compensatory Request"),
 		route: "CompensatoryLeaveFormView",
 	},
 ]
