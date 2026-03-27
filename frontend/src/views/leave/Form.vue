@@ -560,7 +560,10 @@ function setLeaveApprovers(data) {
 		leaveApplication.value.leave_approver = data?.leave_approver
 		leaveApplication.value.leave_approver_name = data?.leave_approver_name
 	}
-
+	if (!leaveApplication.value.custom_secondary_leave_approver && data?.secondary_leave_approver) {
+		leaveApplication.value.custom_secondary_leave_approver = data.secondary_leave_approver
+		leaveApplication.value.custom_secondary_approver_name = data.secondary_approver_name
+	}
 }
 
 function setLeaveTypes(data) {

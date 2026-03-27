@@ -117,7 +117,12 @@ class EmployeePermission(Document, PWANotificationsMixin):
 		if self.leave_approver:
 			return
 
-		leave_approver = frappe.db.get_value("Employee", self.employee, "leave_approver")
+		# First: custom_project_reporting → user_id
+		project_reporting = frappe.db.get_value("Employee", self.employee, "custom_project_reporting")
+		if project_reporting:
+			leave_approver = frappe.db.get_value("Employee", project_reporting, "user_id")
+		else:
+			leave_approver = frappe.db.get_value("Employee", self.employee, "leave_approver")
 
 		if leave_approver:
 			self.leave_approver = leave_approver

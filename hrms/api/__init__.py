@@ -168,6 +168,7 @@ def get_attendance_regularizations(
 		filters=filters,
 		order_by="creation desc",
 		limit=limit,
+		ignore_permissions=True,
 	)
 
 	# For team: also include pending secondary approval
@@ -182,6 +183,7 @@ def get_attendance_regularizations(
 			"Attendance Regularization",
 			fields=fields,
 			filters=secondary_filters,
+			ignore_permissions=True,
 			order_by="creation desc",
 			limit=limit,
 		)
@@ -709,6 +711,7 @@ def get_employee_permissions(
 		filters=filters,
 		order_by="creation desc",
 		limit=limit,
+		ignore_permissions=True,
 	)
 
 	# For team: also include permissions pending secondary approval for this user
@@ -725,6 +728,7 @@ def get_employee_permissions(
 			filters=secondary_filters,
 			order_by="creation desc",
 			limit=limit,
+			ignore_permissions=True,
 		)
 		existing_names = {p["name"] for p in permissions}
 		for perm in secondary_perms:
@@ -826,6 +830,14 @@ def get_leave_approval_details(employee: str) -> dict:
 	if leave_approver and leave_approver not in [approver.name for approver in department_approvers]:
 		department_approvers.append({"name": leave_approver, "full_name": leave_approver_name})
 
+	# Secondary leave approver: custom_secondary_leave_approver on Employee (User link)
+	secondary_leave_approver = frappe.db.get_value("Employee", employee, "custom_secondary_leave_approver")
+	secondary_approver_name = (
+		frappe.db.get_value("User", secondary_leave_approver, "full_name", cache=True)
+		if secondary_leave_approver
+		else None
+	)
+
 	return dict(
 		leave_approver=leave_approver,
 		leave_approver_name=leave_approver_name,
@@ -833,6 +845,8 @@ def get_leave_approval_details(employee: str) -> dict:
 		is_mandatory=frappe.db.get_single_value(
 			"HR Settings", "leave_approver_mandatory_in_leave_application"
 		),
+		secondary_leave_approver=secondary_leave_approver,
+		secondary_approver_name=secondary_approver_name,
 	)
 
 

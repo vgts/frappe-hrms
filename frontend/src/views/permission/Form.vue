@@ -162,6 +162,23 @@ const availableHours = createResource({
 	auto: true,
 })
 
+// Auto-fetch approver details for new requests
+const approvalInfo = createResource({
+	url: "hrms.api.get_leave_approval_details",
+	params: { employee: currEmployee.value },
+	auto: !props.id,
+	onSuccess(data) {
+		if (!props.id) {
+			permissionRequest.value.leave_approver = data.leave_approver
+			permissionRequest.value.leave_approver_name = data.leave_approver_name
+			if (data.secondary_leave_approver) {
+				permissionRequest.value.custom_secondary_leave_approver = data.secondary_leave_approver
+				permissionRequest.value.custom_secondary_approver_name = data.secondary_approver_name
+			}
+		}
+	},
+})
+
 const formFields = createResource({
 	url: "hrms.api.get_doctype_fields",
 	params: { doctype: "Employee Permission" },
@@ -370,8 +387,10 @@ watch(
 			setFormReadOnly()
 		}
 		currEmployee.value = employee_id
-		// Reload available hours for this employee
 		availableHours.fetch({ employee: employee_id, date: today })
+		if (!props.id) {
+			approvalInfo.fetch({ employee: employee_id })
+		}
 	}
 )
 
@@ -395,6 +414,17 @@ function validateForm() {
 	permissionRequest.value.employee = currEmployee.value
 	if (!permissionRequest.value.permission_date) {
 		permissionRequest.value.permission_date = today
+	}
+	// Ensure approvers are set from fetched data
+	if (approvalInfo.data) {
+		if (!permissionRequest.value.leave_approver) {
+			permissionRequest.value.leave_approver = approvalInfo.data.leave_approver
+			permissionRequest.value.leave_approver_name = approvalInfo.data.leave_approver_name
+		}
+		if (!permissionRequest.value.custom_secondary_leave_approver && approvalInfo.data.secondary_leave_approver) {
+			permissionRequest.value.custom_secondary_leave_approver = approvalInfo.data.secondary_leave_approver
+			permissionRequest.value.custom_secondary_approver_name = approvalInfo.data.secondary_approver_name
+		}
 	}
 }
 </script>

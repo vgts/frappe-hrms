@@ -184,6 +184,23 @@ const approvalDetails = createResource({
 	auto: !!props.id,
 })
 
+// Auto-fetch approver details for new requests
+const approvalInfo = createResource({
+	url: "hrms.api.get_leave_approval_details",
+	params: { employee: currEmployee.value },
+	auto: !props.id,
+	onSuccess(data) {
+		if (!props.id) {
+			regularization.value.leave_approver = data.leave_approver
+			regularization.value.leave_approver_name = data.leave_approver_name
+			if (data.secondary_leave_approver) {
+				regularization.value.custom_secondary_leave_approver = data.secondary_leave_approver
+				regularization.value.custom_secondary_approver_name = data.secondary_approver_name
+			}
+		}
+	},
+})
+
 const isSecondaryApproverPending = computed(() => {
 	return (
 		regularization.value.custom_approval_stage === "Pending Secondary Reporting Approval" &&
@@ -288,6 +305,9 @@ watch(
 			formFields.data?.forEach((field) => (field.read_only = true))
 		}
 		currEmployee.value = employee_id
+		if (!props.id) {
+			approvalInfo.fetch({ employee: employee_id })
+		}
 	}
 )
 
@@ -295,6 +315,17 @@ function validateForm() {
 	regularization.value.employee = currEmployee.value
 	if (!regularization.value.attendance_date) {
 		regularization.value.attendance_date = today
+	}
+	// Ensure approvers are set from fetched data
+	if (approvalInfo.data) {
+		if (!regularization.value.leave_approver) {
+			regularization.value.leave_approver = approvalInfo.data.leave_approver
+			regularization.value.leave_approver_name = approvalInfo.data.leave_approver_name
+		}
+		if (!regularization.value.custom_secondary_leave_approver && approvalInfo.data.secondary_leave_approver) {
+			regularization.value.custom_secondary_leave_approver = approvalInfo.data.secondary_leave_approver
+			regularization.value.custom_secondary_approver_name = approvalInfo.data.secondary_approver_name
+		}
 	}
 }
 </script>
