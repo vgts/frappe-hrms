@@ -111,14 +111,14 @@
 				:breakpoints="[0, 1]"
 			>
 				<ProfileInfoModal
-					v-if="selectedItem"
+					v-if="selectedItem && employeeDoc.doc"
 					:title="selectedItem.title"
 					:data="
 						selectedItem.fields.map((field) => {
 							const [label, fieldtype] = getFieldInfo(field)
 							return {
 								fieldname: field,
-								value: employeeDoc.doc[field],
+								value: employeeDoc.doc?.[field] ?? null,
 								label: label,
 								fieldtype: fieldtype,
 							}
@@ -254,7 +254,7 @@ const employeeDocType = createResource({
 })
 
 const getFieldInfo = (fieldname) => {
-	const field = employeeDocType.data.find(
+	const field = employeeDocType.data?.find(
 		(field) => field.fieldname === fieldname
 	)
 	return [__(field?.label, null, "Employee"), field?.fieldtype]
