@@ -2,13 +2,13 @@
 	<ion-header class="ion-no-border">
 		<div class="w-full">
 			<div
-				class="flex flex-row shadow-sm py-4 px-3 items-center justify-between border-b bg-white dark:bg-[#0d0d0d] border-gray-200 dark:border-[#262626]"
+				class="flex flex-row shadow-sm py-4 px-3 items-center justify-between border-b bg-white border-gray-200"
 			>
 				<div class="flex flex-row items-center">
-					<Button variant="ghost" class="!px-1 mr-1 hover:bg-white dark:hover:bg-[#1a1a1a] dark:text-[#fafafa]" @click="router.back()">
+					<Button variant="ghost" class="!px-1 mr-1 hover:bg-white" @click="router.back()">
 						<FeatherIcon name="chevron-left" class="h-5 w-5" />
 					</Button>
-					<h2 class="text-xl font-semibold text-gray-900 dark:text-[#fafafa]">{{ pageTitle }}</h2>
+					<h2 class="text-xl font-semibold text-gray-900">{{ pageTitle }}</h2>
 				</div>
 
 				<div class="flex flex-row gap-2">
