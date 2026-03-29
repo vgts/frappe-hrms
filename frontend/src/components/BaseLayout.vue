@@ -3,33 +3,16 @@
 		<!-- Desktop sidebar — fixed position, only visible on lg+ -->
 		<DesktopSidebar />
 
-
 		<ion-header class="ion-no-border">
 			<div class="w-full">
-				<div
-					class="flex flex-col shadow-sm p-4 transition-colors duration-200"
-					:class="isDark() ? 'bg-gray-800' : 'bg-white'"
-				>
+				<div class="flex flex-col shadow-sm p-4 bg-white">
 					<div class="flex flex-row justify-between items-center">
 						<div class="flex flex-row items-center gap-2">
-							<h2
-								class="text-xl font-bold transition-colors duration-200"
-								:class="isDark() ? 'text-gray-50' : 'text-gray-900'"
-							>
+							<h2 class="text-xl font-bold text-gray-900">
 								{{ props.pageTitle || __("VGTS-HRMS") }}
 							</h2>
 						</div>
 						<div class="flex flex-row items-center gap-3 ml-auto">
-							<!-- Theme toggle -->
-							<button
-								@click="toggleTheme"
-								class="flex items-center justify-center w-8 h-8 rounded-full transition-colors duration-200 focus:outline-none"
-								:class="isDark() ? 'text-yellow-300 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-100'"
-								:aria-label="isDark() ? __('Switch to light mode') : __('Switch to dark mode')"
-							>
-								<FeatherIcon :name="isDark() ? 'sun' : 'moon'" class="h-5 w-5" />
-							</button>
-
 							<!-- Bell / Notifications — mobile only (sidebar has it on desktop) -->
 							<router-link
 								:to="{ name: 'Notifications' }"
@@ -37,15 +20,10 @@
 								class="flex flex-col items-center lg:hidden"
 							>
 								<span class="relative inline-block" @click="navigate">
-									<FeatherIcon
-										name="bell"
-										class="h-6 w-6 transition-colors duration-200"
-										:class="isDark() ? 'text-gray-200' : ''"
-									/>
+									<FeatherIcon name="bell" class="h-6 w-6" />
 									<span
 										v-if="unreadNotificationsCount.data"
-										class="absolute top-0 right-0.5 inline-block w-2 h-2 bg-red-600 rounded-full"
-										:class="isDark() ? 'border-gray-800' : 'border-white'"
+										class="absolute top-0 right-0.5 inline-block w-2 h-2 bg-red-600 rounded-full border border-white"
 										style="border-width: 1px; border-style: solid;"
 									></span>
 								</span>
@@ -80,15 +58,12 @@ import { IonHeader, IonContent, IonPage, IonRefresher, IonRefresherContent } fro
 import { FeatherIcon, Avatar } from "frappe-ui"
 
 import { unreadNotificationsCount } from "@/data/notifications"
-import { useTheme } from "@/composables/useTheme"
 import DesktopSidebar from "@/components/DesktopSidebar.vue"
 
 import { inject } from "vue"
 
 const user = inject("$user")
 const __ = inject("$translate")
-
-const { isDark, toggle: toggleTheme } = useTheme()
 
 const emit = defineEmits(["refresh"])
 
