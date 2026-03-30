@@ -2,7 +2,7 @@
 	<ion-header class="ion-no-border">
 		<div class="w-full">
 			<div
-				class="flex flex-row shadow-sm py-4 px-3 items-center justify-between border-b bg-white border-gray-200"
+				class="flex flex-row shadow-sm py-4 px-3 lg:px-10 items-center justify-between border-b bg-white border-gray-200"
 			>
 				<div class="flex flex-row items-center">
 					<Button variant="ghost" class="!px-1 mr-1 hover:bg-white" @click="router.back()">
@@ -45,25 +45,25 @@
 		</ion-refresher>
 
 		<div
-			class="flex flex-col items-center mb-7 p-4 h-full w-full overflow-y-auto"
+			class="flex flex-col items-center mb-7 p-4 lg:px-10 lg:pt-6 h-full w-full overflow-y-auto"
 			ref="scrollContainer"
 			@scroll="() => handleScroll()"
 		>
-			<div class="w-full">
+			<div class="w-full lg:max-w-4xl lg:mx-auto">
 				<TabButtons
 					v-if="props.tabButtons"
-					class="mt-5"
+					class="mt-5 lg:mt-2"
 					:buttons="props.tabButtons"
 					v-model="activeTab"
 				/>
 				<slot name="aboveList" :activeTab="activeTab" :isTeamRequest="isTeamRequest" />
 
 				<div
-					class="flex flex-col bg-white rounded mt-5"
+					class="flex flex-col bg-white rounded-xl mt-5 border border-gray-100 shadow-sm"
 					v-if="!documents.loading && documents.data?.length"
 				>
 					<div
-						class="p-3.5 items-center justify-between border-b cursor-pointer"
+						class="p-3.5 items-center justify-between border-b border-gray-100 last:border-b-0 cursor-pointer hover:bg-gray-50 transition-colors"
 						v-for="link in documents.data"
 						:key="link.name"
 					>

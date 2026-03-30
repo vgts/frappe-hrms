@@ -1,7 +1,7 @@
 <template>
 	<BaseLayout :pageTitle="__('Leaves & Holidays')">
 		<template #body>
-			<div class="px-4 pt-4 pb-8 lg:px-8 lg:pt-6 lg:pb-12 lg:max-w-6xl lg:mx-auto">
+			<div class="px-4 pt-4 pb-8 lg:px-10 lg:pt-8 lg:pb-16 lg:max-w-7xl lg:mx-auto w-full">
 
 				<!-- Mobile: single column -->
 				<div class="lg:hidden flex flex-col gap-7 mt-3">
@@ -23,31 +23,29 @@
 					<Holidays />
 				</div>
 
-				<!-- Desktop: two-column -->
-				<div class="hidden lg:grid lg:grid-cols-5 lg:gap-8 lg:items-start lg:mt-2">
+				<!-- Desktop: two-column layout -->
+				<div class="hidden lg:flex lg:flex-col lg:gap-6">
 
-					<!-- Left: leave balance (wider) + holidays -->
-					<div class="lg:col-span-3 flex flex-col gap-5">
-						<div class="desk-card p-6">
-							<LeaveBalance />
-						</div>
-						<div class="desk-card p-6">
-							<div class="section-title mb-4">{{ __("Holidays") }}</div>
-							<Holidays />
-						</div>
+					<!-- Top: Leave Balance full width -->
+					<div class="desk-card p-6">
+						<LeaveBalance />
 					</div>
 
-					<!-- Right: request + recent leaves -->
-					<div class="lg:col-span-2 flex flex-col gap-5">
-						<div class="desk-card p-6 flex flex-col gap-4">
-							<div class="section-title">{{ __("Leave Requests") }}</div>
-							<Button
-								@click="openForm('LeaveApplicationFormView')"
-								variant="solid"
-								class="w-full py-4 text-sm"
-							>
-								{{ __("+ Request a Leave") }}
-							</Button>
+					<!-- Bottom: two columns -->
+					<div class="grid grid-cols-5 gap-6 items-start">
+
+						<!-- Left: Recent Leave Requests -->
+						<div class="col-span-3 desk-card p-6 flex flex-col gap-4">
+							<div class="flex items-center justify-between">
+								<div class="section-title">{{ __("Leave Requests") }}</div>
+								<Button
+									@click="openForm('LeaveApplicationFormView')"
+									variant="solid"
+									class="px-5 py-2 text-sm"
+								>
+									+ {{ __("Request a Leave") }}
+								</Button>
+							</div>
 							<RequestList
 								:component="markRaw(LeaveRequestItem)"
 								:items="myLeaves.data"
@@ -55,6 +53,13 @@
 								listButtonRoute="LeaveApplicationListView"
 							/>
 						</div>
+
+						<!-- Right: Holidays -->
+						<div class="col-span-2 desk-card p-6 flex flex-col gap-4">
+							<div class="section-title">{{ __("Holidays") }}</div>
+							<Holidays />
+						</div>
+
 					</div>
 				</div>
 
