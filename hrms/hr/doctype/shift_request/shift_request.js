@@ -14,4 +14,18 @@ frappe.ui.form.on("Shift Request", {
 		});
 		frm.set_query("employee", erpnext.queries.employee);
 	},
+
+	employee: function (frm) {
+		if (frm.doc.employee) {
+			frappe.call({
+				method: "hrms.hr.doctype.leave_application.leave_application.get_leave_approver",
+				args: { employee: frm.doc.employee },
+				callback: function (r) {
+					if (r && r.message) {
+						frm.set_value("approver", r.message);
+					}
+				},
+			});
+		}
+	},
 });

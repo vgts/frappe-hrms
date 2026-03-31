@@ -19,6 +19,11 @@
   "half_day_date",
   "include_holidays",
   "shift",
+  "approval_section",
+  "approver",
+  "approver_name",
+  "approval_column_break",
+  "status",
   "reason_section",
   "reason",
   "column_break_4",
@@ -88,6 +93,40 @@
    "fieldtype": "Date",
    "label": "Half Day Date",
    "mandatory_depends_on": "half_day"
+  },
+  {
+   "fieldname": "approval_section",
+   "fieldtype": "Section Break",
+   "label": "Approval"
+  },
+  {
+   "fetch_from": "employee.leave_approver",
+   "fetch_if_empty": 1,
+   "fieldname": "approver",
+   "fieldtype": "Link",
+   "label": "Approver",
+   "options": "User",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "approver.full_name",
+   "fieldname": "approver_name",
+   "fieldtype": "Data",
+   "label": "Approver Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "approval_column_break",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Draft\nApproved\nRejected",
+   "reqd": 1
   },
   {
    "fieldname": "reason_section",

@@ -10,7 +10,7 @@ from frappe.utils import add_days, date_diff, format_date, get_link_to_form, get
 from erpnext.setup.doctype.employee.employee import is_holiday
 
 import hrms
-from hrms.hr.utils import validate_active_employee, validate_dates
+from hrms.hr.utils import share_doc_with_approver, validate_active_employee, validate_dates
 
 
 class OverlappingAttendanceRequestError(frappe.ValidationError):
@@ -24,6 +24,7 @@ class AttendanceRequest(Document):
 		self.validate_half_day()
 		self.validate_request_overlap()
 		self.validate_no_attendance_to_create()
+		self.validate_approver()
 
 	def validate_half_day(self):
 		if self.half_day:
@@ -71,8 +72,17 @@ class AttendanceRequest(Document):
 
 		frappe.throw(msg, title=_("Overlapping Attendance Request"), exc=OverlappingAttendanceRequestError)
 
+	def validate_approver(self):
+		if self.approver and not frappe.db.exists("User", {"name": self.approver, "enabled": 1}):
+			frappe.throw(_("Approver {0} must be an active user.").format(self.approver))
+
 	def on_submit(self):
-		self.create_attendance_records()
+		if self.status not in ("Approved", "Rejected"):
+			frappe.throw(
+				_("Only Attendance Requests with status 'Approved' or 'Rejected' can be submitted.")
+			)
+		if self.status == "Approved":
+			self.create_attendance_records()
 		self.publish_update()
 
 	def on_cancel(self):
@@ -195,6 +205,8 @@ class AttendanceRequest(Document):
 		return False
 
 	def on_update(self):
+		if self.approver:
+			share_doc_with_approver(self, self.approver)
 		self.publish_update()
 
 	def after_delete(self):
