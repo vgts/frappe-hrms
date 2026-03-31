@@ -22,19 +22,29 @@
 
 			<!-- Calendar -->
 			<div class="grid grid-cols-7 gap-y-3">
+				<!-- Day headers: highlight Sun (0) and Sat (6) -->
 				<div
-					v-for="day in DAYS"
-					class="flex justify-center text-gray-600 text-sm font-medium leading-6"
+					v-for="(day, i) in DAYS"
+					:key="day + i"
+					class="flex justify-center text-sm font-medium leading-6"
+					:class="i === 0 || i === 6 ? 'text-orange-400' : 'text-gray-600'"
 				>
 					{{ day }}
 				</div>
+
+				<!-- Empty cells for offset -->
 				<div v-for="_ in firstOfMonth.get('d')" />
-				<div v-for="index in firstOfMonth.endOf('M').get('D')">
+
+				<!-- Day cells -->
+				<div v-for="index in firstOfMonth.endOf('M').get('D')" :key="index">
 					<div
 						class="h-8 w-8 flex rounded-full mx-auto"
-						:class="getEventOnDate(index) && colorMap[getEventOnDate(index)]"
+						:class="getCellClass(index)"
 					>
-						<span class="text-gray-800 text-sm font-medium m-auto">
+						<span
+							class="text-sm font-medium m-auto"
+							:class="isWeekend(index) && !getEventOnDate(index) ? 'text-orange-400' : 'text-gray-800'"
+						>
 							{{ index }}
 						</span>
 					</div>
@@ -74,6 +84,7 @@ const colorMap = {
 	Absent: "bg-red-200",
 	"On Leave": "bg-blue-300",
 	Holiday: "bg-gray-300",
+	Weekend: "bg-orange-100",
 }
 
 // __("Present"), __("Half Day"), __("Absent"), __("On Leave"), __("Work From Home")
@@ -103,6 +114,23 @@ watch(
 
 const getEventOnDate = (date) => {
 	return calendarEvents.data[firstOfMonth.value.date(date).format("YYYY-MM-DD")]
+}
+
+// Returns day-of-week (0=Sun, 6=Sat) for day number `index` in current month
+const getDayOfWeek = (index) => {
+	return (firstOfMonth.value.get("d") + index - 1) % 7
+}
+
+const isWeekend = (index) => {
+	const dow = getDayOfWeek(index)
+	return dow === 0 || dow === 6
+}
+
+const getCellClass = (index) => {
+	const event = getEventOnDate(index)
+	if (event) return colorMap[event]
+	if (isWeekend(index)) return colorMap["Weekend"]
+	return ""
 }
 
 const getFirstLetter = (s) => Array.from(s.trim())[0] // Unicode
