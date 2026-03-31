@@ -16,4 +16,9 @@ function subscribe(socket, doctype) {
 
 	socket.emit("doctype_subscribe", doctype)
 	subscribed[doctype] = true
+
+	// Re-subscribe after reconnect (server loses room state on disconnect)
+	socket.on("connect", () => {
+		socket.emit("doctype_subscribe", doctype)
+	})
 }
