@@ -9,6 +9,13 @@ from frappe.utils import get_link_to_form
 
 import hrms
 from hrms.hr.doctype.shift_assignment.shift_assignment import has_overlapping_timings
+from hrms.hr.two_level_approval import (
+	gate_submission,
+	handle_secondary_approval_flow,
+	is_pending_secondary,
+	set_approval_stage,
+	set_secondary_approver,
+)
 from hrms.hr.utils import share_doc_with_approver, validate_active_employee
 from hrms.mixins.pwa_notifications import PWANotificationsMixin
 
@@ -24,10 +31,14 @@ class ShiftRequest(Document, PWANotificationsMixin):
 		self.validate_overlapping_shift_requests()
 		self.validate_approver()
 		self.validate_default_shift()
+		set_secondary_approver(self)
+		set_approval_stage(self)
 
 	def on_update(self):
 		share_doc_with_approver(self, self.approver)
-		self.notify_approval_status()
+		handle_secondary_approval_flow(self)
+		if not is_pending_secondary(self):
+			self.notify_approval_status()
 		self.publish_update()
 
 	def after_delete(self):
@@ -40,6 +51,9 @@ class ShiftRequest(Document, PWANotificationsMixin):
 
 	def after_insert(self):
 		self.notify_approver()
+
+	def before_submit(self):
+		gate_submission(self)
 
 	def on_submit(self):
 		if self.status not in ["Approved", "Rejected"]:

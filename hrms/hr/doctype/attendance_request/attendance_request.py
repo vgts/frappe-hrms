@@ -10,6 +10,13 @@ from frappe.utils import add_days, date_diff, format_date, get_link_to_form, get
 from erpnext.setup.doctype.employee.employee import is_holiday
 
 import hrms
+from hrms.hr.two_level_approval import (
+	gate_submission,
+	handle_secondary_approval_flow,
+	is_pending_secondary,
+	set_approval_stage,
+	set_secondary_approver,
+)
 from hrms.hr.utils import share_doc_with_approver, validate_active_employee, validate_dates
 
 
@@ -25,6 +32,8 @@ class AttendanceRequest(Document):
 		self.validate_request_overlap()
 		self.validate_no_attendance_to_create()
 		self.validate_approver()
+		set_secondary_approver(self)
+		set_approval_stage(self)
 
 	def validate_half_day(self):
 		if self.half_day:
@@ -75,6 +84,9 @@ class AttendanceRequest(Document):
 	def validate_approver(self):
 		if self.approver and not frappe.db.exists("User", {"name": self.approver, "enabled": 1}):
 			frappe.throw(_("Approver {0} must be an active user.").format(self.approver))
+
+	def before_submit(self):
+		gate_submission(self)
 
 	def on_submit(self):
 		if self.status not in ("Approved", "Rejected"):
@@ -207,6 +219,7 @@ class AttendanceRequest(Document):
 	def on_update(self):
 		if self.approver:
 			share_doc_with_approver(self, self.approver)
+		handle_secondary_approval_flow(self)
 		self.publish_update()
 
 	def after_delete(self):

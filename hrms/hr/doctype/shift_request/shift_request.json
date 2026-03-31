@@ -17,6 +17,11 @@
   "approver",
   "from_date",
   "to_date",
+  "custom_secondary_approval_section",
+  "custom_secondary_leave_approver",
+  "custom_secondary_approver_name",
+  "custom_column_break_secondary",
+  "custom_approval_stage",
   "amended_from"
  ],
  "fields": [
@@ -73,6 +78,41 @@
    "fieldname": "to_date",
    "fieldtype": "Date",
    "label": "To Date"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "custom_secondary_approval_section",
+   "fieldtype": "Section Break",
+   "label": "Secondary Approval"
+  },
+  {
+   "fieldname": "custom_secondary_leave_approver",
+   "fieldtype": "Link",
+   "label": "Secondary Leave Approver",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "custom_secondary_leave_approver.full_name",
+   "fieldname": "custom_secondary_approver_name",
+   "fieldtype": "Data",
+   "label": "Secondary Approver Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "custom_column_break_secondary",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "",
+   "fieldname": "custom_approval_stage",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Approval Stage",
+   "no_copy": 1,
+   "options": "\nPending Project Reporting Approval\nPending Secondary Reporting Approval\nApproved\nRejected",
+   "read_only": 1
   },
   {
    "fieldname": "amended_from",
