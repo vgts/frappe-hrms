@@ -64,7 +64,7 @@
 </template>
 
 <script setup>
-import { ref, inject, onMounted, computed, markRaw } from "vue"
+import { ref, inject, onMounted, onUnmounted, computed, markRaw } from "vue"
 
 import TabButtons from "@/components/TabButtons.vue"
 import RequestSection from "@/components/RequestSection.vue"
@@ -124,6 +124,8 @@ const hasTeamRequests = computed(() =>
 	teamRegularizationItems.value.length > 0
 )
 
+let pollInterval = null
+
 onMounted(() => {
 	useListUpdate(socket, "Leave Application", () => teamLeaves.reload())
 	useListUpdate(socket, "Expense Claim", () => teamClaims.reload())
@@ -131,5 +133,21 @@ onMounted(() => {
 	useListUpdate(socket, "Attendance Request", () => teamAttendanceRequests.reload())
 	useListUpdate(socket, "Employee Permission", () => teamPermissions.reload())
 	useListUpdate(socket, "Attendance Regularization", () => teamRegularizations.reload())
+
+	// Fallback polling every 30s in case Socket.IO is not connected
+	pollInterval = setInterval(() => {
+		if (!socket.connected) {
+			teamLeaves.reload()
+			teamAttendanceRequests.reload()
+			teamShiftRequests.reload()
+			teamClaims.reload()
+			teamPermissions.reload()
+			teamRegularizations.reload()
+		}
+	}, 30000)
+})
+
+onUnmounted(() => {
+	if (pollInterval) clearInterval(pollInterval)
 })
 </script>
