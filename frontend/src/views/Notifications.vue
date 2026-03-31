@@ -1,10 +1,10 @@
 <template>
 	<ion-page>
 		<ion-content class="ion-padding">
-			<div class="flex flex-col h-screen w-screen">
+			<div class="flex flex-col min-h-full">
 				<div class="w-full">
 					<header
-						class="flex flex-row bg-white shadow-sm py-4 px-3 items-center justify-between border-b sticky top-0 z-10"
+						class="flex flex-row bg-white shadow-sm py-4 px-3 lg:px-10 items-center justify-between border-b sticky top-0 z-10"
 					>
 						<div class="flex flex-row items-center">
 							<Button
@@ -18,7 +18,7 @@
 						</div>
 					</header>
 
-					<div class="flex flex-col gap-4 mt-5 p-4">
+					<div class="flex flex-col gap-4 mt-5 p-4 lg:px-10 lg:py-8 lg:max-w-3xl lg:mx-auto">
 						<div class="flex flex-row justify-between items-center">
 							<div
 								class="text-lg text-gray-800 font-semibold"

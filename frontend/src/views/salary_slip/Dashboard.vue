@@ -1,54 +1,68 @@
 <template>
 	<BaseLayout :pageTitle="__('Salary Slips')">
 		<template #body>
-			<div class="flex flex-col items-center my-7 p-4">
-				<div class="flex flex-col w-full bg-white rounded py-5 px-3.5 gap-5">
-					<div v-if="lastSalarySlip && lastSalarySlip.year_to_date" class="flex flex-col w-full gap-1.5">
-						<span class="text-gray-600 text-sm font-medium leading-5">
-							{{ __("Year To Date") }}
-						</span>
-						<span class="text-gray-800 text-xl font-bold leading-6">
-							{{
-								formatCurrency(
-									lastSalarySlip.year_to_date,
-									lastSalarySlip.currency
-								)
-							}}
-						</span>
+			<div class="px-4 pt-4 pb-8 lg:px-10 lg:pt-8 lg:pb-16 lg:max-w-7xl lg:mx-auto w-full">
+
+				<!-- Mobile layout -->
+				<div class="lg:hidden flex flex-col gap-5 mt-3">
+					<div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex flex-col gap-5">
+						<div v-if="lastSalarySlip && lastSalarySlip.year_to_date" class="flex flex-col gap-1">
+							<span class="text-gray-500 text-sm font-medium">{{ __("Year To Date") }}</span>
+							<span class="text-gray-800 text-xl font-bold">
+								{{ formatCurrency(lastSalarySlip.year_to_date, lastSalarySlip.currency) }}
+							</span>
+						</div>
+						<Autocomplete
+							:label="__('Payroll Period')"
+							class="w-full"
+							:placeholder="__('Select Payroll Period')"
+							v-model="selectedPeriod"
+							:options="payrollPeriods.data"
+						/>
 					</div>
-
-					<Autocomplete
-						:label="__('Payroll Period')"
-						class="w-full"
-						:placeholder="__('Select Payroll Period')"
-						v-model="selectedPeriod"
-						:options="payrollPeriods.data"
-					/>
-				</div>
-
-				<div class="flex flex-col items-center mt-5 mb-7 w-full">
-					<div
-						v-if="documents.data?.length"
-						class="flex flex-col bg-white rounded mt-5 overflow-auto w-full"
-					>
-						<div
-							class="p-3.5 items-center justify-between border-b cursor-pointer"
-							v-for="link in documents.data"
-							:key="link.name"
-						>
-							<router-link
-								:to="{
-									name: 'SalarySlipDetailView',
-									params: { id: link.name },
-								}"
-								v-slot="{ navigate }"
-							>
+					<div v-if="documents.data?.length" class="flex flex-col bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+						<div class="p-3.5 border-b border-gray-100 last:border-b-0 cursor-pointer hover:bg-gray-50" v-for="link in documents.data" :key="link.name">
+							<router-link :to="{ name: 'SalarySlipDetailView', params: { id: link.name } }" v-slot="{ navigate }">
 								<SalarySlipItem :doc="link" @click="navigate" />
 							</router-link>
 						</div>
 					</div>
 					<EmptyState :message="__('No salary slips found')" v-else />
 				</div>
+
+				<!-- Desktop layout -->
+				<div class="hidden lg:grid lg:grid-cols-5 lg:gap-6 lg:items-start mt-3">
+					<!-- Left: YTD + Period selector -->
+					<div class="col-span-2 flex flex-col gap-5 bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+						<div class="text-lg font-bold text-gray-800">{{ __("Salary Overview") }}</div>
+						<div v-if="lastSalarySlip && lastSalarySlip.year_to_date" class="flex flex-col gap-1">
+							<span class="text-gray-500 text-sm font-medium">{{ __("Year To Date") }}</span>
+							<span class="text-gray-800 text-2xl font-bold">
+								{{ formatCurrency(lastSalarySlip.year_to_date, lastSalarySlip.currency) }}
+							</span>
+						</div>
+						<Autocomplete
+							:label="__('Payroll Period')"
+							class="w-full"
+							:placeholder="__('Select Payroll Period')"
+							v-model="selectedPeriod"
+							:options="payrollPeriods.data"
+						/>
+					</div>
+					<!-- Right: Salary Slip list -->
+					<div class="col-span-3 bg-white rounded-xl border border-gray-100 shadow-sm p-6 flex flex-col gap-4">
+						<div class="text-lg font-bold text-gray-800">{{ __("Salary Slips") }}</div>
+						<div v-if="documents.data?.length" class="flex flex-col overflow-hidden rounded-lg border border-gray-100">
+							<div class="p-3.5 border-b border-gray-100 last:border-b-0 cursor-pointer hover:bg-gray-50" v-for="link in documents.data" :key="link.name">
+								<router-link :to="{ name: 'SalarySlipDetailView', params: { id: link.name } }" v-slot="{ navigate }">
+									<SalarySlipItem :doc="link" @click="navigate" />
+								</router-link>
+							</div>
+						</div>
+						<EmptyState :message="__('No salary slips found')" v-else />
+					</div>
+				</div>
+
 			</div>
 		</template>
 	</BaseLayout>

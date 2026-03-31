@@ -364,6 +364,15 @@ onBeforeUnmount(() => {
 	}
 }
 
+@media (min-width: 1024px) {
+	.profile-page {
+		padding: 0 40px 60px;
+	}
+	.profile-container {
+		max-width: 680px;
+	}
+}
+
 /* Nav */
 .profile-nav {
 	display: flex;
