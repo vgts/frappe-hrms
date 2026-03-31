@@ -28,7 +28,12 @@ status_map = {
 	"Work From Home": "WFH",
 	"On Leave": "L",
 	"Holiday": "H",
-	"Weekly Off": "WO",
+	"Weekly Off": "W",
+}
+
+LEAVE_SHORT_CODES = {
+	"Monthly Off": "MO",
+	"Leave Without Pay": "LOP",
 }
 
 day_abbr = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -59,13 +64,13 @@ def execute(filters: Filters | None = None) -> tuple:
 		if filters.include_company_descendants:
 			filters.companies.extend(get_descendants_of("Company", filters.company))
 
-	attendance_map = get_attendance_map(filters)
+	attendance_map, leave_type_map = get_attendance_map(filters)
 	if not attendance_map:
 		frappe.msgprint(_("No attendance records found."), alert=True, indicator="orange")
 		return [], [], None, None
 
 	columns = get_columns(filters)
-	data = get_data(filters, attendance_map)
+	data = get_data(filters, attendance_map, leave_type_map)
 
 	if not data:
 		frappe.msgprint(_("No attendance records found for this criteria."), alert=True, indicator="orange")
@@ -98,6 +103,20 @@ def get_message() -> str:
 			</span>
 		"""
 		count += 1
+
+	# Extra legend for leave short codes and permission
+	extra_legends = [
+		("Monthly Off", "MO", "#F59E0B"),
+		("Leave Without Pay", "LOP", "#EF4444"),
+		("Half Day + Leave", "0.5P/0.5 &lt;type&gt;", "#914EE3"),
+		("Half Day + Permission", "0.5P/&lt;time&gt;", "#06B6D4"),
+	]
+	for status, abbr, color in extra_legends:
+		message += f"""
+			<span style='border-left: 2px solid {color}; padding-right: 12px; padding-left: 5px; margin-right: 3px;'>
+				{_(status)} - {abbr}
+			</span>
+		"""
 
 	return message
 
@@ -233,9 +252,10 @@ def get_date_condition(docfield: Field, filters: Filters) -> Criterion:
 		return (docfield >= filters.start_date) & (docfield <= filters.end_date)
 
 
-def get_data(filters: Filters, attendance_map: dict) -> list[dict]:
+def get_data(filters: Filters, attendance_map: dict, leave_type_map: dict = None) -> list[dict]:
 	employee_details, group_by_param_values = get_employee_related_details(filters)
 	holiday_map = get_holiday_map(filters)
+	permission_map = get_permission_map(filters)
 	data = []
 
 	if filters.group_by:
@@ -245,14 +265,16 @@ def get_data(filters: Filters, attendance_map: dict) -> list[dict]:
 			if not value:
 				continue
 
-			records = get_rows(employee_details[value], filters, holiday_map, attendance_map)
+			records = get_rows(employee_details[value], filters, holiday_map, attendance_map,
+			                   leave_type_map, permission_map)
 
 			if records:
 				data.append({group_by_column: value})
 				data.extend(records)
 
 	else:
-		data = get_rows(employee_details, filters, holiday_map, attendance_map)
+		data = get_rows(employee_details, filters, holiday_map, attendance_map,
+		                leave_type_map, permission_map)
 
 	return data
 
@@ -276,8 +298,12 @@ def get_attendance_map(filters: Filters) -> dict:
 	attendance_list = get_attendance_records(filters)
 	attendance_map = {}
 	leave_map = {}
+	leave_type_map = {}  # (employee, date) → leave_type
 
 	for d in attendance_list:
+		if d.get("leave_type"):
+			leave_type_map[(d.employee, d.attendance_date)] = d.leave_type
+
 		if d.status == "On Leave":
 			leave_map.setdefault(d.employee, {}).setdefault(d.shift, []).append(d.attendance_date)
 			continue
@@ -315,7 +341,7 @@ def get_attendance_map(filters: Filters) -> dict:
 					if d not in attendance_map[employee][shift]:
 						attendance_map[employee][shift][d] = status
 
-	return attendance_map
+	return attendance_map, leave_type_map
 
 
 def get_attendance_records(filters: Filters) -> list[dict]:
@@ -340,6 +366,7 @@ def get_attendance_records(filters: Filters) -> list[dict]:
 			Attendance.attendance_date,
 			(status).as_("status"),
 			Attendance.shift,
+			Attendance.leave_type,
 		)
 		.where(
 			(Attendance.docstatus == 1)
@@ -454,7 +481,37 @@ def get_holiday_map(filters: Filters) -> dict[str, list[dict]]:
 	return holiday_map
 
 
-def get_rows(employee_details: dict, filters: Filters, holiday_map: dict, attendance_map: dict) -> list[dict]:
+def get_permission_map(filters: Filters) -> dict:
+	"""Returns a dict of (employee, date) → {from_time, to_time} for approved permissions."""
+	perm_map = {}
+	try:
+		EmployeePermission = frappe.qb.DocType("Employee Permission")
+		date_condition = get_date_condition(EmployeePermission.permission_date, filters)
+		perms = (
+			frappe.qb.from_(EmployeePermission)
+			.select(
+				EmployeePermission.employee,
+				EmployeePermission.permission_date,
+				EmployeePermission.from_time,
+				EmployeePermission.to_time,
+			)
+			.where(
+				(EmployeePermission.docstatus == 1)
+				& (date_condition)
+			)
+		).run(as_dict=True)
+		for p in perms:
+			perm_map[(p.employee, p.permission_date)] = {
+				"from_time": p.from_time,
+				"to_time": p.to_time,
+			}
+	except Exception:
+		pass
+	return perm_map
+
+
+def get_rows(employee_details: dict, filters: Filters, holiday_map: dict, attendance_map: dict,
+             leave_type_map: dict = None, permission_map: dict = None) -> list[dict]:
 	records = []
 	default_holiday_list = frappe.get_cached_value("Company", filters.company, "default_holiday_list")
 
@@ -485,7 +542,8 @@ def get_rows(employee_details: dict, filters: Filters, holiday_map: dict, attend
 				continue
 
 			attendance_for_employee = get_attendance_status_for_detailed_view(
-				employee, filters, employee_attendance, holidays
+				employee, filters, employee_attendance, holidays,
+				leave_type_map, permission_map,
 			)
 			# set employee details in the first row
 			for record in attendance_for_employee:
@@ -587,8 +645,21 @@ def get_attendance_summary_and_days(employee: str, filters: Filters) -> tuple[di
 	return summary[0], days
 
 
+def _fmt_perm_time(from_time):
+	"""Format permission from_time like '13:00' → '01PM'."""
+	try:
+		t_str = str(from_time or "")[:5]
+		h, m = int(t_str.split(":")[0]), int(t_str.split(":")[1])
+		suffix = "AM" if h < 12 else "PM"
+		h12 = h % 12 or 12
+		return f"{h12:02d}{suffix}"
+	except Exception:
+		return "Permission"
+
+
 def get_attendance_status_for_detailed_view(
-	employee: str, filters: Filters, employee_attendance: dict, holidays: list
+	employee: str, filters: Filters, employee_attendance: dict, holidays: list,
+	leave_type_map: dict = None, permission_map: dict = None,
 ) -> list[dict]:
 	"""Returns list of shift-wise attendance status for employee
 	[
@@ -598,13 +669,11 @@ def get_attendance_status_for_detailed_view(
 	"""
 	total_days = get_dates_in_period(filters)
 	attendance_values = []
+	leave_type_map = leave_type_map or {}
+	permission_map = permission_map or {}
 
 	for shift, status_dict in employee_attendance.items():
 		row = {"shift": shift}
-		"""{
-	            'Morning Shift': {1: 'Present', 2: 'Absent', ...}
-	            'Evening Shift': {1: 'Absent', 2: 'Present', ...}
-	    },"""
 		for d in total_days:
 			d = getdate(d)
 
@@ -613,7 +682,23 @@ def get_attendance_status_for_detailed_view(
 			if status is None and holidays:
 				status = get_holiday_status(d, holidays)
 
-			abbr = status_map.get(status, "")
+			# Resolve abbreviation with leave type and permission awareness
+			if status == "On Leave":
+				lt = leave_type_map.get((employee, d), "")
+				abbr = LEAVE_SHORT_CODES.get(lt, "L")
+			elif status in ("Half Day/Other Half Present", "Half Day/Other Half Absent"):
+				lt = leave_type_map.get((employee, d), "")
+				perm = permission_map.get((employee, d))
+				if lt:
+					lt_abbr = LEAVE_SHORT_CODES.get(lt, lt)
+					abbr = f"0.5P/0.5 {lt_abbr}"
+				elif perm:
+					abbr = f"0.5P/{_fmt_perm_time(perm.get('from_time'))}"
+				else:
+					abbr = status_map.get(status, "")
+			else:
+				abbr = status_map.get(status, "")
+
 			row[d.strftime("%d-%m-%Y")] = abbr
 
 		attendance_values.append(row)
