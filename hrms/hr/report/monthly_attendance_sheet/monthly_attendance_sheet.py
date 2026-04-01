@@ -106,8 +106,8 @@ def get_message() -> str:
 		("Monthly Off", "MO", "#F59E0B"),
 		("Leave Without Pay", "LWP", "#EF4444"),
 		("Half Day + Leave", "0.5P/0.5 &lt;type&gt;", "#914EE3"),
-		("Half Day + Permission", "0.5P/&lt;duration&gt;", "#06B6D4"),
-		("Present + Permission", "P/&lt;duration&gt;", "#06B6D4"),
+		("Half Day + Permission", "0.5P/&lt;n&gt;PM", "#06B6D4"),
+		("Present + Permission", "P/&lt;n&gt;PM", "#06B6D4"),
 	]
 	for status, abbr, color in extra_legends:
 		message += f"""
@@ -695,20 +695,20 @@ def get_attendance_summary_and_days(employee: str, filters: Filters) -> tuple[di
 
 
 def _fmt_perm_duration(from_time, to_time):
-	"""Format permission duration: '15:26:00'→'16:26:00' → '1H'; 45 min → '45M'."""
+	"""Format permission duration as hours with PM suffix (PM = Permission).
+	e.g. 15:28→16:28 = 1 hour → '1PM'; 15:28→16:58 = 1.5 hrs → '1.5PM'
+	"""
 	try:
 		def to_minutes(t):
 			parts = str(t or "").split(":")
 			return int(parts[0]) * 60 + int(parts[1])
 		diff = to_minutes(to_time) - to_minutes(from_time)
 		if diff <= 0:
-			return "Perm"
-		if diff < 60:
-			return f"{diff}M"
+			return "PM"
 		hours = diff / 60
-		return f"{int(hours)}H" if hours == int(hours) else f"{hours:.1f}H"
+		return f"{int(hours)}PM" if hours == int(hours) else f"{hours:.1f}PM"
 	except Exception:
-		return "Perm"
+		return "PM"
 
 
 def _is_second_half_permission(from_time) -> bool:
