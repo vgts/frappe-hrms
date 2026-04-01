@@ -11,13 +11,13 @@
   "employee",
   "employee_name",
   "department",
-  "status",
   "column_break_4",
   "company",
-  "approver",
   "from_date",
   "to_date",
-  "custom_secondary_approval_section",
+  "status",
+  "approver",
+  "secondary_approval_section",
   "custom_secondary_leave_approver",
   "custom_secondary_approver_name",
   "custom_column_break_secondary",
@@ -80,32 +80,47 @@
    "label": "To Date"
   },
   {
-   "collapsible": 1,
-   "fieldname": "custom_secondary_approval_section",
-   "fieldtype": "Section Break",
-   "label": "Secondary Approval",
+   "default": "Open",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Open\nApproved\nRejected",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "employee.leave_approver",
+   "fetch_if_empty": 1,
+   "fieldname": "approver",
+   "fieldtype": "Link",
+   "label": "Approver",
+   "options": "User",
+   "read_only": 1,
    "hidden": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "secondary_approval_section",
+   "fieldtype": "Section Break",
+   "label": "Approval Details"
   },
   {
    "fieldname": "custom_secondary_leave_approver",
    "fieldtype": "Link",
    "label": "Secondary Leave Approver",
    "options": "User",
-   "read_only": 1,
-   "hidden": 1
+   "read_only": 1
   },
   {
    "fetch_from": "custom_secondary_leave_approver.full_name",
    "fieldname": "custom_secondary_approver_name",
    "fieldtype": "Data",
    "label": "Secondary Approver Name",
-   "read_only": 1,
-   "hidden": 1
+   "read_only": 1
   },
   {
    "fieldname": "custom_column_break_secondary",
-   "fieldtype": "Column Break",
-   "hidden": 1
+   "fieldtype": "Column Break"
   },
   {
    "default": "",
@@ -116,8 +131,7 @@
    "label": "Approval Stage",
    "no_copy": 1,
    "options": "\nPending Project Reporting Approval\nPending Secondary Reporting Approval\nApproved\nRejected",
-   "read_only": 1,
-   "hidden": 1
+   "read_only": 1
   },
   {
    "fieldname": "amended_from",
@@ -127,25 +141,6 @@
    "options": "Shift Request",
    "print_hide": 1,
    "read_only": 1
-  },
-  {
-   "default": "Draft",
-   "fieldname": "status",
-   "fieldtype": "Select",
-   "label": "Status",
-   "options": "Draft\nApproved\nRejected",
-   "reqd": 1,
-   "hidden": 1
-  },
-  {
-   "fetch_from": "employee.leave_approver",
-   "fetch_if_empty": 1,
-   "fieldname": "approver",
-   "fieldtype": "Link",
-   "label": "Approver",
-   "options": "User",
-   "reqd": 1,
-   "hidden": 1
   }
  ],
  "is_submittable": 1,

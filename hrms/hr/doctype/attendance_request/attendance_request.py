@@ -101,7 +101,7 @@ class AttendanceRequest(Document):
 		gate_submission(self)
 
 	def on_submit(self):
-		if self.status not in ("Approved", "Rejected"):
+		if self.status in ("Open", "Cancelled"):
 			frappe.throw(
 				_("Only Attendance Requests with status 'Approved' or 'Rejected' can be submitted.")
 			)

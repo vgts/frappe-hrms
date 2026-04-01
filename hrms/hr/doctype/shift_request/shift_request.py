@@ -57,7 +57,7 @@ class ShiftRequest(Document, PWANotificationsMixin):
 		gate_submission(self)
 
 	def on_submit(self):
-		if self.status not in ["Approved", "Rejected"]:
+		if self.status in ["Open", "Cancelled"]:
 			frappe.throw(_("Only Shift Request with status 'Approved' and 'Rejected' can be submitted"))
 		if self.status == "Approved":
 			assignment_doc = frappe.new_doc("Shift Assignment")
