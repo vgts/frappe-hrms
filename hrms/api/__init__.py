@@ -465,51 +465,62 @@ def get_attendance_requests(
 	for_approval: bool = False,
 	limit: int | None = None,
 ) -> list[dict]:
-	filters = frappe._dict()
+	user_id = frappe.db.get_value("Employee", employee, "user_id")
+
 	if for_approval:
-		# Only show requests from employees who report to current user
-		direct_reports = frappe.get_all(
-			"Employee",
-			filters={"reports_to": employee, "status": "Active"},
-			pluck="name",
+		# Show requests pending primary approval (approver = current user, status Open)
+		# or pending secondary approval (secondary approver = current user)
+		AR = frappe.qb.DocType("Attendance Request")
+		query = (
+			frappe.qb.from_(AR)
+			.select(
+				AR.name, AR.reason, AR.employee, AR.employee_name,
+				AR.from_date, AR.to_date, AR.status, AR.docstatus,
+				AR.approver, AR.custom_approval_stage,
+				AR.custom_secondary_leave_approver, AR.custom_secondary_approver_name,
+				AR.creation,
+			)
+			.where(AR.docstatus == 0)
+			.where(AR.employee != employee)
+			.where(
+				(
+					(AR.approver == user_id) & (AR.status == "Open")
+				) | (
+					(AR.custom_secondary_leave_approver == user_id) &
+					(AR.custom_approval_stage == "Pending Secondary Reporting Approval")
+				)
+			)
+			.orderby(AR.creation, order=frappe.qb.desc)
 		)
-		if not direct_reports:
-			return []
-		filters.docstatus = 0
-		filters.employee = ("in", direct_reports)
+		if limit:
+			query = query.limit(limit)
+		return query.run(as_dict=True)
 	else:
-		filters.docstatus = ("!=", 2)
-		filters.employee = employee
+		filters = frappe._dict(docstatus=("!=", 2), employee=employee)
+		fields = [
+			"name", "reason", "employee", "employee_name",
+			"from_date", "to_date", "status", "docstatus",
+			"approver", "custom_approval_stage",
+			"custom_secondary_leave_approver", "custom_secondary_approver_name",
+			"creation",
+		]
 
-	fields = [
-		"name",
-		"reason",
-		"employee",
-		"employee_name",
-		"from_date",
-		"to_date",
-		"include_holidays",
-		"shift",
-		"docstatus",
-		"creation",
-	]
+		if workflow_state_field := get_workflow_state_field("Attendance Request"):
+			fields.append(workflow_state_field)
 
-	if workflow_state_field := get_workflow_state_field("Attendance Request"):
-		fields.append(workflow_state_field)
+		attendance_requests = frappe.get_list(
+			"Attendance Request",
+			fields=fields,
+			filters=filters,
+			order_by="creation desc",
+			limit=limit,
+		)
 
-	attendance_requests = frappe.get_list(
-		"Attendance Request",
-		fields=fields,
-		filters=filters,
-		order_by="creation desc",
-		limit=limit,
-	)
+		if workflow_state_field:
+			for application in attendance_requests:
+				application["workflow_state_field"] = workflow_state_field
 
-	if workflow_state_field:
-		for application in attendance_requests:
-			application["workflow_state_field"] = workflow_state_field
-
-	return attendance_requests
+		return attendance_requests
 
 
 def get_filters(

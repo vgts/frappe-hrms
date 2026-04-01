@@ -18,7 +18,7 @@
 					<h2
 						class="text-xl font-semibold text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis"
 					>
-						{{ __(props.doctype) }}
+						{{ __(props.displayName || props.doctype) }}
 					</h2>
 					<Badge
 						:label="id"
@@ -55,7 +55,7 @@
 					/>
 				</div>
 				<h2 v-else class="text-2xl font-semibold text-gray-900">
-					{{ __('New {0}', [__(doctype)], props.doctype) }}
+					{{ __('New {0}', [__(props.displayName || doctype)], props.doctype) }}
 				</h2>
 			</header>
 
@@ -346,6 +346,11 @@ const props = defineProps({
 	doctype: {
 		type: String,
 		required: true,
+	},
+	displayName: {
+		type: String,
+		required: false,
+		default: "",
 	},
 	modelValue: {
 		type: Object,

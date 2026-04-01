@@ -17,8 +17,6 @@
   "to_date",
   "half_day",
   "half_day_date",
-  "include_holidays",
-  "shift",
   "status",
   "approver",
   "approver_name",
@@ -98,6 +96,30 @@
    "mandatory_depends_on": "half_day"
   },
   {
+   "default": "Open",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Open\nApproved\nRejected",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "employee.leave_approver",
+   "fetch_if_empty": 1,
+   "fieldname": "approver",
+   "fieldtype": "Link",
+   "label": "Leave Approver",
+   "options": "User"
+  },
+  {
+   "fetch_from": "approver.full_name",
+   "fieldname": "approver_name",
+   "fieldtype": "Data",
+   "label": "Leave Approver Name",
+   "read_only": 1
+  },
+  {
    "fieldname": "reason_section",
    "fieldtype": "Section Break",
    "label": "Reason"
@@ -120,34 +142,7 @@
    "label": "Explanation"
   },
   {
-   "default": "Open",
-   "fieldname": "status",
-   "fieldtype": "Select",
-   "in_list_view": 1,
-   "label": "Status",
-   "options": "Open\nApproved\nRejected",
-   "reqd": 1
-  },
-  {
-   "fetch_from": "employee.leave_approver",
-   "fetch_if_empty": 1,
-   "fieldname": "approver",
-   "fieldtype": "Link",
-   "label": "Approver",
-   "options": "User",
-   "read_only": 1,
-   "hidden": 1
-  },
-  {
-   "fetch_from": "approver.full_name",
-   "fieldname": "approver_name",
-   "fieldtype": "Data",
-   "label": "Approver Name",
-   "read_only": 1,
-   "hidden": 1
-  },
-  {
-   "collapsible": 1,
+   "collapsible": 0,
    "fieldname": "secondary_approval_section",
    "fieldtype": "Section Break",
    "label": "Approval Details"
@@ -189,19 +184,6 @@
    "options": "Attendance Request",
    "print_hide": 1,
    "read_only": 1
-  },
-  {
-   "description": "Note: Shift will not be overwritten in existing attendance records",
-   "fieldname": "shift",
-   "fieldtype": "Link",
-   "label": "Shift",
-   "options": "Shift Type"
-  },
-  {
-   "default": "0",
-   "fieldname": "include_holidays",
-   "fieldtype": "Check",
-   "label": "Include Holidays"
   }
  ],
  "is_submittable": 1,

@@ -95,9 +95,10 @@ class AttendanceRequest(Document, PWANotificationsMixin):
 
 	def validate_status_change(self):
 		"""Prevent employee from approving their own request."""
-		if self.is_new() or self.docstatus != 0:
+		if self.docstatus != 0:
 			return
-		if not self.has_value_changed("status"):
+		# For existing docs only check if status actually changed
+		if not self.is_new() and not self.has_value_changed("status"):
 			return
 		if self.status in ("Approved", "Rejected"):
 			employee_user = frappe.db.get_value("Employee", self.employee, "user_id")
@@ -168,7 +169,6 @@ class AttendanceRequest(Document, PWANotificationsMixin):
 			doc = frappe.new_doc("Attendance")
 			doc.employee = self.employee
 			doc.attendance_date = date
-			doc.shift = self.shift
 			doc.company = self.company
 			doc.attendance_request = self.name
 			doc.status = status
@@ -178,7 +178,7 @@ class AttendanceRequest(Document, PWANotificationsMixin):
 
 	def should_mark_attendance(self, attendance_date: str) -> bool:
 		# Check if attendance_date is a holiday
-		if not self.include_holidays and is_holiday(self.employee, attendance_date):
+		if is_holiday(self.employee, attendance_date):
 			frappe.msgprint(
 				_("Attendance not submitted for {0} as it is a Holiday.").format(
 					frappe.bold(format_date(attendance_date))
@@ -257,7 +257,7 @@ class AttendanceRequest(Document, PWANotificationsMixin):
 		for day in range(request_days):
 			attendance_date = add_days(self.from_date, day)
 
-			if not self.include_holidays and is_holiday(self.employee, attendance_date):
+			if is_holiday(self.employee, attendance_date):
 				attendance_warnings.append({"date": attendance_date, "reason": "Holiday", "action": "Skip"})
 			elif self.has_leave_record(attendance_date):
 				attendance_warnings.append({"date": attendance_date, "reason": "On Leave", "action": "Skip"})
@@ -278,3 +278,27 @@ class AttendanceRequest(Document, PWANotificationsMixin):
 					)
 
 		return attendance_warnings
+
+
+@frappe.whitelist()
+def project_reporting_reject(attendance_request, reason):
+	from hrms.hr.two_level_approval import primary_reject
+	return primary_reject("Attendance Request", attendance_request, reason)
+
+
+@frappe.whitelist()
+def secondary_approve(attendance_request):
+	from hrms.hr.two_level_approval import secondary_approve as _secondary_approve
+	return _secondary_approve("Attendance Request", attendance_request)
+
+
+@frappe.whitelist()
+def secondary_reject(attendance_request, reason):
+	from hrms.hr.two_level_approval import secondary_reject as _secondary_reject
+	return _secondary_reject("Attendance Request", attendance_request, reason)
+
+
+@frappe.whitelist()
+def get_secondary_approval_details(attendance_request):
+	from hrms.hr.two_level_approval import get_approval_details
+	return get_approval_details("Attendance Request", attendance_request)
