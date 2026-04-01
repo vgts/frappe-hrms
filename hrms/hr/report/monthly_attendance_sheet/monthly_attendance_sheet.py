@@ -107,6 +107,7 @@ def get_message() -> str:
 		("Leave Without Pay", "LWP", "#EF4444"),
 		("Half Day + Leave", "0.5P/0.5 &lt;type&gt;", "#914EE3"),
 		("Half Day + Permission", "0.5P/&lt;duration&gt;", "#06B6D4"),
+		("Present + Permission", "P/&lt;duration&gt;", "#06B6D4"),
 	]
 	for status, abbr, color in extra_legends:
 		message += f"""
@@ -742,12 +743,12 @@ def get_attendance_status_for_detailed_view(
 				status = "Weekly Off"
 
 			# Resolve abbreviation
+			perm = permission_map.get((employee, d))
 			if status == "On Leave":
 				lt = leave_type_map.get((employee, d), "")
 				abbr = LEAVE_SHORT_CODES.get(lt, "L")
 			elif status in ("Half Day/Other Half Present", "Half Day/Other Half Absent"):
 				lt = leave_type_map.get((employee, d), "")
-				perm = permission_map.get((employee, d))
 				if lt:
 					lt_abbr = LEAVE_SHORT_CODES.get(lt, lt)
 					abbr = f"0.5P/0.5 {lt_abbr}"
@@ -761,18 +762,20 @@ def get_attendance_status_for_detailed_view(
 					abbr = status_map.get(status, "")
 				else:
 					ci_info = checkin_map.get(employee)
-					if ci_info and ci_info.get("completed"):
-						# Checked in and completed 9h30m → mark Present
-						abbr = "P"
-					elif ci_info:
-						# Still checked in, not yet 9h30m → show check-in time
+					if ci_info:
 						abbr = "P"
 					elif status is not None:
 						abbr = status_map.get(status, "")
 					else:
 						abbr = "-"
+					# Append permission duration when present + permission exists
+					if abbr == "P" and perm:
+						abbr = f"P/{_fmt_perm_duration(perm.get('from_time'), perm.get('to_time'))}"
 			elif status is not None:
 				abbr = status_map.get(status, "")
+				# Present + approved permission → show duration (e.g. P/1H)
+				if abbr == "P" and perm:
+					abbr = f"P/{_fmt_perm_duration(perm.get('from_time'), perm.get('to_time'))}"
 			elif d > today_date:
 				# Future workday — no attendance yet
 				abbr = "-"
