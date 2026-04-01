@@ -12,14 +12,22 @@
 				:showFormButton="showFormButton"
 				@validateForm="validateForm"
 			>
-				<template #formButton v-if="showApprovalActions">
+				<template #formButton v-if="showApprovalActions || showEmployeeTracker">
 					<div class="flex flex-col gap-3 w-full">
-						<!-- Approval Stage Tracker (only when secondary approver exists) -->
-						<ApprovalStageTracker
-							v-if="approvalDetails?.data && attendanceRequest.custom_secondary_leave_approver"
-							:doc="attendanceRequest"
-							:approvalDetails="approvalDetails"
-						/>
+						<!-- Read-only tracker for the employee viewing their own request -->
+						<template v-if="showEmployeeTracker">
+							<ApprovalStageTracker
+								v-if="approvalDetails?.data"
+								:doc="attendanceRequest"
+								:approvalDetails="approvalDetails"
+							/>
+							<div
+								v-if="!approvalDetails?.data?.loading && !attendanceRequest.approver"
+								class="text-center text-sm text-gray-500 bg-gray-50 rounded-lg p-3"
+							>
+								{{ __("No approver assigned for this request.") }}
+							</div>
+						</template>
 
 						<!-- Primary (leave approver) Approve/Reject buttons -->
 						<template v-if="isProjectReportingPending">
@@ -244,6 +252,11 @@ const isPendingSecondaryByOther = computed(() => {
 	)
 })
 
+// Show read-only approval tracker for the employee viewing their own pending request
+const showEmployeeTracker = computed(() =>
+	!!props.id && isCurrentUserEmployee.value && attendanceRequest.value.docstatus === 0
+)
+
 // Show custom approval action buttons/messages (replaces default form button)
 const showApprovalActions = computed(() => {
 	if (!props.id || attendanceRequest.value.docstatus !== 0) return false
@@ -256,10 +269,10 @@ const showApprovalActions = computed(() => {
 
 // Show default form Save/Submit button:
 // - Always for new requests (no id)
-// - For existing: only if no approval actions AND user is not the employee
+// - For existing: only if no approval actions AND not employee's own request
 const showFormButton = computed(() => {
 	if (!props.id) return true
-	return !showApprovalActions.value && !isCurrentUserEmployee.value
+	return !showApprovalActions.value && !showEmployeeTracker.value
 })
 
 // ── Approval state ────────────────────────────────────────────────────────────
