@@ -721,17 +721,6 @@ def _is_second_half_permission(from_time) -> bool:
 		return False
 
 
-def _perm_abbr(perm: dict) -> str:
-	"""Return display abbreviation for a permission record.
-	Second half (>=13:30): 0.5P/1PM  (present morning, permission afternoon)
-	First half  (<13:30) : 1PM/P     (permission morning, present afternoon)
-	"""
-	duration = _fmt_perm_duration(perm.get("from_time"), perm.get("to_time"))
-	if _is_second_half_permission(perm.get("from_time")):
-		return f"0.5P/{duration}"
-	return f"{duration}/P"
-
-
 def get_attendance_status_for_detailed_view(
 	employee: str, filters: Filters, employee_attendance: dict, holidays: list,
 	leave_type_map: dict = None, permission_map: dict = None, checkin_map: dict = None,
@@ -774,7 +763,7 @@ def get_attendance_status_for_detailed_view(
 					lt_abbr = LEAVE_SHORT_CODES.get(lt, lt)
 					abbr = f"0.5P/0.5 {lt_abbr}"
 				elif perm:
-					abbr = _perm_abbr(perm)
+					abbr = f"0.5P/{_fmt_perm_duration(perm.get('from_time'), perm.get('to_time'))}"
 				else:
 					abbr = status_map.get(status, "")
 			elif d == today_date:
@@ -791,12 +780,16 @@ def get_attendance_status_for_detailed_view(
 						abbr = "-"
 					# Append permission duration when present + permission exists
 					if abbr == "P" and perm:
-						abbr = _perm_abbr(perm)
+						duration = _fmt_perm_duration(perm.get('from_time'), perm.get('to_time'))
+						prefix = "0.5P" if _is_second_half_permission(perm.get('from_time')) else "P"
+						abbr = f"{prefix}/{duration}"
 			elif status is not None:
 				abbr = status_map.get(status, "")
-				# Present + approved permission → 0.5P/1PM (2nd half) or 1PM/P (1st half)
+				# Present + approved permission → 0.5P/1H (second half) or P/1H (first half)
 				if abbr == "P" and perm:
-					abbr = _perm_abbr(perm)
+					duration = _fmt_perm_duration(perm.get('from_time'), perm.get('to_time'))
+					prefix = "0.5P" if _is_second_half_permission(perm.get('from_time')) else "P"
+					abbr = f"{prefix}/{duration}"
 			elif d > today_date:
 				# Future workday — no attendance yet
 				abbr = "-"
