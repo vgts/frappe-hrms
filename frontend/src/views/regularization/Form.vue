@@ -205,14 +205,20 @@ const approvalInfo = createResource({
 
 // ── Approval flow computed ────────────────────────────────────────────────────
 
+const employeeDocLoaded = computed(
+	() => !!props.id && !!regularization.value?.employee
+)
+
 // True when current user IS the employee who owns this request
-const isCurrentUserEmployee = computed(() =>
-	!!props.id && sessionEmployee.data?.name === regularization.value.employee
+const isCurrentUserEmployee = computed(
+	() =>
+		employeeDocLoaded.value &&
+		sessionEmployee.data?.name === regularization.value.employee
 )
 
 // Primary leave approver can approve (covers both single and two-level flows)
 const isProjectReportingPending = computed(() => {
-	if (!props.id || isCurrentUserEmployee.value) return false
+	if (!props.id || !employeeDocLoaded.value || isCurrentUserEmployee.value) return false
 	return (
 		regularization.value.status === "Open" &&
 		regularization.value.docstatus === 0 &&
@@ -224,7 +230,7 @@ const isProjectReportingPending = computed(() => {
 
 // Secondary approver can approve
 const isSecondaryApproverPending = computed(() => {
-	if (!props.id || isCurrentUserEmployee.value) return false
+	if (!props.id || !employeeDocLoaded.value || isCurrentUserEmployee.value) return false
 	return (
 		regularization.value.custom_approval_stage === "Pending Secondary Reporting Approval" &&
 		sessionEmployee.data?.user_id === regularization.value.custom_secondary_leave_approver &&
@@ -232,9 +238,9 @@ const isSecondaryApproverPending = computed(() => {
 	)
 })
 
-// Waiting message: forwarded to secondary but current user is not secondary (and not the employee)
+// Waiting message: forwarded to secondary (everyone except secondary approver, including applicant)
 const isPendingSecondaryByOther = computed(() => {
-	if (!props.id || isCurrentUserEmployee.value) return false
+	if (!props.id || !employeeDocLoaded.value) return false
 	return (
 		regularization.value.custom_approval_stage === "Pending Secondary Reporting Approval" &&
 		sessionEmployee.data?.user_id !== regularization.value.custom_secondary_leave_approver &&
@@ -258,6 +264,7 @@ const showApprovalActions = computed(() => {
 // - For existing: only if no approval actions AND user is not the employee
 const showFormButton = computed(() => {
 	if (!props.id) return true
+	if (!employeeDocLoaded.value) return false
 	return !showApprovalActions.value && !isCurrentUserEmployee.value
 })
 

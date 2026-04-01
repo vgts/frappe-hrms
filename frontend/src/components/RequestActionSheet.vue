@@ -435,9 +435,18 @@ const isLeaveWithSecondaryApprover = computed(() => {
 	)
 })
 
+// Avoid showing approver actions to the document owner (writable `status` was treated as "approval" permission).
+const employeeDocLoaded = computed(() => !!document.doc?.employee)
+const isCurrentUserEmployee = computed(
+	() =>
+		employeeDocLoaded.value && employee.data?.name === document.doc?.employee
+)
+
 const isSecondaryApproverPending = computed(() => {
 	return (
 		isLeaveWithSecondaryApprover.value &&
+		employeeDocLoaded.value &&
+		!isCurrentUserEmployee.value &&
 		document.doc?.custom_approval_stage === "Pending Secondary Reporting Approval" &&
 		employee.data?.user_id === document.doc?.custom_secondary_leave_approver &&
 		document.doc?.docstatus === 0
@@ -447,6 +456,8 @@ const isSecondaryApproverPending = computed(() => {
 const isProjectReportingPending = computed(() => {
 	return (
 		isLeaveWithSecondaryApprover.value &&
+		employeeDocLoaded.value &&
+		!isCurrentUserEmployee.value &&
 		document.doc?.custom_approval_stage === "Pending Project Reporting Approval" &&
 		document.doc?.status === "Open" &&
 		document.doc?.docstatus === 0 &&
@@ -457,6 +468,7 @@ const isProjectReportingPending = computed(() => {
 const isPendingSecondaryByOther = computed(() => {
 	return (
 		isLeaveWithSecondaryApprover.value &&
+		employeeDocLoaded.value &&
 		document.doc?.custom_approval_stage === "Pending Secondary Reporting Approval" &&
 		employee.data?.user_id !== document.doc?.custom_secondary_leave_approver &&
 		document.doc?.docstatus === 0

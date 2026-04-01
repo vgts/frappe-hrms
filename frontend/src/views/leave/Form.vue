@@ -202,8 +202,19 @@ const approvalDetails = createResource({
 })
 
 // Two-level approval computed
+const employeeDocLoaded = computed(
+	() => !!props.id && !!leaveApplication.value?.employee
+)
+const isCurrentUserEmployee = computed(
+	() =>
+		employeeDocLoaded.value &&
+		sessionEmployee.data?.name === leaveApplication.value.employee
+)
+
 const isSecondaryApproverPending = computed(() => {
 	return (
+		employeeDocLoaded.value &&
+		!isCurrentUserEmployee.value &&
 		leaveApplication.value.custom_approval_stage === "Pending Secondary Reporting Approval" &&
 		sessionEmployee.data?.user_id === leaveApplication.value.custom_secondary_leave_approver &&
 		leaveApplication.value.docstatus === 0
@@ -212,6 +223,7 @@ const isSecondaryApproverPending = computed(() => {
 
 const isPendingSecondaryByOther = computed(() => {
 	return (
+		employeeDocLoaded.value &&
 		leaveApplication.value.custom_approval_stage === "Pending Secondary Reporting Approval" &&
 		sessionEmployee.data?.user_id !== leaveApplication.value.custom_secondary_leave_approver &&
 		leaveApplication.value.docstatus === 0 &&
@@ -221,6 +233,8 @@ const isPendingSecondaryByOther = computed(() => {
 
 const isProjectReportingPending = computed(() => {
 	return (
+		employeeDocLoaded.value &&
+		!isCurrentUserEmployee.value &&
 		props.id &&
 		leaveApplication.value.custom_secondary_leave_approver &&
 		leaveApplication.value.custom_approval_stage === "Pending Project Reporting Approval" &&
@@ -233,9 +247,10 @@ const isProjectReportingPending = computed(() => {
 const showSecondaryActions = computed(() => {
 	return (
 		props.id &&
+		employeeDocLoaded.value &&
 		leaveApplication.value.custom_secondary_leave_approver &&
 		(leaveApplication.value.custom_approval_stage === "Pending Secondary Reporting Approval" ||
-		isProjectReportingPending.value) &&
+			isProjectReportingPending.value) &&
 		leaveApplication.value.docstatus === 0
 	)
 })

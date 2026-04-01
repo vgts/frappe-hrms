@@ -27,6 +27,18 @@ class AttendanceRegularization(Document, PWANotificationsMixin):
 		self.set_leave_approver()
 		self.set_secondary_leave_approver()
 		self.set_approval_stage()
+		self.validate_status_change()
+
+	def validate_status_change(self):
+		"""Prevent the employee from approving or rejecting their own regularization via the client."""
+		if self.docstatus != 0:
+			return
+		if not self.is_new() and not self.has_value_changed("status"):
+			return
+		if self.status in ("Approved", "Rejected"):
+			employee_user = frappe.db.get_value("Employee", self.employee, "user_id")
+			if employee_user == frappe.session.user:
+				frappe.throw(_("You cannot approve or reject your own Attendance Regularization."))
 
 	def validate_duplicate_regularization(self):
 		"""Prevent duplicate regularization for the same employee and date."""
