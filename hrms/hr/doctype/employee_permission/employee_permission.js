@@ -20,6 +20,31 @@ frappe.ui.form.on("Employee Permission", {
 			frm.trigger("set_employee");
 		}
 
+		// Allow employee to delete their own pending (draft) permission
+		if (
+			!frm.is_new()
+			&& frm.doc.docstatus === 0
+			&& frm.doc.status === "Open"
+			&& frm.doc.owner === frappe.session.user
+		) {
+			frm.add_custom_button(__("Delete"), () => {
+				frappe.confirm(
+					__("Are you sure you want to delete this Permission Request?"),
+					() => {
+						frappe.call({
+							method: "frappe.client.delete",
+							args: { doctype: "Employee Permission", name: frm.doc.name },
+							freeze: true,
+							callback() {
+								frappe.set_route("List", "Employee Permission");
+								frappe.show_alert({ message: __("Permission Request deleted"), indicator: "green" });
+							},
+						});
+					}
+				);
+			}).addClass("btn-danger");
+		}
+
 		// Two-level approval UI
 		hrms_perm_show_approval_stage_tracker(frm);
 		hrms_perm_handle_secondary_approval(frm);
