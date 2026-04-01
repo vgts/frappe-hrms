@@ -154,6 +154,23 @@
 			</div>
 		</div>
 
+		<!-- Applicant (owner): no approve/reject — show current status / stage -->
+		<div
+			v-else-if="isApplicantViewingPending"
+			class="flex w-full flex-col gap-2 sticky bottom-0 border-t z-[100] p-4"
+		>
+			<div class="text-center text-sm font-medium text-gray-700 bg-gray-50 rounded-lg p-3">
+				<div v-if="document.doc?.custom_approval_stage" class="font-medium text-gray-800">
+					{{ __(document.doc.custom_approval_stage, null, document.doc.doctype) }}
+				</div>
+				<div v-else>
+					{{ __("Status") }}:
+					{{ __(document.doc?.[approvalField], null, document.doc.doctype) }}
+				</div>
+				<div class="text-xs text-gray-500 mt-1">{{ __("Awaiting approver action") }}</div>
+			</div>
+		</div>
+
 		<!-- Project Reporting (Primary) Approver: Approve/Reject with reason for leave applications -->
 		<div
 			v-else-if="isProjectReportingPending"
@@ -208,9 +225,14 @@
 			</div>
 		</div>
 
-		<!-- Primary Approver: Approve/Reject (standard flow for non-leave or no secondary approver) -->
+		<!-- Primary Approver: Approve/Reject (standard flow — not document owner; owner lacks real approval permission) -->
 		<div
-			v-else-if="['Open', 'Draft'].includes(document?.doc?.[approvalField]) && hasPermission('approval')"
+			v-else-if="
+				ownerContextReady &&
+				['Open', 'Draft'].includes(document?.doc?.[approvalField]) &&
+				hasPermission('approval') &&
+				!isCurrentUserEmployee
+			"
 			class="flex w-full flex-row items-center justify-between gap-3 sticky bottom-0 border-t z-[100] p-4"
 		>
 			<Button
@@ -447,6 +469,14 @@ const isCurrentUserEmployee = computed(
 		isDocumentOwner(employee, approvalDetails, document.doc?.employee)
 )
 
+// Owner viewing draft/open request: show status only (covers single-level Permission, etc.)
+const isApplicantViewingPending = computed(() => {
+	if (!ownerContextReady.value || !isCurrentUserEmployee.value || !document.doc) return false
+	if (document.doc.docstatus !== 0) return false
+	const s = document.doc[approvalField.value]
+	return ["Open", "Draft"].includes(s)
+})
+
 const isSecondaryApproverPending = computed(() => {
 	return (
 		isLeaveWithSecondaryApprover.value &&
@@ -521,6 +551,8 @@ const getFailureMessage = ({ status = "", docstatus = 0 }) => {
 }
 
 const updateDocumentStatus = ({ status = "", docstatus = 0 }) => {
+	if (isCurrentUserEmployee.value) return
+
 	let updateValues = {}
 
 	if (status) updateValues[approvalField.value] = status
@@ -575,6 +607,7 @@ const secondaryApiMap = {
 }
 
 function handleSecondaryAction(action) {
+	if (isCurrentUserEmployee.value) return
 	const apiConfig = secondaryApiMap[props.modelValue.doctype] || secondaryApiMap["Leave Application"]
 	const method = action === "approve" ? apiConfig.approve : apiConfig.reject
 
@@ -611,6 +644,7 @@ function handleSecondaryAction(action) {
 }
 
 function handlePrimaryReject() {
+	if (isCurrentUserEmployee.value) return
 	if (!primaryRejectReason.value?.trim()) return
 
 	const apiConfig = secondaryApiMap[props.modelValue.doctype] || secondaryApiMap["Leave Application"]
