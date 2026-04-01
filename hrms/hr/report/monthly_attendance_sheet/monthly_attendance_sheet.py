@@ -33,7 +33,7 @@ status_map = {
 
 LEAVE_SHORT_CODES = {
 	"Monthly Off": "MO",
-	"Leave Without Pay": "LOP",
+	"Leave Without Pay": "LWP",
 }
 
 day_abbr = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -107,7 +107,7 @@ def get_message() -> str:
 	# Extra legend for leave short codes and permission
 	extra_legends = [
 		("Monthly Off", "MO", "#F59E0B"),
-		("Leave Without Pay", "LOP", "#EF4444"),
+		("Leave Without Pay", "LWP", "#EF4444"),
 		("Half Day + Leave", "0.5P/0.5 &lt;type&gt;", "#914EE3"),
 		("Half Day + Permission", "0.5P/&lt;time&gt;", "#06B6D4"),
 	]
@@ -256,6 +256,7 @@ def get_data(filters: Filters, attendance_map: dict, leave_type_map: dict = None
 	employee_details, group_by_param_values = get_employee_related_details(filters)
 	holiday_map = get_holiday_map(filters)
 	permission_map = get_permission_map(filters)
+	checkin_map = get_checkin_map(filters)
 	data = []
 
 	if filters.group_by:
@@ -266,7 +267,7 @@ def get_data(filters: Filters, attendance_map: dict, leave_type_map: dict = None
 				continue
 
 			records = get_rows(employee_details[value], filters, holiday_map, attendance_map,
-			                   leave_type_map, permission_map)
+			                   leave_type_map, permission_map, checkin_map)
 
 			if records:
 				data.append({group_by_column: value})
@@ -274,7 +275,7 @@ def get_data(filters: Filters, attendance_map: dict, leave_type_map: dict = None
 
 	else:
 		data = get_rows(employee_details, filters, holiday_map, attendance_map,
-		                leave_type_map, permission_map)
+		                leave_type_map, permission_map, checkin_map)
 
 	return data
 
@@ -481,6 +482,36 @@ def get_holiday_map(filters: Filters) -> dict[str, list[dict]]:
 	return holiday_map
 
 
+def get_checkin_map(filters: Filters) -> dict:
+	"""Returns employee → first IN checkin time string for today, only when today falls in the report period."""
+	today = date.today()
+	dates = get_dates_in_period(filters)
+	if not any(getdate(d) == today for d in dates):
+		return {}
+
+	try:
+		ci_list = frappe.db.get_all(
+			"Employee Checkin",
+			filters={
+				"log_type": "IN",
+				"time": ["between", [
+					str(today) + " 00:00:00",
+					str(today) + " 23:59:59",
+				]],
+			},
+			fields=["employee", "time"],
+			order_by="time asc",
+		)
+		result = {}
+		for ci in ci_list:
+			if ci.employee not in result:
+				t = str(ci.time)[-8:][:5]
+				result[ci.employee] = t
+		return result
+	except Exception:
+		return {}
+
+
 def get_permission_map(filters: Filters) -> dict:
 	"""Returns a dict of (employee, date) → {from_time, to_time} for approved permissions."""
 	perm_map = {}
@@ -511,7 +542,7 @@ def get_permission_map(filters: Filters) -> dict:
 
 
 def get_rows(employee_details: dict, filters: Filters, holiday_map: dict, attendance_map: dict,
-             leave_type_map: dict = None, permission_map: dict = None) -> list[dict]:
+             leave_type_map: dict = None, permission_map: dict = None, checkin_map: dict = None) -> list[dict]:
 	records = []
 	default_holiday_list = frappe.get_cached_value("Company", filters.company, "default_holiday_list")
 
@@ -543,7 +574,7 @@ def get_rows(employee_details: dict, filters: Filters, holiday_map: dict, attend
 
 			attendance_for_employee = get_attendance_status_for_detailed_view(
 				employee, filters, employee_attendance, holidays,
-				leave_type_map, permission_map,
+				leave_type_map, permission_map, checkin_map,
 			)
 			# set employee details in the first row
 			for record in attendance_for_employee:
@@ -659,7 +690,7 @@ def _fmt_perm_time(from_time):
 
 def get_attendance_status_for_detailed_view(
 	employee: str, filters: Filters, employee_attendance: dict, holidays: list,
-	leave_type_map: dict = None, permission_map: dict = None,
+	leave_type_map: dict = None, permission_map: dict = None, checkin_map: dict = None,
 ) -> list[dict]:
 	"""Returns list of shift-wise attendance status for employee
 	[
@@ -671,6 +702,8 @@ def get_attendance_status_for_detailed_view(
 	attendance_values = []
 	leave_type_map = leave_type_map or {}
 	permission_map = permission_map or {}
+	checkin_map = checkin_map or {}
+	today_date = date.today()
 
 	for shift, status_dict in employee_attendance.items():
 		row = {"shift": shift}
@@ -682,7 +715,11 @@ def get_attendance_status_for_detailed_view(
 			if status is None and holidays:
 				status = get_holiday_status(d, holidays)
 
-			# Resolve abbreviation with leave type and permission awareness
+			# Sat/Sun always show W — even if not in holiday list and even if future
+			if status is None and d.weekday() >= 5:
+				status = "Weekly Off"
+
+			# Resolve abbreviation
 			if status == "On Leave":
 				lt = leave_type_map.get((employee, d), "")
 				abbr = LEAVE_SHORT_CODES.get(lt, "L")
@@ -696,8 +733,18 @@ def get_attendance_status_for_detailed_view(
 					abbr = f"0.5P/{_fmt_perm_time(perm.get('from_time'))}"
 				else:
 					abbr = status_map.get(status, "")
-			else:
+			elif status is not None:
 				abbr = status_map.get(status, "")
+			elif d > today_date:
+				# Future workday — no attendance yet
+				abbr = "-"
+			elif d == today_date:
+				# Today — check if employee has checked in (attendance not yet processed)
+				ci_time = checkin_map.get(employee)
+				abbr = ci_time if ci_time else "-"
+			else:
+				# Past unmarked day — leave blank (could be absent or unmarked)
+				abbr = ""
 
 			row[d.strftime("%d-%m-%Y")] = abbr
 
