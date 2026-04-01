@@ -18,9 +18,21 @@ class EmployeePermission(Document, PWANotificationsMixin):
 		self.validate_duration()
 		self.validate_monthly_limit()
 		self.validate_overlap()
+		self.validate_status_change()
 		self.set_leave_approver()
 		self.set_secondary_leave_approver()
 		self.set_approval_stage()
+
+	def validate_status_change(self):
+		"""Prevent employee from approving or rejecting their own permission request."""
+		if self.docstatus != 0:
+			return
+		if not self.is_new() and not self.has_value_changed("status"):
+			return
+		if self.status in ("Approved", "Rejected"):
+			employee_user = frappe.db.get_value("Employee", self.employee, "user_id")
+			if employee_user == frappe.session.user:
+				frappe.throw(_("You cannot approve or reject your own Permission Request."))
 
 	def validate_times(self):
 		if self.from_time and self.to_time:
