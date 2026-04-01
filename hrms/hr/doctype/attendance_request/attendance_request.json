@@ -102,7 +102,8 @@
   {
    "fieldname": "approval_section",
    "fieldtype": "Section Break",
-   "label": "Approval"
+   "label": "Approval",
+   "hidden": 1
   },
   {
    "fetch_from": "employee.leave_approver",
@@ -111,18 +112,21 @@
    "fieldtype": "Link",
    "label": "Approver",
    "options": "User",
-   "reqd": 1
+   "reqd": 1,
+   "hidden": 1
   },
   {
    "fetch_from": "approver.full_name",
    "fieldname": "approver_name",
    "fieldtype": "Data",
    "label": "Approver Name",
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "approval_column_break",
-   "fieldtype": "Column Break"
+   "fieldtype": "Column Break",
+   "hidden": 1
   },
   {
    "default": "Draft",
@@ -131,31 +135,36 @@
    "in_list_view": 1,
    "label": "Status",
    "options": "Draft\nApproved\nRejected",
-   "reqd": 1
+   "reqd": 1,
+   "hidden": 1
   },
   {
    "collapsible": 1,
    "fieldname": "custom_secondary_approval_section",
    "fieldtype": "Section Break",
-   "label": "Secondary Approval"
+   "label": "Secondary Approval",
+   "hidden": 1
   },
   {
    "fieldname": "custom_secondary_leave_approver",
    "fieldtype": "Link",
    "label": "Secondary Leave Approver",
    "options": "User",
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fetch_from": "custom_secondary_leave_approver.full_name",
    "fieldname": "custom_secondary_approver_name",
    "fieldtype": "Data",
    "label": "Secondary Approver Name",
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "custom_column_break_secondary",
-   "fieldtype": "Column Break"
+   "fieldtype": "Column Break",
+   "hidden": 1
   },
   {
    "default": "",
@@ -166,7 +175,8 @@
    "label": "Approval Stage",
    "no_copy": 1,
    "options": "\nPending Project Reporting Approval\nPending Secondary Reporting Approval\nApproved\nRejected",
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "reason_section",
