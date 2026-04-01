@@ -300,6 +300,7 @@ import { getCompanyCurrency } from "@/data/currencies"
 import { formatCurrency } from "@/utils/formatters"
 
 import useWorkflow from "@/composables/workflow"
+import { isDocumentOwner, isApprovalOwnerContextReady } from "@/utils/twoLevelApproval.js"
 
 const __ = inject("$translate")
 const employee = inject("$employee")
@@ -437,17 +438,14 @@ const isLeaveWithSecondaryApprover = computed(() => {
 
 // Avoid showing approver actions to the document owner (writable `status` was treated as "approval" permission).
 const employeeDocLoaded = computed(() => !!document.doc?.employee)
-const ownerContextReady = computed(() => {
-	if (!employeeDocLoaded.value) return false
-	if (employee.data?.name === document.doc?.employee) return true
-	return approvalDetails?.data != null
-})
-const isCurrentUserEmployee = computed(() => {
-	if (!employeeDocLoaded.value || !employee.data) return false
-	const docOwnerUid = approvalDetails?.data?.employee_user_id
-	if (docOwnerUid) return employee.data.user_id === docOwnerUid
-	return employee.data.name === document.doc?.employee
-})
+const ownerContextReady = computed(() =>
+	isApprovalOwnerContextReady(employee, approvalDetails, document.doc?.employee)
+)
+const isCurrentUserEmployee = computed(
+	() =>
+		employeeDocLoaded.value &&
+		isDocumentOwner(employee, approvalDetails, document.doc?.employee)
+)
 
 const isSecondaryApproverPending = computed(() => {
 	return (

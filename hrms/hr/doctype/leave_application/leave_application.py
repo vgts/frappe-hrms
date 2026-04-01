@@ -27,6 +27,7 @@ import hrms
 from hrms.api import get_current_employee_info
 from hrms.hr.doctype.leave_block_list.leave_block_list import get_applicable_block_dates
 from hrms.hr.doctype.leave_ledger_entry.leave_ledger_entry import create_leave_ledger_entry
+from hrms.hr.two_level_approval import is_current_user_doc_employee
 from hrms.hr.utils import (
 	get_holiday_dates_for_employee,
 	get_leave_period,
@@ -1801,6 +1802,7 @@ def get_secondary_approval_details(leave_application):
 		"approval_stage": doc.custom_approval_stage,
 		"employee": doc.employee,
 		"employee_user_id": frappe.db.get_value("Employee", doc.employee, "user_id"),
+		"is_owner": is_current_user_doc_employee(doc.employee),
 		"leave_approver": doc.leave_approver,
 		"leave_approver_name": doc.leave_approver_name,
 		"leave_approver_image": _get_user_image(doc.leave_approver),

@@ -131,6 +131,7 @@ import { useRouter } from "vue-router"
 
 import FormView from "@/components/FormView.vue"
 import ApprovalStageTracker from "@/components/ApprovalStageTracker.vue"
+import { isDocumentOwner, isApprovalOwnerContextReady } from "@/utils/twoLevelApproval.js"
 
 const __ = inject("$translate")
 const dayjs = inject("$dayjs")
@@ -209,20 +210,16 @@ const employeeDocLoaded = computed(
 	() => !!props.id && !!regularization.value?.employee
 )
 
-// We can decide owner vs approver by User ID from server (name-only can mismatch in edge cases).
-const ownerContextReady = computed(() => {
-	if (!employeeDocLoaded.value) return false
-	if (sessionEmployee.data?.name === regularization.value.employee) return true
-	return approvalDetails?.data != null
-})
+// Server `is_owner` + fallbacks (see get_regularization_approval_details)
+const ownerContextReady = computed(() =>
+	isApprovalOwnerContextReady(sessionEmployee, approvalDetails, regularization.value?.employee)
+)
 
-// True when current user IS the employee who owns this request (prefer User ID from approval details)
-const isCurrentUserEmployee = computed(() => {
-	if (!employeeDocLoaded.value || !sessionEmployee.data) return false
-	const docOwnerUid = approvalDetails?.data?.employee_user_id
-	if (docOwnerUid) return sessionEmployee.data.user_id === docOwnerUid
-	return sessionEmployee.data.name === regularization.value.employee
-})
+const isCurrentUserEmployee = computed(
+	() =>
+		employeeDocLoaded.value &&
+		isDocumentOwner(sessionEmployee, approvalDetails, regularization.value?.employee)
+)
 
 // Primary leave approver can approve (covers both single and two-level flows)
 const isProjectReportingPending = computed(() => {

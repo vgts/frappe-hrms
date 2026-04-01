@@ -134,6 +134,7 @@ import { useRouter } from "vue-router"
 
 import FormView from "@/components/FormView.vue"
 import ApprovalStageTracker from "@/components/ApprovalStageTracker.vue"
+import { isDocumentOwner, isApprovalOwnerContextReady } from "@/utils/twoLevelApproval.js"
 
 const dayjs = inject("$dayjs")
 const __ = inject("$translate")
@@ -201,19 +202,23 @@ const approvalDetails = createResource({
 	auto: !!props.id,
 })
 
-// Two-level approval computed
+// Two-level approval computed (aligned with Regularization / Permission — server `is_owner` in approval details)
 const employeeDocLoaded = computed(
 	() => !!props.id && !!leaveApplication.value?.employee
+)
+const ownerContextReady = computed(() =>
+	isApprovalOwnerContextReady(sessionEmployee, approvalDetails, leaveApplication.value?.employee)
 )
 const isCurrentUserEmployee = computed(
 	() =>
 		employeeDocLoaded.value &&
-		sessionEmployee.data?.name === leaveApplication.value.employee
+		isDocumentOwner(sessionEmployee, approvalDetails, leaveApplication.value?.employee)
 )
 
 const isSecondaryApproverPending = computed(() => {
 	return (
 		employeeDocLoaded.value &&
+		ownerContextReady.value &&
 		!isCurrentUserEmployee.value &&
 		leaveApplication.value.custom_approval_stage === "Pending Secondary Reporting Approval" &&
 		sessionEmployee.data?.user_id === leaveApplication.value.custom_secondary_leave_approver &&
@@ -224,6 +229,7 @@ const isSecondaryApproverPending = computed(() => {
 const isPendingSecondaryByOther = computed(() => {
 	return (
 		employeeDocLoaded.value &&
+		ownerContextReady.value &&
 		leaveApplication.value.custom_approval_stage === "Pending Secondary Reporting Approval" &&
 		sessionEmployee.data?.user_id !== leaveApplication.value.custom_secondary_leave_approver &&
 		leaveApplication.value.docstatus === 0 &&
@@ -234,6 +240,7 @@ const isPendingSecondaryByOther = computed(() => {
 const isProjectReportingPending = computed(() => {
 	return (
 		employeeDocLoaded.value &&
+		ownerContextReady.value &&
 		!isCurrentUserEmployee.value &&
 		props.id &&
 		leaveApplication.value.custom_secondary_leave_approver &&
@@ -248,6 +255,7 @@ const showSecondaryActions = computed(() => {
 	return (
 		props.id &&
 		employeeDocLoaded.value &&
+		ownerContextReady.value &&
 		leaveApplication.value.custom_secondary_leave_approver &&
 		(leaveApplication.value.custom_approval_stage === "Pending Secondary Reporting Approval" ||
 			isProjectReportingPending.value) &&
@@ -261,6 +269,7 @@ const showPrimaryRejectReason = ref(false)
 const primaryRejectReason = ref("")
 
 function handleSecondaryAction(action) {
+	if (isCurrentUserEmployee.value) return
 	const method = action === "approve"
 		? "hrms.hr.doctype.leave_application.leave_application.secondary_approve"
 		: "hrms.hr.doctype.leave_application.leave_application.secondary_reject"
@@ -298,6 +307,7 @@ function handleSecondaryAction(action) {
 }
 
 function handlePrimaryReject() {
+	if (isCurrentUserEmployee.value) return
 	if (!primaryRejectReason.value?.trim()) return
 
 	createResource({
@@ -330,6 +340,7 @@ function handlePrimaryReject() {
 }
 
 function handlePrimaryApprove() {
+	if (isCurrentUserEmployee.value) return
 	createResource({
 		url: "frappe.client.set_value",
 		params: {

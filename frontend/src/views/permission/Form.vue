@@ -137,6 +137,7 @@ import { useRouter } from "vue-router"
 import FormView from "@/components/FormView.vue"
 import ApprovalStageTracker from "@/components/ApprovalStageTracker.vue"
 import PermissionBalanceBanner from "@/components/PermissionBalanceBanner.vue"
+import { isDocumentOwner, isApprovalOwnerContextReady } from "@/utils/twoLevelApproval.js"
 
 const __ = inject("$translate")
 const dayjs = inject("$dayjs")
@@ -235,16 +236,20 @@ const employeeDocLoaded = computed(
 	() => !!props.id && !!permissionRequest.value?.employee
 )
 
-// True when current user IS the employee who owns this request
+const ownerContextReady = computed(() =>
+	isApprovalOwnerContextReady(sessionEmployee, approvalDetails, permissionRequest.value?.employee)
+)
+
 const isCurrentUserEmployee = computed(
 	() =>
 		employeeDocLoaded.value &&
-		sessionEmployee.data?.name === permissionRequest.value.employee
+		isDocumentOwner(sessionEmployee, approvalDetails, permissionRequest.value?.employee)
 )
 
 // Primary leave approver can approve (covers both with-secondary and without-secondary flows)
 const isProjectReportingPending = computed(() => {
-	if (!props.id || !employeeDocLoaded.value || isCurrentUserEmployee.value) return false
+	if (!props.id || !employeeDocLoaded.value || !ownerContextReady.value || isCurrentUserEmployee.value)
+		return false
 	return (
 		permissionRequest.value.status === "Open" &&
 		permissionRequest.value.docstatus === 0 &&
@@ -256,7 +261,8 @@ const isProjectReportingPending = computed(() => {
 
 // Secondary approver can approve
 const isSecondaryApproverPending = computed(() => {
-	if (!props.id || !employeeDocLoaded.value || isCurrentUserEmployee.value) return false
+	if (!props.id || !employeeDocLoaded.value || !ownerContextReady.value || isCurrentUserEmployee.value)
+		return false
 	return (
 		permissionRequest.value.custom_approval_stage === "Pending Secondary Reporting Approval" &&
 		sessionEmployee.data?.user_id === permissionRequest.value.custom_secondary_leave_approver &&
@@ -266,7 +272,7 @@ const isSecondaryApproverPending = computed(() => {
 
 // Waiting message: forwarded to secondary (everyone except secondary approver, including applicant)
 const isPendingSecondaryByOther = computed(() => {
-	if (!props.id || !employeeDocLoaded.value) return false
+	if (!props.id || !employeeDocLoaded.value || !ownerContextReady.value) return false
 	return (
 		permissionRequest.value.custom_approval_stage === "Pending Secondary Reporting Approval" &&
 		sessionEmployee.data?.user_id !== permissionRequest.value.custom_secondary_leave_approver &&
@@ -290,7 +296,7 @@ const showApprovalActions = computed(() => {
 // - For existing: only if no approval actions AND user is not the employee (employee can't submit their own)
 const showFormButton = computed(() => {
 	if (!props.id) return true
-	if (!employeeDocLoaded.value) return false
+	if (!employeeDocLoaded.value || !ownerContextReady.value) return false
 	return !showApprovalActions.value && !isCurrentUserEmployee.value
 })
 
@@ -301,6 +307,7 @@ const showPrimaryRejectReason = ref(false)
 const primaryRejectReason = ref("")
 
 function handlePrimaryApprove() {
+	if (isCurrentUserEmployee.value) return
 	const hasSecondary = !!permissionRequest.value.custom_secondary_leave_approver
 
 	if (hasSecondary) {
@@ -352,6 +359,7 @@ function handlePrimaryApprove() {
 }
 
 function handlePrimaryReject() {
+	if (isCurrentUserEmployee.value) return
 	if (!primaryRejectReason.value?.trim()) return
 	const hasSecondary = !!permissionRequest.value.custom_secondary_leave_approver
 
@@ -374,6 +382,7 @@ function handlePrimaryReject() {
 }
 
 function handleSecondaryAction(action) {
+	if (isCurrentUserEmployee.value) return
 	const method =
 		action === "approve"
 			? "hrms.hr.doctype.employee_permission.employee_permission.permission_secondary_approve"

@@ -9,6 +9,7 @@ from frappe.model.document import Document
 from frappe.utils import cint, flt, get_datetime, get_link_to_form, getdate, time_diff_in_hours
 
 import hrms
+from hrms.hr.two_level_approval import is_current_user_doc_employee
 from hrms.hr.utils import (
 	set_employee_name,
 	share_doc_with_approver,
@@ -574,6 +575,7 @@ def get_regularization_approval_details(attendance_regularization):
 		"approval_stage": doc.custom_approval_stage,
 		"employee": doc.employee,
 		"employee_user_id": frappe.db.get_value("Employee", doc.employee, "user_id"),
+		"is_owner": is_current_user_doc_employee(doc.employee),
 		"leave_approver": doc.leave_approver,
 		"leave_approver_name": doc.leave_approver_name,
 		"leave_approver_image": _get_user_image(doc.leave_approver),

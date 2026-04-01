@@ -6,6 +6,7 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import time_diff_in_hours, get_datetime, getdate, flt, cint, formatdate
 
+from hrms.hr.two_level_approval import is_current_user_doc_employee
 from hrms.hr.utils import validate_active_employee, share_doc_with_approver, set_employee_name
 from hrms.mixins.pwa_notifications import PWANotificationsMixin
 
@@ -535,6 +536,7 @@ def get_permission_approval_details(employee_permission):
 		"approval_stage": doc.custom_approval_stage,
 		"employee": doc.employee,
 		"employee_user_id": frappe.db.get_value("Employee", doc.employee, "user_id"),
+		"is_owner": is_current_user_doc_employee(doc.employee),
 		"leave_approver": doc.leave_approver,
 		"leave_approver_name": doc.leave_approver_name,
 		"leave_approver_image": _get_user_image(doc.leave_approver),

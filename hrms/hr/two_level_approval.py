@@ -283,3 +283,13 @@ def get_approval_details(doctype, docname):
 		"secondary_approver_name": doc.custom_secondary_approver_name,
 		"secondary_approver_image": _get_user_image(doc.custom_secondary_leave_approver),
 	}
+
+
+def is_current_user_doc_employee(employee: str) -> bool:
+	"""True if the logged-in user's active Employee matches doc.employee (same rule as PWA session)."""
+	if not employee:
+		return False
+	curr_emp = frappe.db.get_value(
+		"Employee", {"user_id": frappe.session.user, "status": "Active"}, "name"
+	)
+	return bool(curr_emp and curr_emp == employee)
