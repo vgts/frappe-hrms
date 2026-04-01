@@ -43,7 +43,7 @@ def get_approvers(doctype, txt, searchfield, start, page_len, filters):
 			as_list=True,
 		)
 
-	if filters.get("doctype") == "Leave Application" and employee.leave_approver:
+	if filters.get("doctype") in ("Leave Application", "Employee Permission", "Attendance Request") and employee.leave_approver:
 		approvers.append(
 			frappe.db.get_value("User", employee.leave_approver, ["name", "first_name", "last_name"])
 		)
@@ -58,7 +58,7 @@ def get_approvers(doctype, txt, searchfield, start, page_len, filters):
 			frappe.db.get_value("User", employee.shift_request_approver, ["name", "first_name", "last_name"])
 		)
 
-	if filters.get("doctype") == "Leave Application":
+	if filters.get("doctype") in ("Leave Application", "Employee Permission", "Attendance Request"):
 		parentfield = "leave_approvers"
 		field_name = "Leave Approver"
 	elif filters.get("doctype") == "Expense Claim":
@@ -67,7 +67,10 @@ def get_approvers(doctype, txt, searchfield, start, page_len, filters):
 	elif filters.get("doctype") == "Shift Request":
 		parentfield = "shift_request_approver"
 		field_name = "Shift Request Approver"
-	if department_list:
+	else:
+		parentfield = None
+		field_name = "Approver"
+	if department_list and parentfield:
 		for d in department_list:
 			approvers += frappe.db.sql(
 				"""select user.name, user.first_name, user.last_name from
