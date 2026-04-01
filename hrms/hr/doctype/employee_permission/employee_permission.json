@@ -72,8 +72,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Status",
-   "options": "Open\nApproved\nRejected",
-   "read_only": 1
+   "options": "Open\nApproved\nRejected"
   },
   {
    "fieldname": "leave_approver",

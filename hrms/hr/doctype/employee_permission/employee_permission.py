@@ -126,12 +126,19 @@ class EmployeePermission(Document, PWANotificationsMixin):
 			)
 
 	def set_leave_approver(self):
+		employee_user = frappe.db.get_value("Employee", self.employee, "user_id")
+
+		# Clear self-assigned approver (employee cannot be their own approver)
+		if self.leave_approver and self.leave_approver == employee_user:
+			self.leave_approver = None
+			self.leave_approver_name = None
+
 		if self.leave_approver:
 			return
 
 		leave_approver = frappe.db.get_value("Employee", self.employee, "leave_approver")
 
-		if leave_approver:
+		if leave_approver and leave_approver != employee_user:
 			self.leave_approver = leave_approver
 			self.leave_approver_name = frappe.db.get_value("User", leave_approver, "full_name")
 
@@ -402,6 +409,56 @@ def permission_secondary_reject(employee_permission, reason=None):
 		"Comment", _("Rejected by Secondary Approver: {0}").format(reason)
 	)
 	return {"status": "success", "message": _("Permission Request rejected and cancelled.")}
+
+
+@frappe.whitelist()
+def permission_primary_approve_submit(employee_permission):
+	"""Approve and submit for leave_approver when there is no secondary approver."""
+	doc = frappe.get_doc("Employee Permission", employee_permission)
+
+	if frappe.session.user != doc.leave_approver:
+		frappe.throw(_("Only the Leave Approver can perform this action."))
+
+	if doc.custom_secondary_leave_approver:
+		frappe.throw(_("This request requires secondary approval. Use the two-level approval flow."))
+
+	if doc.status != "Open" or doc.docstatus != 0:
+		frappe.throw(_("This permission request cannot be approved at this stage."))
+
+	doc.status = "Approved"
+	doc.flags.ignore_permissions = True
+	doc.submit()
+
+	return {"status": "success", "message": _("Permission Request approved and submitted.")}
+
+
+@frappe.whitelist()
+def permission_primary_reject_submit(employee_permission, reason=None):
+	"""Reject and cancel for leave_approver when there is no secondary approver."""
+	if not reason:
+		frappe.throw(_("Please provide a reason for rejection."))
+
+	doc = frappe.get_doc("Employee Permission", employee_permission)
+
+	if frappe.session.user != doc.leave_approver:
+		frappe.throw(_("Only the Leave Approver can perform this action."))
+
+	if doc.custom_secondary_leave_approver:
+		frappe.throw(_("This request requires secondary approval. Use the two-level approval flow."))
+
+	if doc.docstatus != 0:
+		frappe.throw(_("This permission request has already been submitted."))
+
+	doc.status = "Rejected"
+	doc.flags.ignore_permissions = True
+	doc.submit()
+
+	doc.reload()
+	doc.flags.ignore_permissions = True
+	doc.cancel()
+
+	doc.add_comment("Comment", _("Rejected by Leave Approver: {0}").format(reason))
+	return {"status": "success", "message": _("Permission Request rejected.")}
 
 
 @frappe.whitelist()

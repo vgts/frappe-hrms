@@ -9,7 +9,7 @@
 				:fields="formFields.data"
 				:id="props.id"
 				:showAttachmentView="true"
-				:showFormButton="!showApprovalActions"
+				:showFormButton="showFormButton"
 				@validateForm="validateForm"
 			>
 				<!-- Monthly balance banner shown when creating a new request -->
@@ -19,14 +19,14 @@
 
 				<template #formButton v-if="showApprovalActions">
 					<div class="flex flex-col gap-3 w-full">
-						<!-- Approval Stage Tracker -->
+						<!-- Approval Stage Tracker (only when secondary approver exists) -->
 						<ApprovalStageTracker
 							v-if="approvalDetails?.data && permissionRequest.custom_secondary_leave_approver"
 							:doc="permissionRequest"
 							:approvalDetails="approvalDetails"
 						/>
 
-						<!-- Project Reporting (Primary) approver buttons -->
+						<!-- Primary / simple leave approver: Approve / Reject buttons -->
 						<template v-if="isProjectReportingPending">
 							<div class="text-center text-sm font-medium text-yellow-700 bg-yellow-50 rounded-lg p-2 mb-1">
 								{{ __("Waiting for your approval") }}
@@ -65,12 +65,12 @@
 									variant="solid"
 									theme="green"
 								>
-									{{ __("Approve") }}
+									{{ permissionRequest.custom_secondary_leave_approver ? __("Approve") : __("Approve & Submit") }}
 								</Button>
 							</div>
 						</template>
 
-						<!-- Waiting message for non-secondary users -->
+						<!-- Waiting message: request forwarded to secondary approver -->
 						<div
 							v-else-if="isPendingSecondaryByOther"
 							class="text-center text-sm font-medium text-blue-700 bg-blue-50 rounded-lg p-3"
@@ -78,7 +78,7 @@
 							{{ __("Forwarded to {0} for secondary approval", [permissionRequest.custom_secondary_approver_name || permissionRequest.custom_secondary_leave_approver]) }}
 						</div>
 
-						<!-- Secondary approver buttons -->
+						<!-- Secondary approver: Approve / Reject buttons -->
 						<template v-else-if="isSecondaryApproverPending">
 							<div class="text-center text-sm font-medium text-yellow-700 bg-yellow-50 rounded-lg p-2 mb-1">
 								{{ __("Waiting for your approval") }}
@@ -162,7 +162,7 @@ const availableHours = createResource({
 	auto: true,
 })
 
-// Auto-fetch approver details for new requests
+// Auto-fetch approver details for new requests (handled in background — not shown in form)
 const approvalInfo = createResource({
 	url: "hrms.api.get_leave_approval_details",
 	params: { employee: currEmployee.value },
@@ -183,40 +183,35 @@ const formFields = createResource({
 	url: "hrms.api.get_doctype_fields",
 	params: { doctype: "Employee Permission" },
 	transform(data) {
-		// Fields to completely remove
 		const excludeFields = [
 			"naming_series",
-			// Remove secondary approval section entirely
+			// Secondary approval section hidden — shown via ApprovalStageTracker
 			"secondary_approval_section",
 			"custom_secondary_leave_approver",
 			"custom_secondary_approver_name",
 			"column_break_16",
 			"custom_approval_stage",
-			// Remove auto-computed duration (shown in balance banner)
+			// Duration shown in balance banner
 			"duration",
-			// Remove column breaks for cleaner mobile layout
+			// Column breaks (cleaner mobile layout)
 			"column_break_3",
 			"column_break_10",
 			"permission_details_section",
-			// Remove leave approver fields (handled by backend)
+			// Approver fields handled in background
 			"leave_approver",
 			"leave_approver_name",
 			"company",
 			"department",
 		]
 
-		const employeeFields = [
-			"employee",
-			"employee_name",
-			"status",
-		]
-
-		if (!props.id) excludeFields.push(...employeeFields)
+		// When creating new, also exclude employee/status (auto-set)
+		const newOnlyExcludes = ["employee", "employee_name", "status"]
+		if (!props.id) excludeFields.push(...newOnlyExcludes)
 
 		let fields = data.filter((field) => !excludeFields.includes(field.fieldname))
 
 		// Set default date
-		const dateField = fields.find(f => f.fieldname === "permission_date")
+		const dateField = fields.find((f) => f.fieldname === "permission_date")
 		if (dateField) dateField.default = today
 
 		return fields
@@ -227,15 +222,35 @@ const formFields = createResource({
 })
 formFields.reload()
 
-// Fetch approval details for existing docs
+// Fetch approval details for existing docs (for ApprovalStageTracker)
 const approvalDetails = createResource({
 	url: "hrms.hr.doctype.employee_permission.employee_permission.get_permission_approval_details",
 	params: { employee_permission: props.id },
 	auto: !!props.id,
 })
 
-// Two-level approval computed
+// ── Approval flow computed ────────────────────────────────────────────────────
+
+// True when current user IS the employee who owns this request
+const isCurrentUserEmployee = computed(() =>
+	!!props.id && sessionEmployee.data?.name === permissionRequest.value.employee
+)
+
+// Primary leave approver can approve (covers both with-secondary and without-secondary flows)
+const isProjectReportingPending = computed(() => {
+	if (!props.id || isCurrentUserEmployee.value) return false
+	return (
+		permissionRequest.value.status === "Open" &&
+		permissionRequest.value.docstatus === 0 &&
+		sessionEmployee.data?.user_id === permissionRequest.value.leave_approver &&
+		(!permissionRequest.value.custom_approval_stage ||
+			permissionRequest.value.custom_approval_stage === "Pending Project Reporting Approval")
+	)
+})
+
+// Secondary approver can approve
 const isSecondaryApproverPending = computed(() => {
+	if (!props.id || isCurrentUserEmployee.value) return false
 	return (
 		permissionRequest.value.custom_approval_stage === "Pending Secondary Reporting Approval" &&
 		sessionEmployee.data?.user_id === permissionRequest.value.custom_secondary_leave_approver &&
@@ -243,7 +258,9 @@ const isSecondaryApproverPending = computed(() => {
 	)
 })
 
+// Waiting message: forwarded to secondary but current user is not secondary
 const isPendingSecondaryByOther = computed(() => {
+	if (!props.id) return false
 	return (
 		permissionRequest.value.custom_approval_stage === "Pending Secondary Reporting Approval" &&
 		sessionEmployee.data?.user_id !== permissionRequest.value.custom_secondary_leave_approver &&
@@ -252,38 +269,110 @@ const isPendingSecondaryByOther = computed(() => {
 	)
 })
 
-const isProjectReportingPending = computed(() => {
-	return (
-		props.id &&
-		permissionRequest.value.custom_secondary_leave_approver &&
-		permissionRequest.value.custom_approval_stage === "Pending Project Reporting Approval" &&
-		permissionRequest.value.status === "Open" &&
-		permissionRequest.value.docstatus === 0 &&
-		sessionEmployee.data?.user_id === permissionRequest.value.leave_approver
-	)
-})
-
+// Show custom approval action buttons/messages (replaces default form button)
 const showApprovalActions = computed(() => {
+	if (!props.id || permissionRequest.value.docstatus !== 0) return false
 	return (
-		props.id &&
-		permissionRequest.value.custom_secondary_leave_approver &&
-		(permissionRequest.value.custom_approval_stage === "Pending Secondary Reporting Approval" ||
-		isProjectReportingPending.value) &&
-		permissionRequest.value.docstatus === 0
+		isProjectReportingPending.value ||
+		isSecondaryApproverPending.value ||
+		isPendingSecondaryByOther.value
 	)
 })
 
+// Show default form Save/Submit button:
+// - Always for new requests (no id)
+// - For existing: only if no approval actions AND user is not the employee (employee can't submit their own)
+const showFormButton = computed(() => {
+	if (!props.id) return true
+	return !showApprovalActions.value && !isCurrentUserEmployee.value
+})
+
+// ── Approval state ────────────────────────────────────────────────────────────
 const showRejectReason = ref(false)
 const rejectReason = ref("")
 const showPrimaryRejectReason = ref(false)
 const primaryRejectReason = ref("")
 
-function handleSecondaryAction(action) {
-	const method = action === "approve"
-		? "hrms.hr.doctype.employee_permission.employee_permission.permission_secondary_approve"
-		: "hrms.hr.doctype.employee_permission.employee_permission.permission_secondary_reject"
+function handlePrimaryApprove() {
+	const hasSecondary = !!permissionRequest.value.custom_secondary_leave_approver
 
-	let params = { employee_permission: props.id }
+	if (hasSecondary) {
+		// Two-level flow: set status=Approved, backend forwards to secondary
+		createResource({
+			url: "frappe.client.set_value",
+			params: {
+				doctype: "Employee Permission",
+				name: props.id,
+				fieldname: "status",
+				value: "Approved",
+			},
+			auto: true,
+			onSuccess() {
+				toast({
+					title: __("Success"),
+					text: __("Permission Request approved and forwarded for secondary approval."),
+					icon: "check-circle",
+					position: "bottom-center",
+					iconClasses: "text-green-500",
+				})
+				router.back()
+			},
+			onError() {
+				toast({ title: __("Error"), text: __("Approval failed. Please try again."), icon: "alert-circle", position: "bottom-center", iconClasses: "text-red-500" })
+			},
+		})
+	} else {
+		// Simple flow (no secondary): approve and submit in one step
+		createResource({
+			url: "hrms.hr.doctype.employee_permission.employee_permission.permission_primary_approve_submit",
+			params: { employee_permission: props.id },
+			auto: true,
+			onSuccess() {
+				toast({
+					title: __("Success"),
+					text: __("Permission Request approved and submitted."),
+					icon: "check-circle",
+					position: "bottom-center",
+					iconClasses: "text-green-500",
+				})
+				router.back()
+			},
+			onError() {
+				toast({ title: __("Error"), text: __("Approval failed. Please try again."), icon: "alert-circle", position: "bottom-center", iconClasses: "text-red-500" })
+			},
+		})
+	}
+}
+
+function handlePrimaryReject() {
+	if (!primaryRejectReason.value?.trim()) return
+	const hasSecondary = !!permissionRequest.value.custom_secondary_leave_approver
+
+	const url = hasSecondary
+		? "hrms.hr.doctype.employee_permission.employee_permission.permission_project_reporting_reject"
+		: "hrms.hr.doctype.employee_permission.employee_permission.permission_primary_reject_submit"
+
+	createResource({
+		url,
+		params: { employee_permission: props.id, reason: primaryRejectReason.value.trim() },
+		auto: true,
+		onSuccess(data) {
+			toast({ title: __("Success"), text: data.message, icon: "check-circle", position: "bottom-center", iconClasses: "text-red-500" })
+			router.back()
+		},
+		onError() {
+			toast({ title: __("Error"), text: __("Action failed. Please try again."), icon: "alert-circle", position: "bottom-center", iconClasses: "text-red-500" })
+		},
+	})
+}
+
+function handleSecondaryAction(action) {
+	const method =
+		action === "approve"
+			? "hrms.hr.doctype.employee_permission.employee_permission.permission_secondary_approve"
+			: "hrms.hr.doctype.employee_permission.employee_permission.permission_secondary_reject"
+
+	const params = { employee_permission: props.id }
 	if (action === "reject") {
 		if (!rejectReason.value?.trim()) return
 		params.reason = rejectReason.value.trim()
@@ -291,7 +380,7 @@ function handleSecondaryAction(action) {
 
 	createResource({
 		url: method,
-		params: params,
+		params,
 		auto: true,
 		onSuccess(data) {
 			toast({
@@ -304,82 +393,13 @@ function handleSecondaryAction(action) {
 			router.back()
 		},
 		onError() {
-			toast({
-				title: __("Error"),
-				text: __("Action failed. Please try again."),
-				icon: "alert-circle",
-				position: "bottom-center",
-				iconClasses: "text-red-500",
-			})
+			toast({ title: __("Error"), text: __("Action failed. Please try again."), icon: "alert-circle", position: "bottom-center", iconClasses: "text-red-500" })
 		},
 	})
 }
 
-function handlePrimaryReject() {
-	if (!primaryRejectReason.value?.trim()) return
+// ── Watchers ──────────────────────────────────────────────────────────────────
 
-	createResource({
-		url: "hrms.hr.doctype.employee_permission.employee_permission.permission_project_reporting_reject",
-		params: {
-			employee_permission: props.id,
-			reason: primaryRejectReason.value.trim(),
-		},
-		auto: true,
-		onSuccess(data) {
-			toast({
-				title: __("Success"),
-				text: data.message,
-				icon: "check-circle",
-				position: "bottom-center",
-				iconClasses: "text-red-500",
-			})
-			router.back()
-		},
-		onError() {
-			toast({
-				title: __("Error"),
-				text: __("Action failed. Please try again."),
-				icon: "alert-circle",
-				position: "bottom-center",
-				iconClasses: "text-red-500",
-			})
-		},
-	})
-}
-
-function handlePrimaryApprove() {
-	createResource({
-		url: "frappe.client.set_value",
-		params: {
-			doctype: "Employee Permission",
-			name: props.id,
-			fieldname: "status",
-			value: "Approved",
-		},
-		auto: true,
-		onSuccess() {
-			toast({
-				title: __("Success"),
-				text: __("Permission Request approved and forwarded for secondary approval."),
-				icon: "check-circle",
-				position: "bottom-center",
-				iconClasses: "text-green-500",
-			})
-			router.back()
-		},
-		onError() {
-			toast({
-				title: __("Error"),
-				text: __("Approval failed. Please try again."),
-				icon: "alert-circle",
-				position: "bottom-center",
-				iconClasses: "text-red-500",
-			})
-		},
-	})
-}
-
-// Set defaults for new form
 watch(
 	() => permissionRequest.value.employee,
 	(employee_id) => {
@@ -394,20 +414,32 @@ watch(
 	}
 )
 
-// Reload available hours when date changes
 watch(
 	() => permissionRequest.value.permission_date,
 	(date) => {
 		if (date) {
-			availableHours.fetch({ employee: currEmployee.value, date: date })
+			availableHours.fetch({ employee: currEmployee.value, date })
 		}
 	}
 )
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
 function setFormReadOnly() {
-	if (permissionRequest.value.leave_approver === sessionEmployee.data.user_id) return
-	if (permissionRequest.value.custom_secondary_leave_approver === sessionEmployee.data.user_id) return
-	formFields.data?.map((field) => (field.read_only = true))
+	const userId = sessionEmployee.data.user_id
+	const isApprover =
+		userId === permissionRequest.value.leave_approver ||
+		userId === permissionRequest.value.custom_secondary_leave_approver
+
+	if (isApprover) {
+		// Approvers can only change status — lock content fields
+		const contentFields = ["permission_date", "from_time", "to_time", "reason"]
+		formFields.data?.forEach((field) => {
+			if (contentFields.includes(field.fieldname)) field.read_only = true
+		})
+	} else {
+		formFields.data?.forEach((field) => (field.read_only = true))
+	}
 }
 
 function validateForm() {
@@ -415,7 +447,7 @@ function validateForm() {
 	if (!permissionRequest.value.permission_date) {
 		permissionRequest.value.permission_date = today
 	}
-	// Ensure approvers are set from fetched data
+	// Ensure approvers are set from fetched data (fallback)
 	if (approvalInfo.data) {
 		if (!permissionRequest.value.leave_approver) {
 			permissionRequest.value.leave_approver = approvalInfo.data.leave_approver

@@ -818,6 +818,11 @@ def get_leave_approval_details(employee: str) -> dict:
 		["leave_approver", "department"],
 	)
 
+	# Prevent self-approval: employee cannot be their own leave approver
+	employee_user_id = frappe.db.get_value("Employee", employee, "user_id")
+	if leave_approver and leave_approver == employee_user_id:
+		leave_approver = None
+
 	if not leave_approver and department:
 		leave_approver = frappe.db.get_value(
 			"Department Approver",
