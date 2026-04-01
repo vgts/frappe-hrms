@@ -31,6 +31,7 @@ class ShiftRequest(Document, PWANotificationsMixin):
 		self.validate_overlapping_shift_requests()
 		self.validate_approver()
 		self.validate_default_shift()
+		self.validate_status_change()
 		set_secondary_approver(self)
 		set_approval_stage(self)
 
@@ -88,6 +89,17 @@ class ShiftRequest(Document, PWANotificationsMixin):
 
 	def on_discard(self):
 		self.db_set("status", "Cancelled")
+
+	def validate_status_change(self):
+		"""Prevent employee from approving their own request."""
+		if self.is_new() or self.docstatus != 0:
+			return
+		if not self.has_value_changed("status"):
+			return
+		if self.status in ("Approved", "Rejected"):
+			employee_user = frappe.db.get_value("Employee", self.employee, "user_id")
+			if employee_user == frappe.session.user:
+				frappe.throw(_("You cannot approve or reject your own Shift Request."))
 
 	def validate_default_shift(self):
 		default_shift = frappe.get_value("Employee", self.employee, "default_shift")

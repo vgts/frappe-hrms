@@ -32,6 +32,7 @@ class AttendanceRequest(Document):
 		self.validate_request_overlap()
 		self.validate_no_attendance_to_create()
 		self.validate_approver()
+		self.validate_status_change()
 		set_secondary_approver(self)
 		set_approval_stage(self)
 
@@ -84,6 +85,17 @@ class AttendanceRequest(Document):
 	def validate_approver(self):
 		if self.approver and not frappe.db.exists("User", {"name": self.approver, "enabled": 1}):
 			frappe.throw(_("Approver {0} must be an active user.").format(self.approver))
+
+	def validate_status_change(self):
+		"""Prevent employee from approving their own request."""
+		if self.is_new() or self.docstatus != 0:
+			return
+		if not self.has_value_changed("status"):
+			return
+		if self.status in ("Approved", "Rejected"):
+			employee_user = frappe.db.get_value("Employee", self.employee, "user_id")
+			if employee_user == frappe.session.user:
+				frappe.throw(_("You cannot approve or reject your own Attendance Request."))
 
 	def before_submit(self):
 		gate_submission(self)
