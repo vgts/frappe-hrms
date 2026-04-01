@@ -65,15 +65,12 @@ def execute(filters: Filters | None = None) -> tuple:
 			filters.companies.extend(get_descendants_of("Company", filters.company))
 
 	attendance_map, leave_type_map = get_attendance_map(filters)
-	if not attendance_map:
-		frappe.msgprint(_("No attendance records found."), alert=True, indicator="orange")
-		return [], [], None, None
 
 	columns = get_columns(filters)
 	data = get_data(filters, attendance_map, leave_type_map)
 
 	if not data:
-		frappe.msgprint(_("No attendance records found for this criteria."), alert=True, indicator="orange")
+		frappe.msgprint(_("No employees found for this criteria."), alert=True, indicator="orange")
 		return columns, [], None, None
 
 	message = get_message() if not filters.summarized_view else ""
@@ -594,13 +591,8 @@ def get_rows(employee_details: dict, filters: Filters, holiday_map: dict, attend
 
 			records.append(row)
 		else:
-			employee_attendance = attendance_map.get(employee)
-			if not employee_attendance:
-				# Include employee if they have checked in today even without submitted attendance
-				if is_today_in_period and checkin_map.get(employee):
-					employee_attendance = {"": {}}
-				else:
-					continue
+			# Always show all active employees; fall back to empty row if no attendance records yet
+			employee_attendance = attendance_map.get(employee) or {"": {}}
 
 			attendance_for_employee = get_attendance_status_for_detailed_view(
 				employee, filters, employee_attendance, holidays,
