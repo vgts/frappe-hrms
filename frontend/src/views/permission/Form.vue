@@ -258,9 +258,9 @@ const isSecondaryApproverPending = computed(() => {
 	)
 })
 
-// Waiting message: forwarded to secondary but current user is not secondary
+// Waiting message: forwarded to secondary but current user is not secondary (and not the employee)
 const isPendingSecondaryByOther = computed(() => {
-	if (!props.id) return false
+	if (!props.id || isCurrentUserEmployee.value) return false
 	return (
 		permissionRequest.value.custom_approval_stage === "Pending Secondary Reporting Approval" &&
 		sessionEmployee.data?.user_id !== permissionRequest.value.custom_secondary_leave_approver &&

@@ -12,22 +12,14 @@
 				:showFormButton="showFormButton"
 				@validateForm="validateForm"
 			>
-				<template #formButton v-if="showApprovalActions || showEmployeeTracker">
+				<template #formButton v-if="showApprovalActions">
 					<div class="flex flex-col gap-3 w-full">
-						<!-- Read-only tracker for the employee viewing their own request -->
-						<template v-if="showEmployeeTracker">
-							<ApprovalStageTracker
-								v-if="approvalDetails?.data"
-								:doc="attendanceRequest"
-								:approvalDetails="approvalDetails"
-							/>
-							<div
-								v-if="!approvalDetails?.data?.loading && !attendanceRequest.approver"
-								class="text-center text-sm text-gray-500 bg-gray-50 rounded-lg p-3"
-							>
-								{{ __("No approver assigned for this request.") }}
-							</div>
-						</template>
+						<!-- Approval Stage Tracker (only when secondary approver exists) -->
+						<ApprovalStageTracker
+							v-if="approvalDetails?.data && attendanceRequest.custom_secondary_leave_approver"
+							:doc="attendanceRequest"
+							:approvalDetails="approvalDetails"
+						/>
 
 						<!-- Primary (leave approver) Approve/Reject buttons -->
 						<template v-if="isProjectReportingPending">
@@ -241,9 +233,9 @@ const isSecondaryApproverPending = computed(() => {
 	)
 })
 
-// Waiting message: forwarded to secondary but current user is not secondary
+// Waiting message: forwarded to secondary but current user is not secondary (and not the employee)
 const isPendingSecondaryByOther = computed(() => {
-	if (!props.id) return false
+	if (!props.id || isCurrentUserEmployee.value) return false
 	return (
 		attendanceRequest.value.custom_approval_stage === "Pending Secondary Reporting Approval" &&
 		sessionEmployee.data?.user_id !== attendanceRequest.value.custom_secondary_leave_approver &&
@@ -251,11 +243,6 @@ const isPendingSecondaryByOther = computed(() => {
 		attendanceRequest.value.custom_secondary_leave_approver
 	)
 })
-
-// Show read-only approval tracker for the employee viewing their own pending request
-const showEmployeeTracker = computed(() =>
-	!!props.id && isCurrentUserEmployee.value && attendanceRequest.value.docstatus === 0
-)
 
 // Show custom approval action buttons/messages (replaces default form button)
 const showApprovalActions = computed(() => {
@@ -269,10 +256,10 @@ const showApprovalActions = computed(() => {
 
 // Show default form Save/Submit button:
 // - Always for new requests (no id)
-// - For existing: only if no approval actions AND not employee's own request
+// - For existing: only if no approval actions AND user is not the employee
 const showFormButton = computed(() => {
 	if (!props.id) return true
-	return !showApprovalActions.value && !showEmployeeTracker.value
+	return !showApprovalActions.value && !isCurrentUserEmployee.value
 })
 
 // ── Approval state ────────────────────────────────────────────────────────────

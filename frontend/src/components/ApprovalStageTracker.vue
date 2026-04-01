@@ -80,7 +80,7 @@ const stage = computed(() => props.doc?.custom_approval_stage || "")
 
 // Whether this is a two-level approval (has secondary approver)
 const hasSecondary = computed(() =>
-	!!(approvalDetails?.data?.secondary_approver_name || props.doc?.custom_secondary_leave_approver)
+	!!(props.approvalDetails?.data?.secondary_approver_name || props.doc?.custom_secondary_leave_approver)
 )
 
 // Derive effective status for single-approver flows where stage field is empty
