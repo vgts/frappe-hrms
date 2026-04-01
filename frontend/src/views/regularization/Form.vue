@@ -9,11 +9,12 @@
 				:fields="formFields.data"
 				:id="props.id"
 				:showAttachmentView="true"
-				:showFormButton="!showApprovalActions"
+				:showFormButton="showFormButton"
 				@validateForm="validateForm"
 			>
 				<template #formButton v-if="showApprovalActions">
 					<div class="flex flex-col gap-3 w-full">
+						<!-- Approval Stage Tracker (only when secondary approver exists) -->
 						<ApprovalStageTracker
 							v-if="approvalDetails?.data && regularization.custom_secondary_leave_approver"
 							:doc="regularization"
@@ -59,11 +60,12 @@
 									variant="solid"
 									theme="green"
 								>
-									{{ __("Approve") }}
+									{{ regularization.custom_secondary_leave_approver ? __("Approve") : __("Approve & Submit") }}
 								</Button>
 							</div>
 						</template>
 
+						<!-- Waiting message: forwarded to secondary but current user is not secondary -->
 						<div
 							v-else-if="isPendingSecondaryByOther"
 							class="text-center text-sm font-medium text-blue-700 bg-blue-50 rounded-lg p-3"
@@ -71,6 +73,7 @@
 							{{ __("Forwarded to {0} for secondary approval", [regularization.custom_secondary_approver_name || regularization.custom_secondary_leave_approver]) }}
 						</div>
 
+						<!-- Secondary approver buttons -->
 						<template v-else-if="isSecondaryApproverPending">
 							<div class="text-center text-sm font-medium text-yellow-700 bg-yellow-50 rounded-lg p-2 mb-1">
 								{{ __("Waiting for your approval") }}
@@ -169,7 +172,6 @@ const formFields = createResource({
 
 		let fields = data.filter((field) => !excludeFields.includes(field.fieldname))
 
-		// Set default date
 		const dateField = fields.find(f => f.fieldname === "attendance_date")
 		if (dateField) dateField.default = today
 
@@ -201,7 +203,28 @@ const approvalInfo = createResource({
 	},
 })
 
+// ── Approval flow computed ────────────────────────────────────────────────────
+
+// True when current user IS the employee who owns this request
+const isCurrentUserEmployee = computed(() =>
+	!!props.id && sessionEmployee.data?.name === regularization.value.employee
+)
+
+// Primary leave approver can approve (covers both single and two-level flows)
+const isProjectReportingPending = computed(() => {
+	if (!props.id || isCurrentUserEmployee.value) return false
+	return (
+		regularization.value.status === "Open" &&
+		regularization.value.docstatus === 0 &&
+		sessionEmployee.data?.user_id === regularization.value.leave_approver &&
+		(!regularization.value.custom_approval_stage ||
+			regularization.value.custom_approval_stage === "Pending Project Reporting Approval")
+	)
+})
+
+// Secondary approver can approve
 const isSecondaryApproverPending = computed(() => {
+	if (!props.id || isCurrentUserEmployee.value) return false
 	return (
 		regularization.value.custom_approval_stage === "Pending Secondary Reporting Approval" &&
 		sessionEmployee.data?.user_id === regularization.value.custom_secondary_leave_approver &&
@@ -209,7 +232,9 @@ const isSecondaryApproverPending = computed(() => {
 	)
 })
 
+// Waiting message: forwarded to secondary but current user is not secondary (and not the employee)
 const isPendingSecondaryByOther = computed(() => {
+	if (!props.id || isCurrentUserEmployee.value) return false
 	return (
 		regularization.value.custom_approval_stage === "Pending Secondary Reporting Approval" &&
 		sessionEmployee.data?.user_id !== regularization.value.custom_secondary_leave_approver &&
@@ -218,38 +243,92 @@ const isPendingSecondaryByOther = computed(() => {
 	)
 })
 
-const isProjectReportingPending = computed(() => {
-	return (
-		props.id &&
-		regularization.value.custom_secondary_leave_approver &&
-		regularization.value.custom_approval_stage === "Pending Project Reporting Approval" &&
-		regularization.value.status === "Open" &&
-		regularization.value.docstatus === 0 &&
-		sessionEmployee.data?.user_id === regularization.value.leave_approver
-	)
-})
-
+// Show custom approval action buttons/messages (replaces default form button)
 const showApprovalActions = computed(() => {
+	if (!props.id || regularization.value.docstatus !== 0) return false
 	return (
-		props.id &&
-		regularization.value.custom_secondary_leave_approver &&
-		(regularization.value.custom_approval_stage === "Pending Secondary Reporting Approval" ||
-		isProjectReportingPending.value) &&
-		regularization.value.docstatus === 0
+		isProjectReportingPending.value ||
+		isSecondaryApproverPending.value ||
+		isPendingSecondaryByOther.value
 	)
 })
 
+// Show default form Save/Submit button:
+// - Always for new requests (no id)
+// - For existing: only if no approval actions AND user is not the employee
+const showFormButton = computed(() => {
+	if (!props.id) return true
+	return !showApprovalActions.value && !isCurrentUserEmployee.value
+})
+
+// ── Approval state ────────────────────────────────────────────────────────────
 const showRejectReason = ref(false)
 const rejectReason = ref("")
 const showPrimaryRejectReason = ref(false)
 const primaryRejectReason = ref("")
+
+function handlePrimaryApprove() {
+	const hasSecondary = !!regularization.value.custom_secondary_leave_approver
+
+	if (hasSecondary) {
+		// Two-level flow: set status=Approved, backend forwards to secondary
+		createResource({
+			url: "frappe.client.set_value",
+			params: { doctype: "Attendance Regularization", name: props.id, fieldname: "status", value: "Approved" },
+			auto: true,
+			onSuccess() {
+				toast({ title: __("Success"), text: __("Regularization approved and forwarded for secondary approval."), icon: "check-circle", position: "bottom-center", iconClasses: "text-green-500" })
+				router.back()
+			},
+			onError() {
+				toast({ title: __("Error"), text: __("Approval failed. Please try again."), icon: "alert-circle", position: "bottom-center", iconClasses: "text-red-500" })
+			},
+		})
+	} else {
+		// Single-level flow: approve and submit in one step
+		createResource({
+			url: "hrms.hr.doctype.attendance_regularization.attendance_regularization.regularization_approve_submit",
+			params: { attendance_regularization: props.id },
+			auto: true,
+			onSuccess() {
+				toast({ title: __("Success"), text: __("Attendance Regularization approved and submitted."), icon: "check-circle", position: "bottom-center", iconClasses: "text-green-500" })
+				router.back()
+			},
+			onError() {
+				toast({ title: __("Error"), text: __("Approval failed. Please try again."), icon: "alert-circle", position: "bottom-center", iconClasses: "text-red-500" })
+			},
+		})
+	}
+}
+
+function handlePrimaryReject() {
+	if (!primaryRejectReason.value?.trim()) return
+	const hasSecondary = !!regularization.value.custom_secondary_leave_approver
+
+	const url = hasSecondary
+		? "hrms.hr.doctype.attendance_regularization.attendance_regularization.regularization_project_reporting_reject"
+		: "hrms.hr.doctype.attendance_regularization.attendance_regularization.regularization_reject_submit"
+
+	createResource({
+		url,
+		params: { attendance_regularization: props.id, reason: primaryRejectReason.value.trim() },
+		auto: true,
+		onSuccess(data) {
+			toast({ title: __("Success"), text: data.message, icon: "check-circle", position: "bottom-center", iconClasses: "text-red-500" })
+			router.back()
+		},
+		onError() {
+			toast({ title: __("Error"), text: __("Action failed. Please try again."), icon: "alert-circle", position: "bottom-center", iconClasses: "text-red-500" })
+		},
+	})
+}
 
 function handleSecondaryAction(action) {
 	const method = action === "approve"
 		? "hrms.hr.doctype.attendance_regularization.attendance_regularization.regularization_secondary_approve"
 		: "hrms.hr.doctype.attendance_regularization.attendance_regularization.regularization_secondary_reject"
 
-	let params = { attendance_regularization: props.id }
+	const params = { attendance_regularization: props.id }
 	if (action === "reject") {
 		if (!rejectReason.value?.trim()) return
 		params.reason = rejectReason.value.trim()
@@ -262,47 +341,18 @@ function handleSecondaryAction(action) {
 			router.back()
 		},
 		onError() {
-			toast({ title: __("Error"), text: __("Action failed."), icon: "alert-circle", position: "bottom-center", iconClasses: "text-red-500" })
+			toast({ title: __("Error"), text: __("Action failed. Please try again."), icon: "alert-circle", position: "bottom-center", iconClasses: "text-red-500" })
 		},
 	})
 }
 
-function handlePrimaryReject() {
-	if (!primaryRejectReason.value?.trim()) return
-	createResource({
-		url: "hrms.hr.doctype.attendance_regularization.attendance_regularization.regularization_project_reporting_reject",
-		params: { attendance_regularization: props.id, reason: primaryRejectReason.value.trim() },
-		auto: true,
-		onSuccess(data) {
-			toast({ title: __("Success"), text: data.message, icon: "check-circle", position: "bottom-center", iconClasses: "text-red-500" })
-			router.back()
-		},
-		onError() {
-			toast({ title: __("Error"), text: __("Action failed."), icon: "alert-circle", position: "bottom-center", iconClasses: "text-red-500" })
-		},
-	})
-}
-
-function handlePrimaryApprove() {
-	createResource({
-		url: "frappe.client.set_value",
-		params: { doctype: "Attendance Regularization", name: props.id, fieldname: "status", value: "Approved" },
-		auto: true,
-		onSuccess() {
-			toast({ title: __("Success"), text: __("Regularization approved."), icon: "check-circle", position: "bottom-center", iconClasses: "text-green-500" })
-			router.back()
-		},
-		onError() {
-			toast({ title: __("Error"), text: __("Approval failed."), icon: "alert-circle", position: "bottom-center", iconClasses: "text-red-500" })
-		},
-	})
-}
+// ── Watchers ──────────────────────────────────────────────────────────────────
 
 watch(
 	() => regularization.value.employee,
 	(employee_id) => {
 		if (props.id && employee_id !== currEmployee.value) {
-			formFields.data?.forEach((field) => (field.read_only = true))
+			setFormReadOnly()
 		}
 		currEmployee.value = employee_id
 		if (!props.id) {
@@ -311,12 +361,30 @@ watch(
 	}
 )
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function setFormReadOnly() {
+	const userId = sessionEmployee.data.user_id
+	const isApprover =
+		userId === regularization.value.leave_approver ||
+		userId === regularization.value.custom_secondary_leave_approver
+
+	if (isApprover) {
+		// Approvers can only change status — lock content fields
+		const contentFields = ["attendance_date", "checkin_time", "checkout_time", "reason", "description"]
+		formFields.data?.forEach((field) => {
+			if (contentFields.includes(field.fieldname)) field.read_only = true
+		})
+	} else {
+		formFields.data?.forEach((field) => (field.read_only = true))
+	}
+}
+
 function validateForm() {
 	regularization.value.employee = currEmployee.value
 	if (!regularization.value.attendance_date) {
 		regularization.value.attendance_date = today
 	}
-	// Ensure approvers are set from fetched data
 	if (approvalInfo.data) {
 		if (!regularization.value.leave_approver) {
 			regularization.value.leave_approver = approvalInfo.data.leave_approver

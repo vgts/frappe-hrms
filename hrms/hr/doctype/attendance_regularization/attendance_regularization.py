@@ -402,6 +402,57 @@ class AttendanceRegularization(Document, PWANotificationsMixin):
 
 
 @frappe.whitelist()
+def regularization_approve_submit(attendance_regularization):
+	"""Primary approver approves and submits (single-level flow — no secondary approver)."""
+	doc = frappe.get_doc("Attendance Regularization", attendance_regularization)
+
+	if frappe.session.user != doc.leave_approver:
+		frappe.throw(_("Only the Leave Approver can perform this action."))
+
+	if doc.custom_secondary_leave_approver:
+		frappe.throw(_("This request has a secondary approver. Use the two-level approval flow."))
+
+	if doc.docstatus != 0:
+		frappe.throw(_("This attendance regularization has already been submitted."))
+
+	doc.status = "Approved"
+	doc.flags.ignore_permissions = True
+	doc.submit()
+
+	return {"status": "success", "message": _("Attendance Regularization approved and submitted.")}
+
+
+@frappe.whitelist()
+def regularization_reject_submit(attendance_regularization, reason=None):
+	"""Primary approver rejects (single-level flow — no secondary approver)."""
+	if not reason:
+		frappe.throw(_("Please provide a reason for rejection."))
+
+	doc = frappe.get_doc("Attendance Regularization", attendance_regularization)
+
+	if frappe.session.user != doc.leave_approver:
+		frappe.throw(_("Only the Leave Approver can perform this action."))
+
+	if doc.custom_secondary_leave_approver:
+		frappe.throw(_("This request has a secondary approver. Use the two-level approval flow."))
+
+	if doc.docstatus != 0:
+		frappe.throw(_("This attendance regularization has already been submitted."))
+
+	doc.status = "Rejected"
+	doc.flags.ignore_permissions = True
+	doc.submit()
+
+	doc.reload()
+	doc.flags.ignore_permissions = True
+	doc.cancel()
+
+	doc.add_comment("Comment", _("Rejected by Leave Approver: {0}").format(reason))
+
+	return {"status": "success", "message": _("Attendance Regularization rejected.")}
+
+
+@frappe.whitelist()
 def regularization_project_reporting_reject(attendance_regularization, reason=None):
 	"""Project reporting (primary leave approver) rejects - set rejected, submit then cancel."""
 	if not reason:
