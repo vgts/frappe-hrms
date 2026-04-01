@@ -442,39 +442,34 @@ def get_employee_related_details(filters: Filters) -> tuple[dict, list]:
 
 def get_holiday_map(filters: Filters) -> dict[str, list[dict]]:
 	"""
-	Returns a dict of holidays falling in the filter month and year
-	with list name as key and list of holidays as values like
-	{
-	        'Holiday List 1': [
-	                {'day_of_month': '0' , 'weekly_off': 1},
-	                {'day_of_month': '1', 'weekly_off': 0}
-	        ],
-	        'Holiday List 2': [
-	                {'day_of_month': '0' , 'weekly_off': 1},
-	                {'day_of_month': '1', 'weekly_off': 0}
-	        ]
-	}
+	Returns a dict of holidays falling in the filter period with holiday list name as key.
+	Fetched in a single query for efficiency and reliability.
+	Also stores a combined "__all__" key merging all lists (used as fallback).
 	"""
-	# add default holiday list too
-	holiday_lists = frappe.db.get_all("Holiday List", pluck="name")
-	default_holiday_list = frappe.get_cached_value("Company", filters.company, "default_holiday_list")
-	holiday_lists.append(default_holiday_list)
-
-	holiday_map = frappe._dict()
 	Holiday = frappe.qb.DocType("Holiday")
-
 	holiday_condition = get_date_condition(Holiday.holiday_date, filters)
 
-	for d in holiday_lists:
-		if not d:
-			continue
+	all_rows = (
+		frappe.qb.from_(Holiday)
+		.select(Holiday.parent, Holiday.holiday_date, Holiday.weekly_off)
+		.where(holiday_condition)
+	).run(as_dict=True)
 
-		holidays = (
-			frappe.qb.from_(Holiday)
-			.select(Holiday.holiday_date, Holiday.weekly_off)
-			.where((Holiday.parent == d) & (holiday_condition))
-		).run(as_dict=True)
-		holiday_map.setdefault(d, holidays)
+	holiday_map = frappe._dict()
+	for row in all_rows:
+		holiday_map.setdefault(row.parent, []).append(
+			{"holiday_date": row.holiday_date, "weekly_off": row.weekly_off}
+		)
+
+	# Build a merged fallback list (deduped by date) for employees with no holiday list
+	seen = set()
+	merged = []
+	for h_list in holiday_map.values():
+		for h in h_list:
+			if h["holiday_date"] not in seen:
+				seen.add(h["holiday_date"])
+				merged.append(h)
+	holiday_map["__all__"] = merged
 
 	return holiday_map
 
@@ -571,7 +566,7 @@ def get_rows(employee_details: dict, filters: Filters, holiday_map: dict, attend
 
 	for employee, details in employee_details.items():
 		emp_holiday_list = details.holiday_list or default_holiday_list
-		holidays = holiday_map.get(emp_holiday_list)
+		holidays = holiday_map.get(emp_holiday_list) or holiday_map.get(default_holiday_list) or holiday_map.get("__all__", [])
 
 		if filters.summarized_view:
 			attendance = get_attendance_status_for_summarized_view(
