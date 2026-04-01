@@ -483,7 +483,8 @@ def get_holiday_map(filters: Filters) -> dict[str, list[dict]]:
 
 
 def get_checkin_map(filters: Filters) -> dict:
-	"""Returns employee → first IN checkin time string for today, only when today falls in the report period."""
+	"""Returns employee → {'in_time': 'HH:MM', 'completed': bool} for today only.
+	completed=True when first IN to last OUT spans >= 9 hours 30 minutes."""
 	today = date.today()
 	dates = get_dates_in_period(filters)
 	if not any(getdate(d) == today for d in dates):
@@ -493,20 +494,42 @@ def get_checkin_map(filters: Filters) -> dict:
 		ci_list = frappe.db.get_all(
 			"Employee Checkin",
 			filters={
-				"log_type": "IN",
 				"time": ["between", [
 					str(today) + " 00:00:00",
 					str(today) + " 23:59:59",
 				]],
 			},
-			fields=["employee", "time"],
+			fields=["employee", "log_type", "time"],
 			order_by="time asc",
 		)
-		result = {}
+
+		emp_checkins = {}
 		for ci in ci_list:
-			if ci.employee not in result:
-				t = str(ci.time)[-8:][:5]
-				result[ci.employee] = t
+			emp_checkins.setdefault(ci.employee, {"in": [], "out": []})
+			if ci.log_type == "IN":
+				emp_checkins[ci.employee]["in"].append(ci.time)
+			elif ci.log_type == "OUT":
+				emp_checkins[ci.employee]["out"].append(ci.time)
+
+		result = {}
+		for emp, times in emp_checkins.items():
+			if not times["in"]:
+				continue
+
+			first_in = times["in"][0]
+			in_time_str = str(first_in)[-8:][:5]
+
+			completed = False
+			if times["out"]:
+				from datetime import datetime as _dt
+				last_out = times["out"][-1]
+				in_dt = first_in if hasattr(first_in, "hour") else _dt.strptime(str(first_in), "%Y-%m-%d %H:%M:%S")
+				out_dt = last_out if hasattr(last_out, "hour") else _dt.strptime(str(last_out), "%Y-%m-%d %H:%M:%S")
+				if (out_dt - in_dt).total_seconds() >= 9.5 * 3600:
+					completed = True
+
+			result[emp] = {"in_time": in_time_str, "completed": completed}
+
 		return result
 	except Exception:
 		return {}
@@ -545,6 +568,9 @@ def get_rows(employee_details: dict, filters: Filters, holiday_map: dict, attend
              leave_type_map: dict = None, permission_map: dict = None, checkin_map: dict = None) -> list[dict]:
 	records = []
 	default_holiday_list = frappe.get_cached_value("Company", filters.company, "default_holiday_list")
+	checkin_map = checkin_map or {}
+	today = date.today()
+	is_today_in_period = any(getdate(d) == today for d in get_dates_in_period(filters))
 
 	for employee, details in employee_details.items():
 		emp_holiday_list = details.holiday_list or default_holiday_list
@@ -570,7 +596,11 @@ def get_rows(employee_details: dict, filters: Filters, holiday_map: dict, attend
 		else:
 			employee_attendance = attendance_map.get(employee)
 			if not employee_attendance:
-				continue
+				# Include employee if they have checked in today even without submitted attendance
+				if is_today_in_period and checkin_map.get(employee):
+					employee_attendance = {"": {}}
+				else:
+					continue
 
 			attendance_for_employee = get_attendance_status_for_detailed_view(
 				employee, filters, employee_attendance, holidays,
@@ -733,15 +763,27 @@ def get_attendance_status_for_detailed_view(
 					abbr = f"0.5P/{_fmt_perm_time(perm.get('from_time'))}"
 				else:
 					abbr = status_map.get(status, "")
+			elif d == today_date:
+				# Today: holiday/weekly-off take priority, then check-in, then status, then pending
+				if status in ("Holiday", "Weekly Off"):
+					abbr = status_map.get(status, "")
+				else:
+					ci_info = checkin_map.get(employee)
+					if ci_info and ci_info.get("completed"):
+						# Checked in and completed 9h30m → mark Present
+						abbr = "P"
+					elif ci_info:
+						# Still checked in, not yet 9h30m → show check-in time
+						abbr = ci_info.get("in_time", "-")
+					elif status is not None:
+						abbr = status_map.get(status, "")
+					else:
+						abbr = "-"
 			elif status is not None:
 				abbr = status_map.get(status, "")
 			elif d > today_date:
 				# Future workday — no attendance yet
 				abbr = "-"
-			elif d == today_date:
-				# Today — check if employee has checked in (attendance not yet processed)
-				ci_time = checkin_map.get(employee)
-				abbr = ci_time if ci_time else "-"
 			else:
 				# Past unmarked day — leave blank (could be absent or unmarked)
 				abbr = ""
