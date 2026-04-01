@@ -711,6 +711,16 @@ def _fmt_perm_duration(from_time, to_time):
 		return "Perm"
 
 
+def _is_second_half_permission(from_time) -> bool:
+	"""Returns True if permission starts at or after 13:30 (second half)."""
+	try:
+		parts = str(from_time or "").split(":")
+		total_minutes = int(parts[0]) * 60 + int(parts[1])
+		return total_minutes >= 13 * 60 + 30  # 13:30
+	except Exception:
+		return False
+
+
 def get_attendance_status_for_detailed_view(
 	employee: str, filters: Filters, employee_attendance: dict, holidays: list,
 	leave_type_map: dict = None, permission_map: dict = None, checkin_map: dict = None,
@@ -770,12 +780,16 @@ def get_attendance_status_for_detailed_view(
 						abbr = "-"
 					# Append permission duration when present + permission exists
 					if abbr == "P" and perm:
-						abbr = f"P/{_fmt_perm_duration(perm.get('from_time'), perm.get('to_time'))}"
+						duration = _fmt_perm_duration(perm.get('from_time'), perm.get('to_time'))
+						prefix = "0.5P" if _is_second_half_permission(perm.get('from_time')) else "P"
+						abbr = f"{prefix}/{duration}"
 			elif status is not None:
 				abbr = status_map.get(status, "")
-				# Present + approved permission → show duration (e.g. P/1H)
+				# Present + approved permission → 0.5P/1H (second half) or P/1H (first half)
 				if abbr == "P" and perm:
-					abbr = f"P/{_fmt_perm_duration(perm.get('from_time'), perm.get('to_time'))}"
+					duration = _fmt_perm_duration(perm.get('from_time'), perm.get('to_time'))
+					prefix = "0.5P" if _is_second_half_permission(perm.get('from_time')) else "P"
+					abbr = f"{prefix}/{duration}"
 			elif d > today_date:
 				# Future workday — no attendance yet
 				abbr = "-"
