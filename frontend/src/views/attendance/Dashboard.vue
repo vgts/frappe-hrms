@@ -14,40 +14,16 @@
 						<AttendanceCalendar />
 						<router-link :to="{ name: 'AttendanceRequestFormView' }" v-slot="{ navigate }">
 							<Button @click="navigate" variant="solid" class="w-full py-5 text-base">
-								{{ __("Request Attendance") }}
+								{{ __("Request") }}
 							</Button>
 						</router-link>
 						<div>
-							<div class="section-title">{{ __("Recent Attendance Requests") }}</div>
+							<div class="section-title">{{ __("Recent Requests") }}</div>
 							<RequestList
 								:component="markRaw(AttendanceRequestItem)"
 								:items="myAttendanceRequests?.data?.slice(0, 5)"
 								:addListButton="true"
 								:listButtonRoute="__('AttendanceRequestListView')"
-							/>
-						</div>
-						<div>
-							<div class="section-title">{{ __("Upcoming Shifts") }}</div>
-							<RequestList
-								:component="markRaw(ShiftAssignmentItem)"
-								:items="upcomingShifts"
-								:addListButton="true"
-								listButtonRoute="ShiftAssignmentListView"
-								:emptyStateMessage="__('You have no upcoming shifts')"
-							/>
-						</div>
-						<router-link :to="{ name: 'ShiftRequestFormView' }" v-slot="{ navigate }">
-							<Button @click="navigate" variant="solid" class="w-full py-5 text-base">
-								{{ __("Request a Shift") }}
-							</Button>
-						</router-link>
-						<div>
-							<div class="section-title">{{ __("Recent Shift Requests") }}</div>
-							<RequestList
-								:component="markRaw(ShiftRequestItem)"
-								:items="myShiftRequests?.data?.slice(0, 5)"
-								:addListButton="true"
-								listButtonRoute="ShiftRequestListView"
 							/>
 						</div>
 					</div>
@@ -61,40 +37,18 @@
 							</div>
 						</div>
 
-						<!-- Right: requests & shifts -->
+						<!-- Right: requests -->
 						<div class="flex flex-col gap-5">
 							<div class="desk-card p-5 flex flex-col gap-4">
-								<div class="section-title">{{ __("Attendance Requests") }}</div>
+								<div class="section-title">{{ __("Requests") }}</div>
 								<Button @click="openForm('AttendanceRequestFormView')" variant="solid" class="w-full py-4 text-sm">
-									{{ __("+ Request Attendance") }}
+									{{ __("+ Request") }}
 								</Button>
 								<RequestList
 									:component="markRaw(AttendanceRequestItem)"
 									:items="myAttendanceRequests?.data?.slice(0, 5)"
 									:addListButton="true"
 									:listButtonRoute="__('AttendanceRequestListView')"
-								/>
-							</div>
-
-							<div class="desk-card p-5 flex flex-col gap-4">
-								<div class="section-title">{{ __("Shifts") }}</div>
-								<Button @click="openForm('ShiftRequestFormView')" variant="solid" class="w-full py-4 text-sm">
-									{{ __("+ Request a Shift") }}
-								</Button>
-								<div class="text-sm font-semibold text-gray-600 mt-1">{{ __("Upcoming Shifts") }}</div>
-								<RequestList
-									:component="markRaw(ShiftAssignmentItem)"
-									:items="upcomingShifts"
-									:addListButton="true"
-									listButtonRoute="ShiftAssignmentListView"
-									:emptyStateMessage="__('You have no upcoming shifts')"
-								/>
-								<div class="text-sm font-semibold text-gray-600 mt-1">{{ __("Recent Shift Requests") }}</div>
-								<RequestList
-									:component="markRaw(ShiftRequestItem)"
-									:items="myShiftRequests?.data?.slice(0, 5)"
-									:addListButton="true"
-									listButtonRoute="ShiftRequestListView"
 								/>
 							</div>
 						</div>
@@ -151,20 +105,12 @@ import { createResource, Avatar, Badge, FeatherIcon } from "frappe-ui"
 import BaseLayout from "@/components/BaseLayout.vue"
 import TabButtons from "@/components/TabButtons.vue"
 import AttendanceRequestItem from "@/components/AttendanceRequestItem.vue"
-import ShiftRequestItem from "@/components/ShiftRequestItem.vue"
-import ShiftAssignmentItem from "@/components/ShiftAssignmentItem.vue"
 import RequestList from "@/components/RequestList.vue"
 import AttendanceCalendar from "@/components/AttendanceCalendar.vue"
 import EmptyState from "@/components/EmptyState.vue"
 import { useFormModal } from "@/composables/useFormModal"
 
-import {
-	getShiftDates,
-	getTotalShiftDays,
-	getShiftTiming,
-	myAttendanceRequests,
-	myShiftRequests,
-} from "@/data/attendance"
+import { myAttendanceRequests } from "@/data/attendance"
 
 const __ = inject("$translate")
 const { openForm } = useFormModal()
@@ -221,23 +167,6 @@ const deptAbsent     = computed(() => (deptData.data || []).filter(m => m.status
 const formatTime = (datetime) => datetime ? dayjs(datetime).format("hh:mm A") : ""
 const statusTheme = (s) => s === "Checked In" ? "green" : s === "Checked Out" ? "blue" : "gray"
 const statusLabel = (s) => s === "Checked In" ? __("In") : s === "Checked Out" ? __("Out") : __("Absent")
-
-// ── Shifts ────────────────────────────────────────────────────────────────
-const shifts = createResource({
-	url: "hrms.api.get_shifts",
-	auto: true,
-	cache: "hrms:shifts",
-	transform: (data) => data.map((a) => ({
-		...a,
-		doctype: "Shift Assignment",
-		is_upcoming: !a.end_date || dayjs(a.end_date).isAfter(dayjs()),
-		shift_dates: getShiftDates(a),
-		total_shift_days: getTotalShiftDays(a),
-		shift_timing: getShiftTiming(a),
-	})),
-})
-
-const upcomingShifts = computed(() => shifts.data?.filter(s => s.is_upcoming)?.slice(0, 5))
 
 // ── Inline sub-components (avoid prop-drilling repetition) ────────────────
 const BreadcrumbNav = defineComponent({

@@ -766,7 +766,7 @@ def get_attendance_status_for_detailed_view(
 						abbr = "P"
 					elif ci_info:
 						# Still checked in, not yet 9h30m → show check-in time
-						abbr = ci_info.get("in_time", "-")
+						abbr = "P"
 					elif status is not None:
 						abbr = status_map.get(status, "")
 					else:

@@ -86,13 +86,8 @@ onUnmounted(() => {
 const quickLinks = [
 	{
 		icon: markRaw(AttendanceIcon),
-		title: __("Request Attendance"),
+		title: __("Request"),
 		route: "AttendanceRequestFormView",
-	},
-	{
-		icon: markRaw(ShiftIcon),
-		title: __("Request a Shift"),
-		route: "ShiftRequestFormView",
 	},
 	{
 		icon: markRaw(LeaveIcon),

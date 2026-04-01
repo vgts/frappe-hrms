@@ -18,13 +18,20 @@ from hrms.hr.two_level_approval import (
 	set_secondary_approver,
 )
 from hrms.hr.utils import share_doc_with_approver, validate_active_employee, validate_dates
+from hrms.mixins.pwa_notifications import PWANotificationsMixin
 
 
 class OverlappingAttendanceRequestError(frappe.ValidationError):
 	pass
 
 
-class AttendanceRequest(Document):
+class AttendanceRequest(Document, PWANotificationsMixin):
+	def after_insert(self):
+		try:
+			self.notify_approver()
+		except Exception:
+			pass
+
 	def validate(self):
 		validate_active_employee(self.employee)
 		validate_dates(self, self.from_date, self.to_date, False)
