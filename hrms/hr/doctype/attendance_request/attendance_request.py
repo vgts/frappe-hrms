@@ -92,6 +92,12 @@ class AttendanceRequest(Document, PWANotificationsMixin):
 	def validate_approver(self):
 		if self.approver and not frappe.db.exists("User", {"name": self.approver, "enabled": 1}):
 			frappe.throw(_("Approver {0} must be an active user.").format(self.approver))
+		# Prevent self-assignment: clear approver if employee is their own approver
+		if self.approver:
+			employee_user = frappe.db.get_value("Employee", self.employee, "user_id")
+			if self.approver == employee_user:
+				self.approver = None
+				self.approver_name = None
 
 	def validate_status_change(self):
 		"""Prevent employee from approving their own request."""
@@ -278,6 +284,42 @@ class AttendanceRequest(Document, PWANotificationsMixin):
 					)
 
 		return attendance_warnings
+
+
+@frappe.whitelist()
+def attendance_request_approve_submit(attendance_request):
+	"""Approve and submit in one step for requests with no secondary approver."""
+	doc = frappe.get_doc("Attendance Request", attendance_request)
+	if frappe.session.user != doc.approver:
+		frappe.throw(_("Only the Leave Approver can perform this action."))
+	if doc.custom_secondary_leave_approver:
+		frappe.throw(_("This request requires secondary approval."))
+	if doc.status != "Open" or doc.docstatus != 0:
+		frappe.throw(_("This attendance request cannot be approved at this stage."))
+	doc.status = "Approved"
+	doc.flags.ignore_permissions = True
+	doc.submit()
+	return {"status": "success", "message": _("Attendance Request approved and submitted.")}
+
+
+@frappe.whitelist()
+def attendance_request_reject_submit(attendance_request, reason=None):
+	"""Reject and submit in one step for requests with no secondary approver."""
+	if not reason:
+		frappe.throw(_("Please provide a reason for rejection."))
+	doc = frappe.get_doc("Attendance Request", attendance_request)
+	if frappe.session.user != doc.approver:
+		frappe.throw(_("Only the Leave Approver can perform this action."))
+	if doc.custom_secondary_leave_approver:
+		frappe.throw(_("This request requires secondary approval."))
+	doc.status = "Rejected"
+	doc.flags.ignore_permissions = True
+	doc.submit()
+	doc.reload()
+	doc.flags.ignore_permissions = True
+	doc.cancel()
+	doc.add_comment("Comment", _("Rejected by Leave Approver: {0}").format(reason))
+	return {"status": "success", "message": _("Attendance Request rejected.")}
 
 
 @frappe.whitelist()

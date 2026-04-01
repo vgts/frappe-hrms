@@ -505,22 +505,13 @@ def get_attendance_requests(
 			"creation",
 		]
 
-		if workflow_state_field := get_workflow_state_field("Attendance Request"):
-			fields.append(workflow_state_field)
-
-		attendance_requests = frappe.get_list(
+		return frappe.get_list(
 			"Attendance Request",
 			fields=fields,
 			filters=filters,
 			order_by="creation desc",
 			limit=limit,
 		)
-
-		if workflow_state_field:
-			for application in attendance_requests:
-				application["workflow_state_field"] = workflow_state_field
-
-		return attendance_requests
 
 
 def get_filters(

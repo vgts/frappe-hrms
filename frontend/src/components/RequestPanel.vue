@@ -2,6 +2,7 @@
 	<div class="w-full">
 
 		<!-- Mobile: tabs (one column at a time) -->
+		 
 		<div class="lg:hidden">
 			<TabButtons :buttons="TAB_BUTTONS" v-model="activeTab" />
 

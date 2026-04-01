@@ -9,13 +9,12 @@
 				:isSubmittable="true"
 				:fields="formFields.data"
 				:id="props.id"
-				:showFormButton="!showSecondaryActions"
+				:showFormButton="showFormButton"
 				@validateForm="validateForm"
 			>
-				<!-- Approval action buttons slot -->
-				<template #formButton v-if="showSecondaryActions">
+				<template #formButton v-if="showApprovalActions">
 					<div class="flex flex-col gap-3 w-full">
-						<!-- Approval Stage Tracker -->
+						<!-- Approval Stage Tracker (only when secondary approver exists) -->
 						<ApprovalStageTracker
 							v-if="approvalDetails?.data && attendanceRequest.custom_secondary_leave_approver"
 							:doc="attendanceRequest"
@@ -61,7 +60,7 @@
 									variant="solid"
 									theme="green"
 								>
-									{{ __("Approve") }}
+									{{ attendanceRequest.custom_secondary_leave_approver ? __("Approve") : __("Approve & Submit") }}
 								</Button>
 							</div>
 						</template>
@@ -79,15 +78,15 @@
 							<div class="text-center text-sm font-medium text-yellow-700 bg-yellow-50 rounded-lg p-2 mb-1">
 								{{ __("Waiting for your approval") }}
 							</div>
+							<div v-if="showRejectReason" class="w-full mb-2">
+								<label class="text-sm text-gray-600 mb-1 block">{{ __("Reason for Rejection") }} *</label>
+								<textarea
+									v-model="rejectReason"
+									class="w-full border rounded-lg p-2 text-sm min-h-[80px] focus:outline-none focus:ring-2 focus:ring-red-300"
+									:placeholder="__('Enter reason for rejection...')"
+								></textarea>
+							</div>
 							<div class="flex flex-row gap-3">
-								<div v-if="showRejectReason" class="w-full mb-2">
-									<label class="text-sm text-gray-600 mb-1 block">{{ __("Reason for Rejection") }} *</label>
-									<textarea
-										v-model="rejectReason"
-										class="w-full border rounded-lg p-2 text-sm min-h-[80px] focus:outline-none focus:ring-2 focus:ring-red-300"
-										:placeholder="__('Enter reason for rejection...')"
-									></textarea>
-								</div>
 								<Button
 									v-if="!showRejectReason"
 									@click="showRejectReason = true"
@@ -147,6 +146,23 @@ const props = defineProps({
 // reactive object to store form data
 const attendanceRequest = ref({})
 
+// Auto-fetch approver details for new requests (handled in background)
+const approvalInfo = createResource({
+	url: "hrms.api.get_leave_approval_details",
+	params: { employee: sessionEmployee.data?.name },
+	auto: !props.id,
+	onSuccess(data) {
+		if (!props.id) {
+			attendanceRequest.value.approver = data.leave_approver
+			attendanceRequest.value.approver_name = data.leave_approver_name
+			if (data.secondary_leave_approver) {
+				attendanceRequest.value.custom_secondary_leave_approver = data.secondary_leave_approver
+				attendanceRequest.value.custom_secondary_approver_name = data.secondary_approver_name
+			}
+		}
+	},
+})
+
 // get form fields
 const formFields = createResource({
 	url: "hrms.api.get_doctype_fields",
@@ -160,6 +176,9 @@ const formFields = createResource({
 			"custom_secondary_approver_name",
 			"custom_column_break_secondary",
 			"custom_approval_stage",
+			// Approver fields handled in background
+			"approver",
+			"approver_name",
 		]
 
 		// When creating new, also exclude employee/company/status (auto-set)
@@ -187,35 +206,61 @@ const approvalDetails = createResource({
 
 // ── Approval flow computed ────────────────────────────────────────────────────
 
-const isProjectReportingPending = computed(() =>
-	props.id &&
-	attendanceRequest.value.custom_secondary_leave_approver &&
-	attendanceRequest.value.custom_approval_stage === "Pending Project Reporting Approval" &&
-	attendanceRequest.value.status === "Open" &&
-	attendanceRequest.value.docstatus === 0 &&
-	sessionEmployee.data?.user_id === attendanceRequest.value.approver
+// True when current user IS the employee who owns this request
+const isCurrentUserEmployee = computed(() =>
+	!!props.id && sessionEmployee.data?.name === attendanceRequest.value.employee
 )
 
-const isPendingSecondaryByOther = computed(() =>
-	attendanceRequest.value.custom_approval_stage === "Pending Secondary Reporting Approval" &&
-	sessionEmployee.data?.user_id !== attendanceRequest.value.custom_secondary_leave_approver &&
-	attendanceRequest.value.docstatus === 0 &&
-	attendanceRequest.value.custom_secondary_leave_approver
-)
+// Primary leave approver can approve (covers both with-secondary and without-secondary flows)
+const isProjectReportingPending = computed(() => {
+	if (!props.id || isCurrentUserEmployee.value) return false
+	return (
+		attendanceRequest.value.status === "Open" &&
+		attendanceRequest.value.docstatus === 0 &&
+		sessionEmployee.data?.user_id === attendanceRequest.value.approver &&
+		(!attendanceRequest.value.custom_approval_stage ||
+			attendanceRequest.value.custom_approval_stage === "Pending Project Reporting Approval")
+	)
+})
 
-const isSecondaryApproverPending = computed(() =>
-	attendanceRequest.value.custom_approval_stage === "Pending Secondary Reporting Approval" &&
-	sessionEmployee.data?.user_id === attendanceRequest.value.custom_secondary_leave_approver &&
-	attendanceRequest.value.docstatus === 0
-)
+// Secondary approver can approve
+const isSecondaryApproverPending = computed(() => {
+	if (!props.id || isCurrentUserEmployee.value) return false
+	return (
+		attendanceRequest.value.custom_approval_stage === "Pending Secondary Reporting Approval" &&
+		sessionEmployee.data?.user_id === attendanceRequest.value.custom_secondary_leave_approver &&
+		attendanceRequest.value.docstatus === 0
+	)
+})
 
-const showSecondaryActions = computed(() =>
-	props.id &&
-	attendanceRequest.value.custom_secondary_leave_approver &&
-	(attendanceRequest.value.custom_approval_stage === "Pending Secondary Reporting Approval" ||
-		isProjectReportingPending.value) &&
-	attendanceRequest.value.docstatus === 0
-)
+// Waiting message: forwarded to secondary but current user is not secondary
+const isPendingSecondaryByOther = computed(() => {
+	if (!props.id) return false
+	return (
+		attendanceRequest.value.custom_approval_stage === "Pending Secondary Reporting Approval" &&
+		sessionEmployee.data?.user_id !== attendanceRequest.value.custom_secondary_leave_approver &&
+		attendanceRequest.value.docstatus === 0 &&
+		attendanceRequest.value.custom_secondary_leave_approver
+	)
+})
+
+// Show custom approval action buttons/messages (replaces default form button)
+const showApprovalActions = computed(() => {
+	if (!props.id || attendanceRequest.value.docstatus !== 0) return false
+	return (
+		isProjectReportingPending.value ||
+		isSecondaryApproverPending.value ||
+		isPendingSecondaryByOther.value
+	)
+})
+
+// Show default form Save/Submit button:
+// - Always for new requests (no id)
+// - For existing: only if no approval actions AND user is not the employee
+const showFormButton = computed(() => {
+	if (!props.id) return true
+	return !showApprovalActions.value && !isCurrentUserEmployee.value
+})
 
 // ── Approval state ────────────────────────────────────────────────────────────
 const showRejectReason = ref(false)
@@ -224,35 +269,66 @@ const showPrimaryRejectReason = ref(false)
 const primaryRejectReason = ref("")
 
 function handlePrimaryApprove() {
-	createResource({
-		url: "frappe.client.set_value",
-		params: {
-			doctype: "Attendance Request",
-			name: props.id,
-			fieldname: "status",
-			value: "Approved",
-		},
-		auto: true,
-		onSuccess() {
-			toast({
-				title: __("Success"),
-				text: __("Request approved and forwarded for secondary approval."),
-				icon: "check-circle",
-				position: "bottom-center",
-				iconClasses: "text-green-500",
-			})
-			router.back()
-		},
-		onError() {
-			toast({ title: __("Error"), text: __("Approval failed. Please try again."), icon: "alert-circle", position: "bottom-center", iconClasses: "text-red-500" })
-		},
-	})
+	const hasSecondary = !!attendanceRequest.value.custom_secondary_leave_approver
+
+	if (hasSecondary) {
+		// Two-level flow: set status=Approved, backend forwards to secondary
+		createResource({
+			url: "frappe.client.set_value",
+			params: {
+				doctype: "Attendance Request",
+				name: props.id,
+				fieldname: "status",
+				value: "Approved",
+			},
+			auto: true,
+			onSuccess() {
+				toast({
+					title: __("Success"),
+					text: __("Request approved and forwarded for secondary approval."),
+					icon: "check-circle",
+					position: "bottom-center",
+					iconClasses: "text-green-500",
+				})
+				router.back()
+			},
+			onError() {
+				toast({ title: __("Error"), text: __("Approval failed. Please try again."), icon: "alert-circle", position: "bottom-center", iconClasses: "text-red-500" })
+			},
+		})
+	} else {
+		// Simple flow (no secondary): approve and submit in one step
+		createResource({
+			url: "hrms.hr.doctype.attendance_request.attendance_request.attendance_request_approve_submit",
+			params: { attendance_request: props.id },
+			auto: true,
+			onSuccess() {
+				toast({
+					title: __("Success"),
+					text: __("Attendance Request approved and submitted."),
+					icon: "check-circle",
+					position: "bottom-center",
+					iconClasses: "text-green-500",
+				})
+				router.back()
+			},
+			onError() {
+				toast({ title: __("Error"), text: __("Approval failed. Please try again."), icon: "alert-circle", position: "bottom-center", iconClasses: "text-red-500" })
+			},
+		})
+	}
 }
 
 function handlePrimaryReject() {
 	if (!primaryRejectReason.value?.trim()) return
+	const hasSecondary = !!attendanceRequest.value.custom_secondary_leave_approver
+
+	const url = hasSecondary
+		? "hrms.hr.doctype.attendance_request.attendance_request.project_reporting_reject"
+		: "hrms.hr.doctype.attendance_request.attendance_request.attendance_request_reject_submit"
+
 	createResource({
-		url: "hrms.hr.doctype.attendance_request.attendance_request.project_reporting_reject",
+		url,
 		params: { attendance_request: props.id, reason: primaryRejectReason.value.trim() },
 		auto: true,
 		onSuccess(data) {
@@ -266,9 +342,10 @@ function handlePrimaryReject() {
 }
 
 function handleSecondaryAction(action) {
-	const method = action === "approve"
-		? "hrms.hr.doctype.attendance_request.attendance_request.secondary_approve"
-		: "hrms.hr.doctype.attendance_request.attendance_request.secondary_reject"
+	const method =
+		action === "approve"
+			? "hrms.hr.doctype.attendance_request.attendance_request.secondary_approve"
+			: "hrms.hr.doctype.attendance_request.attendance_request.secondary_reject"
 
 	const params = { attendance_request: props.id }
 	if (action === "reject") {
@@ -340,11 +417,11 @@ function setFormReadOnly() {
 	if (isApprover) {
 		// Approvers can only change status — lock content fields
 		const contentFields = ["from_date", "to_date", "half_day", "half_day_date", "reason", "explanation"]
-		formFields.data.forEach((field) => {
+		formFields.data?.forEach((field) => {
 			if (contentFields.includes(field.fieldname)) field.read_only = true
 		})
 	} else {
-		formFields.data.forEach((field) => (field.read_only = true))
+		formFields.data?.forEach((field) => (field.read_only = true))
 	}
 }
 
@@ -356,5 +433,16 @@ function validateDates(from_date, to_date) {
 
 function validateForm() {
 	attendanceRequest.value.employee = sessionEmployee.data.name
+	// Ensure approvers are set from fetched data (fallback)
+	if (approvalInfo.data) {
+		if (!attendanceRequest.value.approver) {
+			attendanceRequest.value.approver = approvalInfo.data.leave_approver
+			attendanceRequest.value.approver_name = approvalInfo.data.leave_approver_name
+		}
+		if (!attendanceRequest.value.custom_secondary_leave_approver && approvalInfo.data.secondary_leave_approver) {
+			attendanceRequest.value.custom_secondary_leave_approver = approvalInfo.data.secondary_leave_approver
+			attendanceRequest.value.custom_secondary_approver_name = approvalInfo.data.secondary_approver_name
+		}
+	}
 }
 </script>
