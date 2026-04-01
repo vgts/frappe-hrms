@@ -126,6 +126,21 @@ const hasTeamRequests = computed(() =>
 
 let pollInterval = null
 
+function reloadTeamData() {
+	teamLeaves.reload()
+	teamAttendanceRequests.reload()
+	teamShiftRequests.reload()
+	teamClaims.reload()
+	teamPermissions.reload()
+	teamRegularizations.reload()
+}
+
+function onVisibilityChange() {
+	if (document.visibilityState === "visible") {
+		reloadTeamData()
+	}
+}
+
 onMounted(() => {
 	useListUpdate(socket, "Leave Application", () => teamLeaves.reload())
 	useListUpdate(socket, "Expense Claim", () => teamClaims.reload())
@@ -134,20 +149,19 @@ onMounted(() => {
 	useListUpdate(socket, "Employee Permission", () => teamPermissions.reload())
 	useListUpdate(socket, "Attendance Regularization", () => teamRegularizations.reload())
 
+	// Reload when app comes back to foreground (fixes iOS Safari PWA missed socket events)
+	document.addEventListener("visibilitychange", onVisibilityChange)
+
 	// Fallback polling every 30s in case Socket.IO is not connected
 	pollInterval = setInterval(() => {
 		if (!socket.connected) {
-			teamLeaves.reload()
-			teamAttendanceRequests.reload()
-			teamShiftRequests.reload()
-			teamClaims.reload()
-			teamPermissions.reload()
-			teamRegularizations.reload()
+			reloadTeamData()
 		}
 	}, 30000)
 })
 
 onUnmounted(() => {
+	document.removeEventListener("visibilitychange", onVisibilityChange)
 	if (pollInterval) clearInterval(pollInterval)
 })
 </script>
