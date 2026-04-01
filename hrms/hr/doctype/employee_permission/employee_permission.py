@@ -533,6 +533,8 @@ def get_permission_approval_details(employee_permission):
 
 	return {
 		"approval_stage": doc.custom_approval_stage,
+		"employee": doc.employee,
+		"employee_user_id": frappe.db.get_value("Employee", doc.employee, "user_id"),
 		"leave_approver": doc.leave_approver,
 		"leave_approver_name": doc.leave_approver_name,
 		"leave_approver_image": _get_user_image(doc.leave_approver),

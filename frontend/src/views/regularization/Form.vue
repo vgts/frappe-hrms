@@ -209,16 +209,25 @@ const employeeDocLoaded = computed(
 	() => !!props.id && !!regularization.value?.employee
 )
 
-// True when current user IS the employee who owns this request
-const isCurrentUserEmployee = computed(
-	() =>
-		employeeDocLoaded.value &&
-		sessionEmployee.data?.name === regularization.value.employee
-)
+// We can decide owner vs approver by User ID from server (name-only can mismatch in edge cases).
+const ownerContextReady = computed(() => {
+	if (!employeeDocLoaded.value) return false
+	if (sessionEmployee.data?.name === regularization.value.employee) return true
+	return approvalDetails?.data != null
+})
+
+// True when current user IS the employee who owns this request (prefer User ID from approval details)
+const isCurrentUserEmployee = computed(() => {
+	if (!employeeDocLoaded.value || !sessionEmployee.data) return false
+	const docOwnerUid = approvalDetails?.data?.employee_user_id
+	if (docOwnerUid) return sessionEmployee.data.user_id === docOwnerUid
+	return sessionEmployee.data.name === regularization.value.employee
+})
 
 // Primary leave approver can approve (covers both single and two-level flows)
 const isProjectReportingPending = computed(() => {
-	if (!props.id || !employeeDocLoaded.value || isCurrentUserEmployee.value) return false
+	if (!props.id || !employeeDocLoaded.value || !ownerContextReady.value) return false
+	if (isCurrentUserEmployee.value) return false
 	return (
 		regularization.value.status === "Open" &&
 		regularization.value.docstatus === 0 &&
@@ -230,7 +239,8 @@ const isProjectReportingPending = computed(() => {
 
 // Secondary approver can approve
 const isSecondaryApproverPending = computed(() => {
-	if (!props.id || !employeeDocLoaded.value || isCurrentUserEmployee.value) return false
+	if (!props.id || !employeeDocLoaded.value || !ownerContextReady.value) return false
+	if (isCurrentUserEmployee.value) return false
 	return (
 		regularization.value.custom_approval_stage === "Pending Secondary Reporting Approval" &&
 		sessionEmployee.data?.user_id === regularization.value.custom_secondary_leave_approver &&
@@ -240,7 +250,7 @@ const isSecondaryApproverPending = computed(() => {
 
 // Waiting message: forwarded to secondary (everyone except secondary approver, including applicant)
 const isPendingSecondaryByOther = computed(() => {
-	if (!props.id || !employeeDocLoaded.value) return false
+	if (!props.id || !employeeDocLoaded.value || !ownerContextReady.value) return false
 	return (
 		regularization.value.custom_approval_stage === "Pending Secondary Reporting Approval" &&
 		sessionEmployee.data?.user_id !== regularization.value.custom_secondary_leave_approver &&
@@ -264,7 +274,7 @@ const showApprovalActions = computed(() => {
 // - For existing: only if no approval actions AND user is not the employee
 const showFormButton = computed(() => {
 	if (!props.id) return true
-	if (!employeeDocLoaded.value) return false
+	if (!employeeDocLoaded.value || !ownerContextReady.value) return false
 	return !showApprovalActions.value && !isCurrentUserEmployee.value
 })
 
@@ -275,6 +285,7 @@ const showPrimaryRejectReason = ref(false)
 const primaryRejectReason = ref("")
 
 function handlePrimaryApprove() {
+	if (isCurrentUserEmployee.value) return
 	const hasSecondary = !!regularization.value.custom_secondary_leave_approver
 
 	if (hasSecondary) {
@@ -309,6 +320,7 @@ function handlePrimaryApprove() {
 }
 
 function handlePrimaryReject() {
+	if (isCurrentUserEmployee.value) return
 	if (!primaryRejectReason.value?.trim()) return
 	const hasSecondary = !!regularization.value.custom_secondary_leave_approver
 
@@ -331,6 +343,7 @@ function handlePrimaryReject() {
 }
 
 function handleSecondaryAction(action) {
+	if (isCurrentUserEmployee.value) return
 	const method = action === "approve"
 		? "hrms.hr.doctype.attendance_regularization.attendance_regularization.regularization_secondary_approve"
 		: "hrms.hr.doctype.attendance_regularization.attendance_regularization.regularization_secondary_reject"

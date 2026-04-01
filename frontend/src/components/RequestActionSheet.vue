@@ -437,15 +437,23 @@ const isLeaveWithSecondaryApprover = computed(() => {
 
 // Avoid showing approver actions to the document owner (writable `status` was treated as "approval" permission).
 const employeeDocLoaded = computed(() => !!document.doc?.employee)
-const isCurrentUserEmployee = computed(
-	() =>
-		employeeDocLoaded.value && employee.data?.name === document.doc?.employee
-)
+const ownerContextReady = computed(() => {
+	if (!employeeDocLoaded.value) return false
+	if (employee.data?.name === document.doc?.employee) return true
+	return approvalDetails?.data != null
+})
+const isCurrentUserEmployee = computed(() => {
+	if (!employeeDocLoaded.value || !employee.data) return false
+	const docOwnerUid = approvalDetails?.data?.employee_user_id
+	if (docOwnerUid) return employee.data.user_id === docOwnerUid
+	return employee.data.name === document.doc?.employee
+})
 
 const isSecondaryApproverPending = computed(() => {
 	return (
 		isLeaveWithSecondaryApprover.value &&
 		employeeDocLoaded.value &&
+		ownerContextReady.value &&
 		!isCurrentUserEmployee.value &&
 		document.doc?.custom_approval_stage === "Pending Secondary Reporting Approval" &&
 		employee.data?.user_id === document.doc?.custom_secondary_leave_approver &&
@@ -457,6 +465,7 @@ const isProjectReportingPending = computed(() => {
 	return (
 		isLeaveWithSecondaryApprover.value &&
 		employeeDocLoaded.value &&
+		ownerContextReady.value &&
 		!isCurrentUserEmployee.value &&
 		document.doc?.custom_approval_stage === "Pending Project Reporting Approval" &&
 		document.doc?.status === "Open" &&
@@ -469,6 +478,7 @@ const isPendingSecondaryByOther = computed(() => {
 	return (
 		isLeaveWithSecondaryApprover.value &&
 		employeeDocLoaded.value &&
+		ownerContextReady.value &&
 		document.doc?.custom_approval_stage === "Pending Secondary Reporting Approval" &&
 		employee.data?.user_id !== document.doc?.custom_secondary_leave_approver &&
 		document.doc?.docstatus === 0
