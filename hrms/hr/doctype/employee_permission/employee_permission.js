@@ -206,76 +206,16 @@ function hrms_perm_show_approval_stage_tracker(frm) {
 }
 
 function hrms_perm_handle_secondary_approval(frm) {
-	if (frm.doc.docstatus !== 0 || !frm.doc.custom_secondary_leave_approver) return;
+	if (frm.doc.docstatus !== 0) return;
 
+	const hasSecondary = !!frm.doc.custom_secondary_leave_approver;
 	const isSecondary =
 		frappe.session.user === frm.doc.custom_secondary_leave_approver;
 	const stage = frm.doc.custom_approval_stage;
-
-	// Hide submit for leave approver when pending secondary
-	if (stage === "Pending Secondary Reporting Approval" && !isSecondary) {
-		frm.page.btn_primary.hide();
-		frm.disable_save();
-	}
-
-	// Hide submit when approved but not yet forwarded
-	if (frm.doc.status === "Approved" && !isSecondary && stage !== "Approved") {
-		frm.page.btn_primary.hide();
-	}
-
-	// Show reject button for project reporting (primary leave approver)
 	const isPrimaryApprover = frappe.session.user === frm.doc.leave_approver;
-	if (stage === "Pending Project Reporting Approval" && isPrimaryApprover) {
-		frm.add_custom_button(
-			__("Reject"),
-			() => {
-				let d = new frappe.ui.Dialog({
-					title: __("Reject Permission Request"),
-					fields: [
-						{
-							fieldname: "reason",
-							fieldtype: "Small Text",
-							label: __("Reason for Rejection"),
-							reqd: 1,
-						},
-					],
-					primary_action_label: __("Reject"),
-					primary_action(values) {
-						d.hide();
-						frappe.call({
-							method: "hrms.hr.doctype.employee_permission.employee_permission.permission_project_reporting_reject",
-							args: {
-								employee_permission: frm.doc.name,
-								reason: values.reason,
-							},
-							freeze: true,
-							freeze_message: __("Rejecting..."),
-							callback(r) {
-								if (r.message && r.message.status === "success") {
-									frappe.show_alert({
-										message: r.message.message,
-										indicator: "red",
-									});
-									frm.reload_doc();
-								}
-							},
-						});
-					},
-				});
-				d.show();
-			},
-			__("Leave Approver"),
-		);
 
-		frm.change_custom_button_type(
-			__("Reject"),
-			__("Leave Approver"),
-			"danger",
-		);
-	}
-
-	// Show approve/reject buttons for secondary approver
-	if (stage === "Pending Secondary Reporting Approval" && isSecondary) {
+	// --- Secondary approver: final approval ---
+	if (hasSecondary && stage === "Pending Secondary Reporting Approval" && isSecondary) {
 		frm.page.btn_primary.hide();
 
 		frm.dashboard.set_headline(
@@ -360,5 +300,175 @@ function hrms_perm_handle_secondary_approval(frm) {
 			__("Secondary Approver"),
 			"danger",
 		);
+		return;
+	}
+
+	// Hide submit for two-level flows (waiting on secondary or forwarding)
+	if (hasSecondary) {
+		if (stage === "Pending Secondary Reporting Approval" && !isSecondary) {
+			frm.page.btn_primary.hide();
+			frm.disable_save();
+		}
+		if (frm.doc.status === "Approved" && !isSecondary && stage !== "Approved") {
+			frm.page.btn_primary.hide();
+		}
+	}
+
+	// Two-level: primary leave approver — approve (forward) + reject with reason
+	if (hasSecondary && stage === "Pending Project Reporting Approval" && isPrimaryApprover) {
+		frm.add_custom_button(
+			__("Approve"),
+			() => {
+				frappe.confirm(
+					__("Approve and forward to secondary approver?"),
+					() => {
+						frappe.call({
+							method: "frappe.client.set_value",
+							args: {
+								doctype: "Employee Permission",
+								name: frm.doc.name,
+								fieldname: "status",
+								value: "Approved",
+							},
+							freeze: true,
+							freeze_message: __("Approving..."),
+							callback(r) {
+								if (!r.exc) {
+									frappe.show_alert({
+										message: __("Forwarded for secondary approval"),
+										indicator: "blue",
+									});
+									frm.reload_doc();
+								}
+							},
+						});
+					},
+				);
+			},
+			__("Leave Approver"),
+		);
+
+		frm.add_custom_button(
+			__("Reject"),
+			() => {
+				let d = new frappe.ui.Dialog({
+					title: __("Reject Permission Request"),
+					fields: [
+						{
+							fieldname: "reason",
+							fieldtype: "Small Text",
+							label: __("Reason for Rejection"),
+							reqd: 1,
+						},
+					],
+					primary_action_label: __("Reject"),
+					primary_action(values) {
+						d.hide();
+						frappe.call({
+							method: "hrms.hr.doctype.employee_permission.employee_permission.permission_project_reporting_reject",
+							args: {
+								employee_permission: frm.doc.name,
+								reason: values.reason,
+							},
+							freeze: true,
+							freeze_message: __("Rejecting..."),
+							callback(r) {
+								if (r.message && r.message.status === "success") {
+									frappe.show_alert({
+										message: r.message.message,
+										indicator: "red",
+									});
+									frm.reload_doc();
+								}
+							},
+						});
+					},
+				});
+				d.show();
+			},
+			__("Leave Approver"),
+		);
+
+		frm.change_custom_button_type(__("Approve"), __("Leave Approver"), "primary");
+		frm.change_custom_button_type(__("Reject"), __("Leave Approver"), "danger");
+		return;
+	}
+
+	// Single-level: primary leave approver — approve & submit + reject with reason
+	if (!hasSecondary && isPrimaryApprover && frm.doc.status === "Open") {
+		frm.add_custom_button(
+			__("Approve & Submit"),
+			() => {
+				frappe.confirm(
+					__("Approve and submit this Permission Request?"),
+					() => {
+						frappe.call({
+							method: "hrms.hr.doctype.employee_permission.employee_permission.permission_primary_approve_submit",
+							args: { employee_permission: frm.doc.name },
+							freeze: true,
+							freeze_message: __("Approving..."),
+							callback(r) {
+								if (r.message && r.message.status === "success") {
+									frappe.show_alert({
+										message: r.message.message,
+										indicator: "green",
+									});
+									frm.reload_doc();
+								}
+							},
+						});
+					},
+				);
+			},
+			__("Leave Approver"),
+		);
+
+		frm.add_custom_button(
+			__("Reject"),
+			() => {
+				let d = new frappe.ui.Dialog({
+					title: __("Reject Permission Request"),
+					fields: [
+						{
+							fieldname: "reason",
+							fieldtype: "Small Text",
+							label: __("Reason for Rejection"),
+							reqd: 1,
+						},
+					],
+					primary_action_label: __("Reject"),
+					primary_action(values) {
+						d.hide();
+						frappe.call({
+							method: "hrms.hr.doctype.employee_permission.employee_permission.permission_primary_reject_submit",
+							args: {
+								employee_permission: frm.doc.name,
+								reason: values.reason,
+							},
+							freeze: true,
+							freeze_message: __("Rejecting..."),
+							callback(r) {
+								if (r.message && r.message.status === "success") {
+									frappe.show_alert({
+										message: r.message.message,
+										indicator: "red",
+									});
+									frm.reload_doc();
+								}
+							},
+						});
+					},
+				});
+				d.show();
+			},
+			__("Leave Approver"),
+		);
+
+		frm.change_custom_button_type(
+			__("Approve & Submit"),
+			__("Leave Approver"),
+			"primary",
+		);
+		frm.change_custom_button_type(__("Reject"), __("Leave Approver"), "danger");
 	}
 }
