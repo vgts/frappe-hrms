@@ -18,7 +18,8 @@
   "section_break_5",
   "from_date",
   "to_date",
-  "half_day",
+  "custom_first_half",
+  "custom_second_half",
   "half_day_date",
   "total_leave_days",
   "column_break1",
@@ -125,7 +126,8 @@
    "default": "0",
    "fieldname": "half_day",
    "fieldtype": "Check",
-   "label": "Half Day"
+   "label": "Half Day",
+   "hidden": 1
   },
   {
    "depends_on": "eval:doc.half_day && doc.from_date && doc.to_date && (doc.from_date != doc.to_date)",
@@ -134,15 +136,15 @@
    "label": "Half Day Date"
   },
   {
-   "default": "1",
-   "depends_on": "eval:doc.half_day",
+   "default": "0",
+   "depends_on": "eval:doc.from_date && doc.to_date",
    "fieldname": "custom_first_half",
    "fieldtype": "Check",
    "label": "First Half"
   },
   {
    "default": "0",
-   "depends_on": "eval:doc.half_day",
+   "depends_on": "eval:doc.from_date && doc.to_date",
    "fieldname": "custom_second_half",
    "fieldtype": "Check",
    "label": "Second Half"

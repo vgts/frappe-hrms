@@ -38,28 +38,28 @@ frappe.ui.form.on("Leave Application", {
 	},
 
 	validate: function (frm) {
+		const first = cint(frm.doc.custom_first_half);
+		const second = cint(frm.doc.custom_second_half);
+		const hasHalfSelection = first || second;
+
+		// Ensure only one half-day session checkbox is selected.
+		if (first && second) {
+			frm.set_value("custom_second_half", 0);
+		}
+		// Backwards-compatibility: if someone has `half_day=1` but no session stored, default to first.
+		if (cint(frm.doc.half_day) && !hasHalfSelection) {
+			frm.set_value("custom_first_half", 1);
+		}
+
+		// Drive the hidden `half_day` from session checkboxes.
+		frm.set_value("half_day", hasHalfSelection ? 1 : 0);
+
 		if (frm.doc.from_date === frm.doc.to_date && cint(frm.doc.half_day)) {
 			frm.doc.half_day_date = frm.doc.from_date;
 		} else if (frm.doc.half_day === 0) {
 			frm.doc.half_day_date = "";
 		}
 		frm.toggle_reqd("half_day_date", cint(frm.doc.half_day));
-
-		// Ensure only one half-day session checkbox is selected.
-		// Default to first half for backwards compatibility.
-		if (cint(frm.doc.half_day)) {
-			const first = cint(frm.doc.custom_first_half);
-			const second = cint(frm.doc.custom_second_half);
-			if (!first && !second) {
-				frm.set_value("custom_first_half", 1);
-			}
-			if (first && second) {
-				frm.set_value("custom_second_half", 0);
-			}
-		} else {
-			if (cint(frm.doc.custom_first_half)) frm.set_value("custom_first_half", 0);
-			if (cint(frm.doc.custom_second_half)) frm.set_value("custom_second_half", 0);
-		}
 	},
 
 	make_dashboard: function (frm) {
@@ -125,8 +125,6 @@ frappe.ui.form.on("Leave Application", {
 		}
 		frm.trigger("set_form_buttons");
 
-		hrms_toggle_half_day_session(frm);
-
 		// Make fields read-only for approvers (they can only approve/reject, not edit)
 		hrms_set_approver_readonly(frm);
 
@@ -176,20 +174,28 @@ frappe.ui.form.on("Leave Application", {
 			frm.set_value("half_day_date", "");
 		}
 		frm.trigger("calculate_total_days");
-
-		hrms_toggle_half_day_session(frm);
 	},
 
 	custom_first_half: function (frm) {
 		if (frm.doc.custom_first_half) {
 			frm.set_value("custom_second_half", 0);
+			frm.set_value("half_day", 1);
 		}
+		if (!cint(frm.doc.custom_first_half) && !cint(frm.doc.custom_second_half)) {
+			frm.set_value("half_day", 0);
+		}
+		frm.trigger("calculate_total_days");
 	},
 
 	custom_second_half: function (frm) {
 		if (frm.doc.custom_second_half) {
 			frm.set_value("custom_first_half", 0);
+			frm.set_value("half_day", 1);
 		}
+		if (!cint(frm.doc.custom_first_half) && !cint(frm.doc.custom_second_half)) {
+			frm.set_value("half_day", 0);
+		}
+		frm.trigger("calculate_total_days");
 	},
 
 	from_date: function (frm) {

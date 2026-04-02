@@ -860,20 +860,29 @@ def get_attendance_status_for_detailed_view(
 			if status is None and d.weekday() >= 5:
 				status = "Weekly Off"
 
-			# Add pending leave from draft/open Leave Applications only when attendance is not marked.
-			# This ensures `P` from real check-ins is not overridden by pending leave.
+			# Add pending leave from draft/open Leave Applications.
+			# Rules:
+			# - Full-day pending leave should only apply when attendance is NOT marked yet.
+			# - Half-day pending leave should keep showing leave+P/P+leave even if attendance was later
+			#   marked (e.g. employee checked in for the working half).
 			pending_leave_type = ""
-			if status is None:
-				pending = pending_leave_map.get((employee, d))
-				if pending:
-					status = pending.get("status")
-					pending_leave_type = pending.get("leave_type") or ""
+			pending = pending_leave_map.get((employee, d)) if pending_leave_map else None
+			if pending:
+				pending_status = pending.get("status")
+				pending_leave_type = pending.get("leave_type") or ""
+
+				if status is None:
+					status = pending_status
+				elif pending_status and pending_status.startswith("Half Day/") and status not in ("Holiday", "Weekly Off"):
+					status = pending_status
 
 			# Resolve abbreviation
 			perm = permission_map.get((employee, d))
 			if status == "On Leave":
 				lt = leave_type_map.get((employee, d), "") or pending_leave_type
-				abbr = LEAVE_SHORT_CODES.get(lt, "L")
+				# Prefer showing the actual leave_type code/name.
+				# Use MO/LWP for those special types; for others show `leave_type` instead of generic `L`.
+				abbr = LEAVE_SHORT_CODES.get(lt, lt or "L")
 			elif status in ("Half Day/Other Half Present", "Half Day/Other Half Absent"):
 				# We intentionally avoid showing "HD/..." in the sheet.
 				# Desired format:
