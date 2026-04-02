@@ -23,8 +23,10 @@ Filters = frappe._dict
 status_map = {
 	"Present": "P",
 	"Absent": "A",
-	"Half Day/Other Half Absent": "HD/A",
-	"Half Day/Other Half Present": "HD/P",
+	# For half-day we intentionally don't show `HD/*` in the report anymore.
+	# Output format now becomes either `P/<leave_or_permission>` or `<leave_or_permission>/P`.
+	"Half Day/Other Half Absent": "P/<type>",
+	"Half Day/Other Half Present": "<type>/P",
 	"Work From Home": "WFH",
 	"On Leave": "L",
 	"Holiday": "H",
@@ -106,8 +108,10 @@ def get_message() -> str:
 	extra_legends = [
 		("Monthly Off", "MO", "#F59E0B"),
 		("Leave Without Pay", "LWP", "#EF4444"),
-		("Half Day + Leave", "0.5P/0.5 &lt;type&gt;", "#914EE3"),
-		("Half Day + Permission", "0.5P/&lt;n&gt;PM", "#06B6D4"),
+		("Half Day + Leave (Other half absent)", "P/<type>", "#914EE3"),
+		("Half Day + Leave (Other half present)", "<type>/P", "#914EE3"),
+		("Half Day + Permission (Other half absent)", "P/<n>PM", "#06B6D4"),
+		("Half Day + Permission (Other half present)", "<n>PM/P", "#06B6D4"),
 		("Present + Permission", "P/&lt;n&gt;PM", "#06B6D4"),
 	]
 	for status, abbr, color in extra_legends:
