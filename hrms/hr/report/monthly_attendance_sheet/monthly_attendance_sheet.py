@@ -65,9 +65,10 @@ def execute(filters: Filters | None = None) -> tuple:
 			filters.companies.extend(get_descendants_of("Company", filters.company))
 
 	attendance_map, leave_type_map = get_attendance_map(filters)
+	pending_leave_map = get_pending_leave_applications(filters)
 
 	columns = get_columns(filters)
-	data = get_data(filters, attendance_map, leave_type_map)
+	data = get_data(filters, attendance_map, leave_type_map, pending_leave_map)
 
 	if not data:
 		frappe.msgprint(_("No employees found for this criteria."), alert=True, indicator="orange")
@@ -250,7 +251,12 @@ def get_date_condition(docfield: Field, filters: Filters) -> Criterion:
 		return (docfield >= filters.start_date) & (docfield <= filters.end_date)
 
 
-def get_data(filters: Filters, attendance_map: dict, leave_type_map: dict = None) -> list[dict]:
+def get_data(
+	filters: Filters,
+	attendance_map: dict,
+	leave_type_map: dict = None,
+	pending_leave_map: dict = None,
+) -> list[dict]:
 	employee_details, group_by_param_values = get_employee_related_details(filters)
 	holiday_map = get_holiday_map(filters)
 	permission_map = get_permission_map(filters)
@@ -265,15 +271,23 @@ def get_data(filters: Filters, attendance_map: dict, leave_type_map: dict = None
 				continue
 
 			records = get_rows(employee_details[value], filters, holiday_map, attendance_map,
-			                   leave_type_map, permission_map, checkin_map)
+			                   leave_type_map, permission_map, checkin_map, pending_leave_map)
 
 			if records:
 				data.append({group_by_column: value})
 				data.extend(records)
 
 	else:
-		data = get_rows(employee_details, filters, holiday_map, attendance_map,
-		                leave_type_map, permission_map, checkin_map)
+		data = get_rows(
+			employee_details,
+			filters,
+			holiday_map,
+			attendance_map,
+			leave_type_map,
+			permission_map,
+			checkin_map,
+			pending_leave_map,
+		)
 
 	return data
 
@@ -557,8 +571,90 @@ def get_permission_map(filters: Filters) -> dict:
 	return perm_map
 
 
+def get_pending_leave_applications(filters: Filters) -> dict:
+	"""
+	Build a map for draft/open leave applications so Monthly Attendance Sheet can show
+	leave codes immediately (before Leave Application is approved / Attendance is created).
+
+	Returns:
+	    {(employee, attendance_date): {"status": <MonthlySheetStatus>, "leave_type": <Leave Type>}}
+	"""
+	if not filters.company:
+		return {}
+
+	# Determine report window
+	if filters.filter_based_on == "Month":
+		start_date = date(cint(filters.year), cint(filters.month), 1)
+		end_date = date(cint(filters.year), cint(filters.month), get_total_days_in_month(filters))
+	else:
+		start_date = getdate(filters.start_date)
+		end_date = getdate(filters.end_date)
+
+	LeaveApplication = frappe.qb.DocType("Leave Application")
+
+	try:
+		pending_rows = (
+			frappe.qb.from_(LeaveApplication)
+			.select(
+				LeaveApplication.employee,
+				LeaveApplication.leave_type,
+				LeaveApplication.from_date,
+				LeaveApplication.to_date,
+				LeaveApplication.half_day,
+				LeaveApplication.half_day_date,
+				LeaveApplication.custom_first_half,
+				LeaveApplication.custom_second_half,
+			)
+			.where(
+				(LeaveApplication.company.isin(filters.companies))
+				& (LeaveApplication.status == "Open")
+				& (LeaveApplication.docstatus == 0)
+				& (LeaveApplication.from_date <= end_date)
+				& (LeaveApplication.to_date >= start_date)
+			)
+		).run(as_dict=True)
+	except Exception:
+		# If custom half-day session fields are not present in DB yet,
+		# do not block the report entirely.
+		return {}
+
+	pending_leave_map = {}
+
+	for la in pending_rows:
+		employee = la.get("employee")
+		leave_type = la.get("leave_type") or ""
+		if not employee or not la.get("from_date") or not la.get("to_date"):
+			continue
+
+		# Only iterate the overlap with the report window
+		overlap_start = max(getdate(la.from_date), start_date)
+		overlap_end = min(getdate(la.to_date), end_date)
+		if overlap_start > overlap_end:
+			continue
+
+		half_day = cint(la.get("half_day"))
+		half_day_date = getdate(la.get("half_day_date")) if la.get("half_day_date") else None
+		is_second_half = bool(cint(la.get("custom_second_half")))
+
+		for d_str in get_date_range(str(overlap_start), str(overlap_end)):
+			d = getdate(d_str)
+
+			if half_day and half_day_date and getdate(d) == half_day_date:
+				# Match Monthly Attendance Sheet expected status mapping
+				status_label = (
+					"Half Day/Other Half Absent" if is_second_half else "Half Day/Other Half Present"
+				)
+			else:
+				status_label = "On Leave"
+
+			pending_leave_map[(employee, d)] = {"status": status_label, "leave_type": leave_type}
+
+	return pending_leave_map
+
+
 def get_rows(employee_details: dict, filters: Filters, holiday_map: dict, attendance_map: dict,
-             leave_type_map: dict = None, permission_map: dict = None, checkin_map: dict = None) -> list[dict]:
+             leave_type_map: dict = None, permission_map: dict = None, checkin_map: dict = None,
+             pending_leave_map: dict = None) -> list[dict]:
 	records = []
 	default_holiday_list = frappe.get_cached_value("Company", filters.company, "default_holiday_list")
 	checkin_map = checkin_map or {}
@@ -591,8 +687,14 @@ def get_rows(employee_details: dict, filters: Filters, holiday_map: dict, attend
 			employee_attendance = attendance_map.get(employee) or {"": {}}
 
 			attendance_for_employee = get_attendance_status_for_detailed_view(
-				employee, filters, employee_attendance, holidays,
-				leave_type_map, permission_map, checkin_map,
+				employee,
+				filters,
+				employee_attendance,
+				holidays,
+				leave_type_map,
+				permission_map,
+				checkin_map,
+				pending_leave_map,
 			)
 			# set employee details in the first row
 			for record in attendance_for_employee:
@@ -724,6 +826,7 @@ def _is_second_half_permission(from_time) -> bool:
 def get_attendance_status_for_detailed_view(
 	employee: str, filters: Filters, employee_attendance: dict, holidays: list,
 	leave_type_map: dict = None, permission_map: dict = None, checkin_map: dict = None,
+	pending_leave_map: dict = None,
 ) -> list[dict]:
 	"""Returns list of shift-wise attendance status for employee
 	[
@@ -736,6 +839,7 @@ def get_attendance_status_for_detailed_view(
 	leave_type_map = leave_type_map or {}
 	permission_map = permission_map or {}
 	checkin_map = checkin_map or {}
+	pending_leave_map = pending_leave_map or {}
 	today_date = date.today()
 
 	for shift, status_dict in employee_attendance.items():
@@ -752,17 +856,26 @@ def get_attendance_status_for_detailed_view(
 			if status is None and d.weekday() >= 5:
 				status = "Weekly Off"
 
+			# Add pending leave from draft/open Leave Applications only when attendance is not marked.
+			# This ensures `P` from real check-ins is not overridden by pending leave.
+			pending_leave_type = ""
+			if status is None:
+				pending = pending_leave_map.get((employee, d))
+				if pending:
+					status = pending.get("status")
+					pending_leave_type = pending.get("leave_type") or ""
+
 			# Resolve abbreviation
 			perm = permission_map.get((employee, d))
 			if status == "On Leave":
-				lt = leave_type_map.get((employee, d), "")
+				lt = leave_type_map.get((employee, d), "") or pending_leave_type
 				abbr = LEAVE_SHORT_CODES.get(lt, "L")
 			elif status in ("Half Day/Other Half Present", "Half Day/Other Half Absent"):
 				# We intentionally avoid showing "HD/..." in the sheet.
 				# Desired format:
 				# - HD/A (Half Day/Other Half Absent): P/<leave_or_permission>
 				# - HD/P (Half Day/Other Half Present): <leave_or_permission>/P
-				lt = leave_type_map.get((employee, d), "")
+				lt = leave_type_map.get((employee, d), "") or pending_leave_type
 				lt_abbr = LEAVE_SHORT_CODES.get(lt, lt) if lt else ""
 
 				perm_code = (
