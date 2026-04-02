@@ -79,6 +79,7 @@ class LeaveApplication(Document, PWANotificationsMixin):
 		set_employee_name(self)
 		self.validate_approver_cannot_edit_content()
 		self.validate_dates()
+		self.sync_half_day_from_custom_fields()
 		self.validate_balance_leaves()
 		self.validate_leave_overlap()
 		self.validate_max_days()
@@ -754,6 +755,25 @@ class LeaveApplication(Document, PWANotificationsMixin):
 					_("{0} is not in Optional Holiday List").format(formatdate(day)), NotAnOptionalHoliday
 				)
 			day = add_days(day, 1)
+
+	def sync_half_day_from_custom_fields(self):
+		"""Derive half_day and half_day_date from custom_first_half / custom_second_half checkboxes.
+
+		Rules:
+		  - First Half OR Second Half checked  → half_day = 1 → total_leave_days = 0.5
+		  - Neither checked                    → half_day = 0 → total_leave_days = 1 (full day)
+
+		This must run before validate_balance_leaves() so the deduction is always correct.
+		"""
+		if cint(self.custom_first_half) or cint(self.custom_second_half):
+			self.half_day = 1
+			# For single-day leaves, set half_day_date immediately so
+			# get_number_of_leave_days returns 0.5 reliably.
+			if self.from_date and self.to_date and self.from_date == self.to_date:
+				self.half_day_date = self.from_date
+		else:
+			self.half_day = 0
+			self.half_day_date = None
 
 	def set_half_day_date(self):
 		if self.from_date == self.to_date and self.half_day == 1:
