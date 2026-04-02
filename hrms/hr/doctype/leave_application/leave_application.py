@@ -418,11 +418,16 @@ class LeaveApplication(Document, PWANotificationsMixin):
 		status = (
 			"Half Day" if self.half_day_date and getdate(date) == getdate(self.half_day_date) else "On Leave"
 		)
+		# For half-day leaves, the user selects which half is taken as leave:
+		# - First Half: other half is present  -> monthly shows "<leave>/P"
+		# - Second Half: other half is absent -> monthly shows "P/<leave>"
+		# Monthly Attendance Sheet relies on Attendance.half_day_status to decide the output order.
+		is_second_half = bool(getattr(self, "custom_second_half", 0))
 
 		if attendance_name:
 			# update existing attendance, change absent to on leave or half day
 			doc = frappe.get_doc("Attendance", attendance_name)
-			half_day_status = None if status == "On Leave" else "Present"
+			half_day_status = None if status == "On Leave" else ("Absent" if is_second_half else "Present")
 			modify_half_day_status = 1 if doc.status == "Absent" and status == "Half Day" else 0
 			doc.db_set(
 				{
@@ -443,7 +448,7 @@ class LeaveApplication(Document, PWANotificationsMixin):
 			doc.leave_type = self.leave_type
 			doc.leave_application = self.name
 			doc.status = status
-			doc.half_day_status = "Present" if status == "Half Day" else None
+			doc.half_day_status = "Absent" if (status == "Half Day" and is_second_half) else ("Present" if status == "Half Day" else None)
 			doc.modify_half_day_status = 1 if status == "Half Day" else 0
 			doc.flags.ignore_validate = True  # ignores check leave record validation in attendance
 			doc.insert(ignore_permissions=True)

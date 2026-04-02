@@ -44,6 +44,22 @@ frappe.ui.form.on("Leave Application", {
 			frm.doc.half_day_date = "";
 		}
 		frm.toggle_reqd("half_day_date", cint(frm.doc.half_day));
+
+		// Ensure only one half-day session checkbox is selected.
+		// Default to first half for backwards compatibility.
+		if (cint(frm.doc.half_day)) {
+			const first = cint(frm.doc.custom_first_half);
+			const second = cint(frm.doc.custom_second_half);
+			if (!first && !second) {
+				frm.set_value("custom_first_half", 1);
+			}
+			if (first && second) {
+				frm.set_value("custom_second_half", 0);
+			}
+		} else {
+			if (cint(frm.doc.custom_first_half)) frm.set_value("custom_first_half", 0);
+			if (cint(frm.doc.custom_second_half)) frm.set_value("custom_second_half", 0);
+		}
 	},
 
 	make_dashboard: function (frm) {
@@ -109,6 +125,8 @@ frappe.ui.form.on("Leave Application", {
 		}
 		frm.trigger("set_form_buttons");
 
+		hrms_toggle_half_day_session(frm);
+
 		// Make fields read-only for approvers (they can only approve/reject, not edit)
 		hrms_set_approver_readonly(frm);
 
@@ -158,6 +176,20 @@ frappe.ui.form.on("Leave Application", {
 			frm.set_value("half_day_date", "");
 		}
 		frm.trigger("calculate_total_days");
+
+		hrms_toggle_half_day_session(frm);
+	},
+
+	custom_first_half: function (frm) {
+		if (frm.doc.custom_first_half) {
+			frm.set_value("custom_second_half", 0);
+		}
+	},
+
+	custom_second_half: function (frm) {
+		if (frm.doc.custom_second_half) {
+			frm.set_value("custom_first_half", 0);
+		}
 	},
 
 	from_date: function (frm) {
@@ -303,6 +335,23 @@ frappe.ui.form.on("Leave Application", {
 		frm.trigger("get_leave_balance");
 	},
 });
+
+function hrms_toggle_half_day_session(frm) {
+	const show = cint(frm.doc.half_day);
+	frm.toggle_display("custom_first_half", show);
+	frm.toggle_display("custom_second_half", show);
+
+	if (show) {
+		// If user enabled half-day and didn't choose a session yet, default to first half.
+		if (!cint(frm.doc.custom_first_half) && !cint(frm.doc.custom_second_half)) {
+			frm.set_value("custom_first_half", 1);
+		}
+	} else {
+		// Clean values when half-day is off.
+		if (cint(frm.doc.custom_first_half)) frm.set_value("custom_first_half", 0);
+		if (cint(frm.doc.custom_second_half)) frm.set_value("custom_second_half", 0);
+	}
+}
 
 // ---------------------------------------------------------------------------
 // Hide approval section when no secondary approver is configured

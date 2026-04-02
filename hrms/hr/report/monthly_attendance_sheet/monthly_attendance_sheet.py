@@ -758,14 +758,25 @@ def get_attendance_status_for_detailed_view(
 				lt = leave_type_map.get((employee, d), "")
 				abbr = LEAVE_SHORT_CODES.get(lt, "L")
 			elif status in ("Half Day/Other Half Present", "Half Day/Other Half Absent"):
+				# We intentionally avoid showing "HD/..." in the sheet.
+				# Desired format:
+				# - HD/A (Half Day/Other Half Absent): P/<leave_or_permission>
+				# - HD/P (Half Day/Other Half Present): <leave_or_permission>/P
 				lt = leave_type_map.get((employee, d), "")
-				if lt:
-					lt_abbr = LEAVE_SHORT_CODES.get(lt, lt)
-					abbr = f"0.5P/0.5 {lt_abbr}"
-				elif perm:
-					abbr = f"0.5P/{_fmt_perm_duration(perm.get('from_time'), perm.get('to_time'))}"
+				lt_abbr = LEAVE_SHORT_CODES.get(lt, lt) if lt else ""
+
+				perm_code = (
+					_fmt_perm_duration(perm.get("from_time"), perm.get("to_time")) if perm else ""
+				)
+
+				if status == "Half Day/Other Half Absent":
+					# Present half, other half absent.
+					absent_code = lt_abbr or perm_code or "A"
+					abbr = f"P/{absent_code}"
 				else:
-					abbr = status_map.get(status, "")
+					# Absent half, other half present.
+					absent_code = lt_abbr or perm_code or "A"
+					abbr = f"{absent_code}/P"
 			elif d == today_date:
 				# Today: holiday/weekly-off take priority, then check-in, then status, then pending
 				if status in ("Holiday", "Weekly Off"):
