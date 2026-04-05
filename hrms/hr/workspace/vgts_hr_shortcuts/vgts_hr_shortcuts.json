@@ -1,0 +1,94 @@
+{
+ "app": "hrms",
+ "charts": [],
+ "content": "[{\"id\":\"vgts-hr-shortcuts-h1\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>VGTS HR quick access</b></span>\",\"col\":12}}]",
+ "creation": "2026-04-05 12:00:00.000000",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "bolt",
+ "idx": 0,
+ "is_hidden": 0,
+ "label": "VGTS HR Shortcuts",
+ "links": [],
+ "modified": "2026-04-05 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "VGTS HR Shortcuts",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [],
+ "sequence_id": 0.5,
+ "shortcuts": [
+  {
+   "label": "Monthly Attendance Sheet",
+   "link_to": "Monthly Attendance Sheet",
+   "type": "Report"
+  },
+  {
+   "label": "Leave Application",
+   "link_to": "Leave Application",
+   "type": "DocType"
+  },
+  {
+   "label": "Employee Checkin",
+   "link_to": "Employee Checkin",
+   "type": "DocType"
+  },
+  {
+   "label": "Shift & Attendance",
+   "type": "URL",
+   "url": "/app/shift-&-attendance"
+  },
+  {
+   "doc_view": "New",
+   "label": "New Attendance Regularization",
+   "link_to": "Attendance Regularization",
+   "type": "DocType"
+  },
+  {
+   "label": "Mark attendance (Present default)",
+   "link_to": "Employee Attendance Tool",
+   "type": "DocType"
+  },
+  {
+   "label": "Employee",
+   "link_to": "Employee",
+   "type": "DocType"
+  },
+  {
+   "label": "Department",
+   "link_to": "Department",
+   "type": "DocType"
+  },
+  {
+   "label": "Organizational Chart",
+   "link_to": "organizational-chart",
+   "type": "Page"
+  },
+  {
+   "doc_view": "New",
+   "label": "Request Permission",
+   "link_to": "Employee Permission",
+   "type": "DocType"
+  },
+  {
+   "label": "Compensatory Leave Request",
+   "link_to": "Compensatory Leave Request",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "New",
+   "label": "Attendance Request",
+   "link_to": "Attendance Request",
+   "type": "DocType"
+  }
+ ],
+ "title": "VGTS HR Shortcuts",
+ "type": "Workspace"
+}
