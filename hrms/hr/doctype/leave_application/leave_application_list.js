@@ -2,14 +2,14 @@ frappe.listview_settings["Leave Application"] = {
 	add_fields: [
 		"leave_type",
 		"employee",
-		"employee_name",
 		"total_leave_days",
 		"from_date",
 		"to_date",
-		"custom_approval_stage",
 		"leave_approver",
 		"custom_secondary_leave_approver",
+		"custom_approval_stage",
 	],
+
 	has_indicator_for_draft: 1,
 
 	get_indicator: function (doc) {
@@ -24,6 +24,7 @@ frappe.listview_settings["Leave Application"] = {
 				"custom_approval_stage,=,Pending Secondary Reporting Approval",
 			];
 		}
+
 		const status_color = {
 			Approved: "green",
 			Rejected: "red",
@@ -32,290 +33,182 @@ frappe.listview_settings["Leave Application"] = {
 			Cancelled: "red",
 			Submitted: "blue",
 		};
+
 		const status =
-			!doc.docstatus && ["Approved", "Rejected"].includes(doc.status) ? "Draft" : doc.status;
+			!doc.docstatus && ["Approved", "Rejected"].includes(doc.status)
+				? "Draft"
+				: doc.status;
+
 		return [__(status), status_color[status], "status,=," + doc.status];
 	},
 
 	onload(listview) {
-		if (listview._hrms_la_action_delegation) return;
-		listview._hrms_la_action_delegation = true;
+		if (listview._custom_action_setup) return;
+		listview._custom_action_setup = true;
 
-		// ── REMOVE UNWANTED FILTERS ─────────────────────────────
+		// ✅ REMOVE unwanted filters
 		setTimeout(() => {
-			try {
-				const filters = listview.filter_area?.filter_list || [];
+			const filters = listview.filter_area?.filter_list || [];
 
-				let approvalStageRemoved = false;
+			filters.forEach((f) => {
+				if (
+					f.fieldname === "employee_name" ||
+					f.fieldname === "custom_approval_stage"
+				) {
+					f.remove();
+				}
+			});
+		}, 300);
 
-				filters.forEach((f) => {
-					// ❌ Remove Employee Name filter completely
-					if (f.fieldname === "employee_name") {
-						f.remove();
-					}
-
-					// ❌ Remove duplicate Approval Stage (keep only one)
-					if (f.fieldname === "custom_approval_stage") {
-						if (approvalStageRemoved) {
-							f.remove();
-						}
-						approvalStageRemoved = true;
-					}
-				});
-			} catch (e) {
-				console.log("Filter cleanup error:", e);
-			}
-		}, 500);
-
-		// ── Inject button styles ─────────────────────────────
-		if (!document.getElementById("la-list-action-styles")) {
+		// ✅ Inject styles
+		if (!document.getElementById("la-action-style")) {
 			const style = document.createElement("style");
-			style.id = "la-list-action-styles";
+			style.id = "la-action-style";
 			style.textContent = `
-				.la-action-wrap {
+				.la-actions {
 					display: flex;
-					flex-direction: column;
-					align-items: flex-start;
-					gap: 5px;
-				}
-				.la-action-label {
-					font-size: 10px;
-					font-weight: 700;
-					text-transform: uppercase;
-					letter-spacing: 0.6px;
-					color: var(--text-muted, #8d99a6);
-					margin-bottom: 1px;
-				}
-				.la-action-group {
-					display: inline-flex;
 					gap: 6px;
 					flex-wrap: wrap;
 				}
-				.la-action-btn {
-					display: inline-flex;
-					align-items: center;
-					gap: 4px;
-					padding: 3px 11px;
-					border-radius: 20px;
-					font-size: 11.5px;
-					font-weight: 600;
-					border: 1.5px solid;
+				.la-btn {
+					font-size: 11px;
+					padding: 3px 10px;
+					border-radius: 14px;
+					border: 1px solid;
 					cursor: pointer;
-					background: transparent;
-					transition: background 0.15s, color 0.15s;
-					white-space: nowrap;
-					line-height: 1.5;
-					outline: none;
 				}
-				.la-action-btn.la-approve {
+				.la-approve {
 					color: #1b5e20;
 					border-color: #2e7d32;
 				}
-				.la-action-btn.la-approve:hover {
-					background: #2e7d32;
-					color: #fff;
+				.la-approve:hover {
+					background:#2e7d32;
+					color:#fff;
 				}
-				.la-action-btn.la-reject {
+				.la-reject {
 					color: #b71c1c;
 					border-color: #c62828;
 				}
-				.la-action-btn.la-reject:hover {
-					background: #c62828;
-					color: #fff;
+				.la-reject:hover {
+					background:#c62828;
+					color:#fff;
 				}
 			`;
 			document.head.appendChild(style);
 		}
 
-		// ── Click delegation ─────────────────────────────
 		const refresh = () => listview.refresh();
 
-		listview.$result.on("click", ".la-list-approve-primary", function (e) {
+		// ✅ Primary approve
+		listview.$result.on("click", ".la-approve-primary", function (e) {
 			e.preventDefault();
 			e.stopPropagation();
+
 			const name = $(this).data("name");
 
-			frappe.confirm(__("Approve and forward to secondary approver?"), () => {
-				frappe.call({
-					method: "frappe.client.set_value",
-					args: {
-						doctype: "Leave Application",
-						name,
-						fieldname: "status",
-						value: "Approved",
-					},
-					freeze: true,
-					freeze_message: __("Approving..."),
-					callback(r) {
-						if (!r.exc) {
-							frappe.show_alert({
-								message: __("Forwarded for secondary approval"),
-								indicator: "blue",
-							});
-							refresh();
-						}
-					},
-				});
-			});
-		});
-
-		listview.$result.on("click", ".la-list-reject-primary", function (e) {
-			e.preventDefault();
-			e.stopPropagation();
-			const name = $(this).data("name");
-
-			const d = new frappe.ui.Dialog({
-				title: __("Reject Leave Application"),
-				fields: [
-					{
-						fieldname: "reason",
-						fieldtype: "Small Text",
-						label: __("Reason for Rejection"),
-						reqd: 1,
-					},
-				],
-				primary_action_label: __("Reject"),
-				primary_action(values) {
-					d.hide();
-					frappe.call({
-						method: "hrms.hr.doctype.leave_application.leave_application.project_reporting_reject",
-						args: { leave_application: name, reason: values.reason },
-						freeze: true,
-						freeze_message: __("Rejecting..."),
-						callback(r) {
-							if (r.message && r.message.status === "success") {
-								frappe.show_alert({
-									message: r.message.message,
-									indicator: "red",
-								});
-								refresh();
-							}
-						},
-					});
+			frappe.call({
+				method: "frappe.client.set_value",
+				args: {
+					doctype: "Leave Application",
+					name,
+					fieldname: "status",
+					value: "Approved",
 				},
-			});
-			d.show();
-		});
-
-		listview.$result.on("click", ".la-list-secondary-approve", function (e) {
-			e.preventDefault();
-			e.stopPropagation();
-			const name = $(this).data("name");
-
-			frappe.confirm(__("Approve and submit this Leave Application?"), () => {
-				frappe.call({
-					method: "hrms.hr.doctype.leave_application.leave_application.secondary_approve",
-					args: { leave_application: name },
-					freeze: true,
-					freeze_message: __("Approving..."),
-					callback(r) {
-						if (r.message && r.message.status === "success") {
-							frappe.show_alert({
-								message: r.message.message,
-								indicator: "green",
-							});
-							refresh();
-						}
-					},
-				});
+				callback: refresh,
 			});
 		});
 
-		listview.$result.on("click", ".la-list-secondary-reject", function (e) {
+		// ✅ Primary reject
+		listview.$result.on("click", ".la-reject-primary", function (e) {
 			e.preventDefault();
 			e.stopPropagation();
+
 			const name = $(this).data("name");
 
-			const d = new frappe.ui.Dialog({
-				title: __("Reject Leave Application"),
-				fields: [
-					{
-						fieldname: "reason",
-						fieldtype: "Small Text",
-						label: __("Reason for Rejection"),
-						reqd: 1,
-					},
-				],
-				primary_action_label: __("Reject"),
-				primary_action(values) {
-					d.hide();
-					frappe.call({
-						method: "hrms.hr.doctype.leave_application.leave_application.secondary_reject",
-						args: { leave_application: name, reason: values.reason },
-						freeze: true,
-						freeze_message: __("Rejecting..."),
-						callback(r) {
-							if (r.message && r.message.status === "success") {
-								frappe.show_alert({
-									message: r.message.message,
-									indicator: "red",
-								});
-								refresh();
-							}
-						},
-					});
-				},
+			frappe.call({
+				method: "hrms.hr.doctype.leave_application.leave_application.project_reporting_reject",
+				args: { leave_application: name },
+				callback: refresh,
 			});
-			d.show();
+		});
+
+		// ✅ Secondary approve
+		listview.$result.on("click", ".la-approve-secondary", function (e) {
+			e.preventDefault();
+			e.stopPropagation();
+
+			const name = $(this).data("name");
+
+			frappe.call({
+				method: "hrms.hr.doctype.leave_application.leave_application.secondary_approve",
+				args: { leave_application: name },
+				callback: refresh,
+			});
+		});
+
+		// ✅ Secondary reject
+		listview.$result.on("click", ".la-reject-secondary", function (e) {
+			e.preventDefault();
+			e.stopPropagation();
+
+			const name = $(this).data("name");
+
+			frappe.call({
+				method: "hrms.hr.doctype.leave_application.leave_application.secondary_reject",
+				args: { leave_application: name },
+				callback: refresh,
+			});
 		});
 	},
 
 	formatters: {
-		name(value, df, doc) {
-			const v = value || doc.name || "";
-			const esc = frappe.utils.escape_html;
-			const title = `${__(df.label || "ID")}: ${esc(v)}`;
-			const idLink = `<a class="filterable ellipsis" data-filter="name,=${esc(v)}">${esc(v)}</a>`;
+		// ✅ Keep ID column clean
+		name(value) {
+			return `<span class="ellipsis">${value}</span>`;
+		},
 
-			if (doc.docstatus !== 0) {
-				return `<span class="ellipsis" title="${title}">${idLink}</span>`;
-			}
-
+		// ✅ NEW ACTION COLUMN (IMPORTANT 🔥)
+		custom_approval_stage(value, df, doc) {
 			const user = frappe.session.user;
-			const hasSecondary = !!doc.custom_secondary_leave_approver;
-			const stage = doc.custom_approval_stage;
+
+			const isPrimary = user === doc.leave_approver;
 			const isSecondary = user === doc.custom_secondary_leave_approver;
-			const isPrimaryApprover = user === doc.leave_approver;
 
-			let btns = "";
+			let buttons = "";
 
-			if (hasSecondary && stage === "Pending Secondary Reporting Approval" && isSecondary) {
-				btns = `
-					<div class="la-action-wrap">
-						<span class="la-action-label">${__("Actions")}</span>
-						<span class="la-action-group">
-							<button class="la-action-btn la-approve la-list-secondary-approve" data-name="${esc(doc.name)}">
-								✓ ${__("Approve & Submit")}
-							</button>
-							<button class="la-action-btn la-reject la-list-secondary-reject" data-name="${esc(doc.name)}">
-								✗ ${__("Reject")}
-							</button>
-						</span>
-					</div>`;
-			} else if (hasSecondary && stage === "Pending Project Reporting Approval" && isPrimaryApprover) {
-				btns = `
-					<div class="la-action-wrap">
-						<span class="la-action-label">${__("Actions")}</span>
-						<span class="la-action-group">
-							<button class="la-action-btn la-approve la-list-approve-primary" data-name="${esc(doc.name)}">
-								✓ ${__("Approve")}
-							</button>
-							<button class="la-action-btn la-reject la-list-reject-primary" data-name="${esc(doc.name)}">
-								✗ ${__("Reject")}
-							</button>
-						</span>
-					</div>`;
+			if (
+				value === "Pending Secondary Reporting Approval" &&
+				isSecondary
+			) {
+				buttons = `
+					<div class="la-actions">
+						<button class="la-btn la-approve la-approve-secondary" data-name="${doc.name}">Approve</button>
+						<button class="la-btn la-reject la-reject-secondary" data-name="${doc.name}">Reject</button>
+					</div>
+				`;
 			}
 
-			if (!btns) {
-				return `<span class="ellipsis" title="${title}">${idLink}</span>`;
+			else if (
+				value === "Pending Project Reporting Approval" &&
+				isPrimary
+			) {
+				buttons = `
+					<div class="la-actions">
+						<button class="la-btn la-approve la-approve-primary" data-name="${doc.name}">Approve</button>
+						<button class="la-btn la-reject la-reject-primary" data-name="${doc.name}">Reject</button>
+					</div>
+				`;
 			}
 
+			// 👉 Show stage text + buttons
 			return `
-				<span style="display:flex;flex-direction:column;gap:4px;">
-					${idLink}
-					${btns}
-				</span>`;
+				<div>
+					<div style="font-size:12px; margin-bottom:4px;">
+						${value || ""}
+					</div>
+					${buttons}
+				</div>
+			`;
 		},
 	},
 };
