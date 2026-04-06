@@ -72,24 +72,26 @@ frappe.listview_settings["Leave Application"] = {
 			const style = document.createElement("style");
 			style.id = "la-list-action-styles";
 			style.textContent = `
-				.la-action-wrap {
+				.la-approval-cell {
 					display: flex;
-					flex-direction: column;
-					align-items: flex-start;
-					gap: 5px;
+					align-items: center;
+					justify-content: space-between;
+					gap: 8px;
+					width: 100%;
+					max-width: 320px;
 				}
-				.la-action-label {
-					font-size: 10px;
-					font-weight: 700;
-					text-transform: uppercase;
-					letter-spacing: 0.6px;
-					color: var(--text-muted, #8d99a6);
-					margin-bottom: 1px;
+				.la-approval-stage {
+					flex: 0 0 auto;
+					min-width: 0;
 				}
-				.la-action-group {
+				.la-action-wrap {
 					display: inline-flex;
+					align-items: center;
+					justify-content: flex-end;
 					gap: 6px;
-					flex-wrap: wrap;
+					flex-wrap: nowrap;
+					flex: 0 0 auto;
+					min-width: 0;
 				}
 				.la-action-btn {
 					display: inline-flex;
@@ -122,6 +124,17 @@ frappe.listview_settings["Leave Application"] = {
 				.la-action-btn.la-reject:hover {
 					background: #c62828;
 					color: #fff;
+				}
+				@media (max-width: 991px) {
+					.la-approval-cell {
+						flex-direction: column;
+						align-items: flex-start;
+						max-width: 100%;
+					}
+					.la-action-wrap {
+						justify-content: flex-start;
+						flex-wrap: wrap;
+					}
 				}
 			`;
 			document.head.appendChild(style);
@@ -267,8 +280,25 @@ frappe.listview_settings["Leave Application"] = {
 			const title = `${__(df.label || "ID")}: ${esc(v)}`;
 			const idLink = `<a class="filterable ellipsis" data-filter="name,=${esc(v)}">${esc(v)}</a>`;
 
+			return `<span class="ellipsis" title="${title}">${idLink}</span>`;
+		},
+
+		custom_approval_stage(value, df, doc) {
+			const esc = frappe.utils.escape_html;
+			const stage_value = value || doc.custom_approval_stage || "";
+
+			const base_stage =
+				stage_value
+					? `<span class="ellipsis la-approval-stage">${frappe.format(
+							stage_value,
+							df,
+							null,
+							doc,
+					  )}</span>`
+					: `<span class="ellipsis la-approval-stage"></span>`;
+
 			if (doc.docstatus !== 0) {
-				return `<span class="ellipsis" title="${title}">${idLink}</span>`;
+				return `<div class="la-approval-cell">${base_stage}</div>`;
 			}
 
 			const user = frappe.session.user;
@@ -277,45 +307,39 @@ frappe.listview_settings["Leave Application"] = {
 			const isSecondary = user === doc.custom_secondary_leave_approver;
 			const isPrimaryApprover = user === doc.leave_approver;
 
-			let btns = "";
+			let actions = "";
 
 			if (hasSecondary && stage === "Pending Secondary Reporting Approval" && isSecondary) {
-				btns = `
+				actions = `
 					<div class="la-action-wrap">
-						<span class="la-action-label">${__("Actions")}</span>
-						<span class="la-action-group">
-							<button class="la-action-btn la-approve la-list-secondary-approve" data-name="${esc(doc.name)}">
-								✓ ${__("Approve & Submit")}
-							</button>
-							<button class="la-action-btn la-reject la-list-secondary-reject" data-name="${esc(doc.name)}">
-								✗ ${__("Reject")}
-							</button>
-						</span>
+						<button class="la-action-btn la-approve la-list-secondary-approve" data-name="${esc(
+							doc.name,
+						)}">
+							✓ ${__("Approve & Submit")}
+						</button>
+						<button class="la-action-btn la-reject la-list-secondary-reject" data-name="${esc(
+							doc.name,
+						)}">
+							✗ ${__("Reject")}
+						</button>
 					</div>`;
 			} else if (hasSecondary && stage === "Pending Project Reporting Approval" && isPrimaryApprover) {
-				btns = `
+				actions = `
 					<div class="la-action-wrap">
-						<span class="la-action-label">${__("Actions")}</span>
-						<span class="la-action-group">
-							<button class="la-action-btn la-approve la-list-approve-primary" data-name="${esc(doc.name)}">
-								✓ ${__("Approve")}
-							</button>
-							<button class="la-action-btn la-reject la-list-reject-primary" data-name="${esc(doc.name)}">
-								✗ ${__("Reject")}
-							</button>
-						</span>
+						<button class="la-action-btn la-approve la-list-approve-primary" data-name="${esc(
+							doc.name,
+						)}">
+							✓ ${__("Approve")}
+						</button>
+						<button class="la-action-btn la-reject la-list-reject-primary" data-name="${esc(
+							doc.name,
+						)}">
+							✗ ${__("Reject")}
+						</button>
 					</div>`;
 			}
 
-			if (!btns) {
-				return `<span class="ellipsis" title="${title}">${idLink}</span>`;
-			}
-
-			return `
-				<span style="display:flex;flex-direction:column;gap:4px;">
-					${idLink}
-					${btns}
-				</span>`;
+			return `<div class="la-approval-cell">${base_stage}${actions}</div>`;
 		},
 	},
 };
