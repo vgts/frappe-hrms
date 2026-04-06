@@ -38,19 +38,9 @@ frappe.ui.form.on("Leave Application", {
 	},
 
 	validate: function (frm) {
-		const first = cint(frm.doc.custom_first_half);
-		const second = cint(frm.doc.custom_second_half);
-		const hasHalfSelection = first || second;
-
-		// Ensure only one half-day session checkbox is selected.
-		if (first && second) {
-			frm.set_value("custom_second_half", 0);
-		}
-		// Backwards-compatibility: if someone has `half_day=1` but no session stored, default to first.
-		if (cint(frm.doc.half_day) && !hasHalfSelection) {
-			frm.set_value("custom_first_half", 1);
-		}
-
+		hrms_sync_half_day_session(frm);
+		const hasHalfSelection =
+			cint(frm.doc.custom_first_half) || cint(frm.doc.custom_second_half);
 		// Drive the hidden `half_day` from session checkboxes.
 		frm.set_value("half_day", hasHalfSelection ? 1 : 0);
 
@@ -164,6 +154,7 @@ frappe.ui.form.on("Leave Application", {
 	},
 
 	half_day: function (frm) {
+		hrms_sync_half_day_session(frm);
 		if (frm.doc.half_day) {
 			if (frm.doc.from_date == frm.doc.to_date) {
 				frm.set_value("half_day_date", frm.doc.from_date);
@@ -177,24 +168,14 @@ frappe.ui.form.on("Leave Application", {
 	},
 
 	custom_first_half: function (frm) {
-		if (frm.doc.custom_first_half) {
-			frm.set_value("custom_second_half", 0);
-			frm.set_value("half_day", 1);
-		}
-		if (!cint(frm.doc.custom_first_half) && !cint(frm.doc.custom_second_half)) {
-			frm.set_value("half_day", 0);
-		}
+		hrms_sync_half_day_session(frm, "custom_first_half");
+		frm.set_value("half_day", cint(frm.doc.custom_first_half) || cint(frm.doc.custom_second_half) ? 1 : 0);
 		frm.trigger("calculate_total_days");
 	},
 
 	custom_second_half: function (frm) {
-		if (frm.doc.custom_second_half) {
-			frm.set_value("custom_first_half", 0);
-			frm.set_value("half_day", 1);
-		}
-		if (!cint(frm.doc.custom_first_half) && !cint(frm.doc.custom_second_half)) {
-			frm.set_value("half_day", 0);
-		}
+		hrms_sync_half_day_session(frm, "custom_second_half");
+		frm.set_value("half_day", cint(frm.doc.custom_first_half) || cint(frm.doc.custom_second_half) ? 1 : 0);
 		frm.trigger("calculate_total_days");
 	},
 
@@ -341,6 +322,42 @@ frappe.ui.form.on("Leave Application", {
 		frm.trigger("get_leave_balance");
 	},
 });
+
+function hrms_sync_half_day_session(frm, changed_field = null) {
+	if (frm.__syncing_half_day_session) return;
+	frm.__syncing_half_day_session = true;
+
+	try {
+		const halfDayEnabled = cint(frm.doc.half_day);
+		let first = cint(frm.doc.custom_first_half);
+		let second = cint(frm.doc.custom_second_half);
+
+		// If half-day is off, clear both session checkboxes.
+		if (!halfDayEnabled) {
+			if (first) frm.set_value("custom_first_half", 0);
+			if (second) frm.set_value("custom_second_half", 0);
+			return;
+		}
+
+		// Enforce mutual exclusion (only one of first/second can be checked).
+		if (first && second) {
+			if (changed_field === "custom_second_half") {
+				frm.set_value("custom_first_half", 0);
+				first = 0;
+			} else {
+				frm.set_value("custom_second_half", 0);
+				second = 0;
+			}
+		}
+
+		// If half-day is enabled and user unchecks both, default to first half.
+		if (!first && !second) {
+			frm.set_value("custom_first_half", 1);
+		}
+	} finally {
+		frm.__syncing_half_day_session = false;
+	}
+}
 
 function hrms_toggle_half_day_session(frm) {
 	const show = cint(frm.doc.half_day);
