@@ -11,16 +11,19 @@ frappe.listview_settings["Leave Application"] = {
 		"custom_secondary_leave_approver",
 	],
 	has_indicator_for_draft: 1,
+
 	get_indicator: function (doc) {
-		// Show approval stage when pending secondary
 		if (
 			doc.status === "Approved" &&
 			doc.custom_approval_stage === "Pending Secondary Reporting Approval" &&
 			!doc.docstatus
 		) {
-			return [__("Pending Secondary Reporting Approval"), "yellow", "custom_approval_stage,=,Pending Secondary Reporting Approval"];
+			return [
+				__("Pending Secondary Reporting Approval"),
+				"yellow",
+				"custom_approval_stage,=,Pending Secondary Reporting Approval",
+			];
 		}
-
 		const status_color = {
 			Approved: "green",
 			Rejected: "red",
@@ -38,62 +41,56 @@ frappe.listview_settings["Leave Application"] = {
 		if (listview._hrms_la_action_delegation) return;
 		listview._hrms_la_action_delegation = true;
 
-		// ── Inject button styles ──────────────────────────────────────────────
+		// ── Inject button styles once ─────────────────────────────────────────
 		if (!document.getElementById("la-list-action-styles")) {
 			const style = document.createElement("style");
 			style.id = "la-list-action-styles";
 			style.textContent = `
-				/* Actions column header */
-				.la-actions-th {
-					min-width: 190px;
-					flex-shrink: 0;
-					font-size: 11px;
-					font-weight: 600;
+				.la-action-wrap {
+					display: flex;
+					flex-direction: column;
+					align-items: flex-start;
+					gap: 5px;
+				}
+				.la-action-label {
+					font-size: 10px;
+					font-weight: 700;
 					text-transform: uppercase;
-					letter-spacing: 0.5px;
+					letter-spacing: 0.6px;
 					color: var(--text-muted, #8d99a6);
-					padding: 0 8px;
-					display: flex;
-					align-items: center;
+					margin-bottom: 1px;
 				}
-				/* Actions cell per row */
-				.la-actions-td {
-					min-width: 190px;
-					flex-shrink: 0;
-					display: flex;
-					align-items: center;
+				.la-action-group {
+					display: inline-flex;
 					gap: 6px;
-					padding: 0 8px;
+					flex-wrap: wrap;
 				}
-				/* Base button */
 				.la-action-btn {
 					display: inline-flex;
 					align-items: center;
-					gap: 5px;
-					padding: 4px 12px;
+					gap: 4px;
+					padding: 3px 11px;
 					border-radius: 20px;
 					font-size: 11.5px;
 					font-weight: 600;
 					border: 1.5px solid;
 					cursor: pointer;
 					background: transparent;
-					transition: background 0.15s ease, color 0.15s ease;
+					transition: background 0.15s, color 0.15s;
 					white-space: nowrap;
 					line-height: 1.5;
 					outline: none;
 				}
-				/* Approve — green outline */
 				.la-action-btn.la-approve {
-					color: #2e7d32;
+					color: #1b5e20;
 					border-color: #2e7d32;
 				}
 				.la-action-btn.la-approve:hover {
 					background: #2e7d32;
 					color: #fff;
 				}
-				/* Reject — red outline */
 				.la-action-btn.la-reject {
-					color: #c62828;
+					color: #b71c1c;
 					border-color: #c62828;
 				}
 				.la-action-btn.la-reject:hover {
@@ -111,23 +108,20 @@ frappe.listview_settings["Leave Application"] = {
 			e.preventDefault();
 			e.stopPropagation();
 			const name = $(this).data("name");
-			frappe.confirm(
-				__("Approve and forward to secondary approver?"),
-				() => {
-					frappe.call({
-						method: "frappe.client.set_value",
-						args: { doctype: "Leave Application", name, fieldname: "status", value: "Approved" },
-						freeze: true,
-						freeze_message: __("Approving..."),
-						callback(r) {
-							if (!r.exc) {
-								frappe.show_alert({ message: __("Forwarded for secondary approval"), indicator: "blue" });
-								refresh();
-							}
-						},
-					});
-				},
-			);
+			frappe.confirm(__("Approve and forward to secondary approver?"), () => {
+				frappe.call({
+					method: "frappe.client.set_value",
+					args: { doctype: "Leave Application", name, fieldname: "status", value: "Approved" },
+					freeze: true,
+					freeze_message: __("Approving..."),
+					callback(r) {
+						if (!r.exc) {
+							frappe.show_alert({ message: __("Forwarded for secondary approval"), indicator: "blue" });
+							refresh();
+						}
+					},
+				});
+			});
 		});
 
 		listview.$result.on("click", ".la-list-reject-primary", function (e) {
@@ -161,23 +155,20 @@ frappe.listview_settings["Leave Application"] = {
 			e.preventDefault();
 			e.stopPropagation();
 			const name = $(this).data("name");
-			frappe.confirm(
-				__("Approve and submit this Leave Application?"),
-				() => {
-					frappe.call({
-						method: "hrms.hr.doctype.leave_application.leave_application.secondary_approve",
-						args: { leave_application: name },
-						freeze: true,
-						freeze_message: __("Approving..."),
-						callback(r) {
-							if (r.message && r.message.status === "success") {
-								frappe.show_alert({ message: r.message.message, indicator: "green" });
-								refresh();
-							}
-						},
-					});
-				},
-			);
+			frappe.confirm(__("Approve and submit this Leave Application?"), () => {
+				frappe.call({
+					method: "hrms.hr.doctype.leave_application.leave_application.secondary_approve",
+					args: { leave_application: name },
+					freeze: true,
+					freeze_message: __("Approving..."),
+					callback(r) {
+						if (r.message && r.message.status === "success") {
+							frappe.show_alert({ message: r.message.message, indicator: "green" });
+							refresh();
+						}
+					},
+				});
+			});
 		});
 
 		listview.$result.on("click", ".la-list-secondary-reject", function (e) {
@@ -206,82 +197,80 @@ frappe.listview_settings["Leave Application"] = {
 			});
 			d.show();
 		});
-
-		// ── Inject "Actions" column after each list render ────────────────────
-		function renderActionColumn() {
-			const data = listview.data || [];
-			const user = frappe.session.user;
-			const esc = frappe.utils.escape_html;
-
-			// Header: insert once before the last column (level-right)
-			const $head = listview.$result.find(".list-row-head");
-			if ($head.length && !$head.find(".la-actions-th").length) {
-				$head.find(".level-right").first().before(
-					`<div class="la-actions-th">${__("Actions")}</div>`
-				);
-			}
-
-			// Per-row cells
-			listview.$result.find(".list-row[data-name]").each(function () {
-				const $row = $(this);
-				if ($row.find(".la-actions-td").length) return; // already injected
-
-				const name = $row.data("name");
-				const doc = data.find((d) => d.name === name);
-
-				// Empty cell placeholder to keep column alignment
-				if (!doc || doc.docstatus !== 0) {
-					$row.find(".level-right").first().before(`<div class="la-actions-td"></div>`);
-					return;
-				}
-
-				const hasSecondary = !!doc.custom_secondary_leave_approver;
-				const stage = doc.custom_approval_stage;
-				const isSecondary = user === doc.custom_secondary_leave_approver;
-				const isPrimaryApprover = user === doc.leave_approver;
-
-				let btns = "";
-				if (hasSecondary && stage === "Pending Secondary Reporting Approval" && isSecondary) {
-					btns = `
-						<button type="button" class="la-action-btn la-approve la-list-secondary-approve" data-name="${esc(name)}">
-							✓ ${__("Approve & Submit")}
-						</button>
-						<button type="button" class="la-action-btn la-reject la-list-secondary-reject" data-name="${esc(name)}">
-							✗ ${__("Reject")}
-						</button>`;
-				} else if (hasSecondary && stage === "Pending Project Reporting Approval" && isPrimaryApprover) {
-					btns = `
-						<button type="button" class="la-action-btn la-approve la-list-approve-primary" data-name="${esc(name)}">
-							✓ ${__("Approve")}
-						</button>
-						<button type="button" class="la-action-btn la-reject la-list-reject-primary" data-name="${esc(name)}">
-							✗ ${__("Reject")}
-						</button>`;
-				}
-
-				$row.find(".level-right").first().before(
-					`<div class="la-actions-td">${btns}</div>`
-				);
-			});
-		}
-
-		// Observe list result for re-renders and inject column each time
-		const observer = new MutationObserver(function () {
-			renderActionColumn();
-		});
-		if (listview.$result && listview.$result[0]) {
-			observer.observe(listview.$result[0], { childList: true });
-		}
 	},
 
 	formatters: {
-		// Keep ID column clean — just the link, no buttons
+		/**
+		 * ID column — renders the leave application link.
+		 * When the logged-in user is the pending approver, also renders
+		 * styled Approve / Reject action buttons below the ID link.
+		 * Doc data is passed directly by Frappe so timing is never an issue.
+		 */
 		name(value, df, doc) {
 			const v = value || doc.name || "";
 			const esc = frappe.utils.escape_html;
 			const title = `${__(df.label || "ID")}: ${esc(v)}`;
-			const link = `<a class="filterable ellipsis" data-filter="name,=${esc(v)}">${esc(v)}</a>`;
-			return `<span class="ellipsis" title="${title}">${link}</span>`;
+			const idLink = `<a class="filterable ellipsis" data-filter="name,=${esc(v)}">${esc(v)}</a>`;
+
+			// Submitted / cancelled — just the link, no buttons
+			if (doc.docstatus !== 0) {
+				return `<span class="ellipsis" title="${title}">${idLink}</span>`;
+			}
+
+			const user = frappe.session.user;
+			const hasSecondary = !!doc.custom_secondary_leave_approver;
+			const stage = doc.custom_approval_stage;
+			const isSecondary = user === doc.custom_secondary_leave_approver;
+			const isPrimaryApprover = user === doc.leave_approver;
+
+			let btns = "";
+
+			if (hasSecondary && stage === "Pending Secondary Reporting Approval" && isSecondary) {
+				btns = `
+					<div class="la-action-wrap">
+						<span class="la-action-label">${__("Actions")}</span>
+						<span class="la-action-group">
+							<button type="button"
+								class="la-action-btn la-approve la-list-secondary-approve"
+								data-name="${esc(doc.name)}">
+								✓ ${__("Approve & Submit")}
+							</button>
+							<button type="button"
+								class="la-action-btn la-reject la-list-secondary-reject"
+								data-name="${esc(doc.name)}">
+								✗ ${__("Reject")}
+							</button>
+						</span>
+					</div>`;
+			} else if (hasSecondary && stage === "Pending Project Reporting Approval" && isPrimaryApprover) {
+				btns = `
+					<div class="la-action-wrap">
+						<span class="la-action-label">${__("Actions")}</span>
+						<span class="la-action-group">
+							<button type="button"
+								class="la-action-btn la-approve la-list-approve-primary"
+								data-name="${esc(doc.name)}">
+								✓ ${__("Approve")}
+							</button>
+							<button type="button"
+								class="la-action-btn la-reject la-list-reject-primary"
+								data-name="${esc(doc.name)}">
+								✗ ${__("Reject")}
+							</button>
+						</span>
+					</div>`;
+			}
+
+			if (!btns) {
+				return `<span class="ellipsis" title="${title}">${idLink}</span>`;
+			}
+
+			// Stack: ID link on top, action buttons below with "Actions" label
+			return `
+				<span style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;max-width:100%;" title="${title}">
+					${idLink}
+					${btns}
+				</span>`;
 		},
 	},
 };
