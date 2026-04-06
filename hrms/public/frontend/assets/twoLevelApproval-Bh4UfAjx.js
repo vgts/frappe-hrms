@@ -1,0 +1,2 @@
+function d(r,u,n){if(!n||!(r!=null&&r.data))return!1;const t=u==null?void 0:u.data;if(t&&typeof t.is_owner=="boolean")return t.is_owner;const f=t==null?void 0:t.employee_user_id;return f?r.data.user_id===f:r.data.name===n}function _(r,u,n){var t;return n?((t=r==null?void 0:r.data)==null?void 0:t.name)===n?!0:(u==null?void 0:u.data)!=null:!1}export{d as a,_ as i};
+//# sourceMappingURL=twoLevelApproval-Bh4UfAjx.js.map
