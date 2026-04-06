@@ -41,7 +41,33 @@ frappe.listview_settings["Leave Application"] = {
 		if (listview._hrms_la_action_delegation) return;
 		listview._hrms_la_action_delegation = true;
 
-		// ── Inject button styles once ─────────────────────────────────────────
+		// ── REMOVE UNWANTED FILTERS ─────────────────────────────
+		setTimeout(() => {
+			try {
+				const filters = listview.filter_area?.filter_list || [];
+
+				let approvalStageRemoved = false;
+
+				filters.forEach((f) => {
+					// ❌ Remove Employee Name filter completely
+					if (f.fieldname === "employee_name") {
+						f.remove();
+					}
+
+					// ❌ Remove duplicate Approval Stage (keep only one)
+					if (f.fieldname === "custom_approval_stage") {
+						if (approvalStageRemoved) {
+							f.remove();
+						}
+						approvalStageRemoved = true;
+					}
+				});
+			} catch (e) {
+				console.log("Filter cleanup error:", e);
+			}
+		}, 500);
+
+		// ── Inject button styles ─────────────────────────────
 		if (!document.getElementById("la-list-action-styles")) {
 			const style = document.createElement("style");
 			style.id = "la-list-action-styles";
@@ -101,22 +127,31 @@ frappe.listview_settings["Leave Application"] = {
 			document.head.appendChild(style);
 		}
 
-		// ── Click delegation ──────────────────────────────────────────────────
+		// ── Click delegation ─────────────────────────────
 		const refresh = () => listview.refresh();
 
 		listview.$result.on("click", ".la-list-approve-primary", function (e) {
 			e.preventDefault();
 			e.stopPropagation();
 			const name = $(this).data("name");
+
 			frappe.confirm(__("Approve and forward to secondary approver?"), () => {
 				frappe.call({
 					method: "frappe.client.set_value",
-					args: { doctype: "Leave Application", name, fieldname: "status", value: "Approved" },
+					args: {
+						doctype: "Leave Application",
+						name,
+						fieldname: "status",
+						value: "Approved",
+					},
 					freeze: true,
 					freeze_message: __("Approving..."),
 					callback(r) {
 						if (!r.exc) {
-							frappe.show_alert({ message: __("Forwarded for secondary approval"), indicator: "blue" });
+							frappe.show_alert({
+								message: __("Forwarded for secondary approval"),
+								indicator: "blue",
+							});
 							refresh();
 						}
 					},
@@ -128,9 +163,17 @@ frappe.listview_settings["Leave Application"] = {
 			e.preventDefault();
 			e.stopPropagation();
 			const name = $(this).data("name");
+
 			const d = new frappe.ui.Dialog({
 				title: __("Reject Leave Application"),
-				fields: [{ fieldname: "reason", fieldtype: "Small Text", label: __("Reason for Rejection"), reqd: 1 }],
+				fields: [
+					{
+						fieldname: "reason",
+						fieldtype: "Small Text",
+						label: __("Reason for Rejection"),
+						reqd: 1,
+					},
+				],
 				primary_action_label: __("Reject"),
 				primary_action(values) {
 					d.hide();
@@ -141,7 +184,10 @@ frappe.listview_settings["Leave Application"] = {
 						freeze_message: __("Rejecting..."),
 						callback(r) {
 							if (r.message && r.message.status === "success") {
-								frappe.show_alert({ message: r.message.message, indicator: "red" });
+								frappe.show_alert({
+									message: r.message.message,
+									indicator: "red",
+								});
 								refresh();
 							}
 						},
@@ -155,6 +201,7 @@ frappe.listview_settings["Leave Application"] = {
 			e.preventDefault();
 			e.stopPropagation();
 			const name = $(this).data("name");
+
 			frappe.confirm(__("Approve and submit this Leave Application?"), () => {
 				frappe.call({
 					method: "hrms.hr.doctype.leave_application.leave_application.secondary_approve",
@@ -163,7 +210,10 @@ frappe.listview_settings["Leave Application"] = {
 					freeze_message: __("Approving..."),
 					callback(r) {
 						if (r.message && r.message.status === "success") {
-							frappe.show_alert({ message: r.message.message, indicator: "green" });
+							frappe.show_alert({
+								message: r.message.message,
+								indicator: "green",
+							});
 							refresh();
 						}
 					},
@@ -175,9 +225,17 @@ frappe.listview_settings["Leave Application"] = {
 			e.preventDefault();
 			e.stopPropagation();
 			const name = $(this).data("name");
+
 			const d = new frappe.ui.Dialog({
 				title: __("Reject Leave Application"),
-				fields: [{ fieldname: "reason", fieldtype: "Small Text", label: __("Reason for Rejection"), reqd: 1 }],
+				fields: [
+					{
+						fieldname: "reason",
+						fieldtype: "Small Text",
+						label: __("Reason for Rejection"),
+						reqd: 1,
+					},
+				],
 				primary_action_label: __("Reject"),
 				primary_action(values) {
 					d.hide();
@@ -188,7 +246,10 @@ frappe.listview_settings["Leave Application"] = {
 						freeze_message: __("Rejecting..."),
 						callback(r) {
 							if (r.message && r.message.status === "success") {
-								frappe.show_alert({ message: r.message.message, indicator: "red" });
+								frappe.show_alert({
+									message: r.message.message,
+									indicator: "red",
+								});
 								refresh();
 							}
 						},
@@ -200,19 +261,12 @@ frappe.listview_settings["Leave Application"] = {
 	},
 
 	formatters: {
-		/**
-		 * ID column — renders the leave application link.
-		 * When the logged-in user is the pending approver, also renders
-		 * styled Approve / Reject action buttons below the ID link.
-		 * Doc data is passed directly by Frappe so timing is never an issue.
-		 */
 		name(value, df, doc) {
 			const v = value || doc.name || "";
 			const esc = frappe.utils.escape_html;
 			const title = `${__(df.label || "ID")}: ${esc(v)}`;
 			const idLink = `<a class="filterable ellipsis" data-filter="name,=${esc(v)}">${esc(v)}</a>`;
 
-			// Submitted / cancelled — just the link, no buttons
 			if (doc.docstatus !== 0) {
 				return `<span class="ellipsis" title="${title}">${idLink}</span>`;
 			}
@@ -230,14 +284,10 @@ frappe.listview_settings["Leave Application"] = {
 					<div class="la-action-wrap">
 						<span class="la-action-label">${__("Actions")}</span>
 						<span class="la-action-group">
-							<button type="button"
-								class="la-action-btn la-approve la-list-secondary-approve"
-								data-name="${esc(doc.name)}">
+							<button class="la-action-btn la-approve la-list-secondary-approve" data-name="${esc(doc.name)}">
 								✓ ${__("Approve & Submit")}
 							</button>
-							<button type="button"
-								class="la-action-btn la-reject la-list-secondary-reject"
-								data-name="${esc(doc.name)}">
+							<button class="la-action-btn la-reject la-list-secondary-reject" data-name="${esc(doc.name)}">
 								✗ ${__("Reject")}
 							</button>
 						</span>
@@ -247,14 +297,10 @@ frappe.listview_settings["Leave Application"] = {
 					<div class="la-action-wrap">
 						<span class="la-action-label">${__("Actions")}</span>
 						<span class="la-action-group">
-							<button type="button"
-								class="la-action-btn la-approve la-list-approve-primary"
-								data-name="${esc(doc.name)}">
+							<button class="la-action-btn la-approve la-list-approve-primary" data-name="${esc(doc.name)}">
 								✓ ${__("Approve")}
 							</button>
-							<button type="button"
-								class="la-action-btn la-reject la-list-reject-primary"
-								data-name="${esc(doc.name)}">
+							<button class="la-action-btn la-reject la-list-reject-primary" data-name="${esc(doc.name)}">
 								✗ ${__("Reject")}
 							</button>
 						</span>
@@ -265,9 +311,8 @@ frappe.listview_settings["Leave Application"] = {
 				return `<span class="ellipsis" title="${title}">${idLink}</span>`;
 			}
 
-			// Stack: ID link on top, action buttons below with "Actions" label
 			return `
-				<span style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;max-width:100%;" title="${title}">
+				<span style="display:flex;flex-direction:column;gap:4px;">
 					${idLink}
 					${btns}
 				</span>`;
