@@ -408,7 +408,24 @@ watch(
 
 watch(
 	() => leaveApplication.value.half_day,
-	(half_day) => setHalfDayDate(half_day)
+	(half_day) => {
+		syncHalfDaySession("half_day")
+		setHalfDayDate(half_day)
+	}
+)
+
+watch(
+	() => leaveApplication.value.custom_first_half,
+	() => {
+		syncHalfDaySession("custom_first_half")
+	}
+)
+
+watch(
+	() => leaveApplication.value.custom_second_half,
+	() => {
+		syncHalfDaySession("custom_second_half")
+	}
 )
 
 watch(
@@ -571,6 +588,37 @@ function setHalfDayDateRange() {
 	half_day_date.maxDate = leaveApplication.value.to_date
 }
 
+function syncHalfDaySession(changedField = "") {
+	if (leaveApplication.value.__syncing_half_day_session) return
+	leaveApplication.value.__syncing_half_day_session = true
+
+	try {
+		const halfDayEnabled = !!leaveApplication.value.half_day
+		const hasFirst = !!leaveApplication.value.custom_first_half
+		const hasSecond = !!leaveApplication.value.custom_second_half
+
+		if (!halfDayEnabled) {
+			if (hasFirst) leaveApplication.value.custom_first_half = 0
+			if (hasSecond) leaveApplication.value.custom_second_half = 0
+			return
+		}
+
+		if (hasFirst && hasSecond) {
+			if (changedField === "custom_second_half") {
+				leaveApplication.value.custom_first_half = 0
+			} else {
+				leaveApplication.value.custom_second_half = 0
+			}
+		}
+
+		if (!leaveApplication.value.custom_first_half && !leaveApplication.value.custom_second_half) {
+			leaveApplication.value.custom_first_half = 1
+		}
+	} finally {
+		leaveApplication.value.__syncing_half_day_session = false
+	}
+}
+
 function setLeaveApprovers(data) {
 	const leave_approver = formFields.data?.find(
 		(field) => field.fieldname === "leave_approver"
@@ -611,6 +659,7 @@ function areValuesSet() {
 }
 
 function validateForm() {
+	syncHalfDaySession("validate")
 	setHalfDayDate(leaveApplication.value.half_day)
 	leaveApplication.value.employee = currEmployee.value
 }
