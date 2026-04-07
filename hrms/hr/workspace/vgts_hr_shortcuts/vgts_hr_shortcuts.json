@@ -87,6 +87,11 @@
    "label": "Attendance Request",
    "link_to": "Attendance Request",
    "type": "DocType"
+  },
+  {
+   "label": "Requests",
+   "link_to": "VGTS HR Request",
+   "type": "DocType"
   }
  ],
  "title": "VGTS HR Shortcuts",
