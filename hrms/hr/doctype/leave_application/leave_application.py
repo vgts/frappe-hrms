@@ -761,7 +761,8 @@ class LeaveApplication(Document, PWANotificationsMixin):
 
 		Rules:
 		  - First Half OR Second Half checked  → half_day = 1 → total_leave_days = 0.5
-		  - Neither checked                    → half_day = 0 → total_leave_days = 1 (full day)
+		  - If custom checkboxes are not used, preserve explicit `half_day` from the form.
+		  - Only when neither custom half-day nor standard half-day is set, treat as full day.
 
 		This must run before validate_balance_leaves() so the deduction is always correct.
 		"""
@@ -770,6 +771,10 @@ class LeaveApplication(Document, PWANotificationsMixin):
 			# For single-day leaves, set half_day_date immediately so
 			# get_number_of_leave_days returns 0.5 reliably.
 			if self.from_date and self.to_date and self.from_date == self.to_date:
+				self.half_day_date = self.from_date
+		elif cint(self.half_day):
+			# Keep standard half-day selections (e.g., Monthly Off half-day from desk form).
+			if self.from_date and self.to_date and self.from_date == self.to_date and not self.half_day_date:
 				self.half_day_date = self.from_date
 		else:
 			self.half_day = 0
@@ -1711,6 +1716,87 @@ def get_leave_approver(employee):
 		)
 
 	return leave_approver
+
+
+@frappe.whitelist()
+def fix_monthly_off_half_day_balance_deduction(employee: str | None = None, apply_fix: int = 0):
+	"""Fix historical Monthly Off half-day deductions that were posted as 1.0 instead of 0.5.
+
+	- Dry run by default (apply_fix=0): returns impacted records only.
+	- Apply mode (apply_fix=1): posts a compensating Leave Ledger Entry to make
+	  net deduction for each affected leave application equal to -0.5.
+	"""
+	apply_fix = cint(apply_fix)
+	sql = """
+		select name, employee, from_date, to_date, total_leave_days
+		from `tabLeave Application`
+		where leave_type = 'Monthly Off'
+		  and docstatus = 1
+		  and status = 'Approved'
+		  and half_day = 1
+		  and from_date = to_date
+	"""
+	params = []
+	if employee:
+		sql += " and employee = %s"
+		params.append(employee)
+	sql += " order by creation desc"
+	leave_apps = frappe.db.sql(sql, tuple(params), as_dict=True)
+
+	results = []
+	for la in leave_apps:
+		net_leaves = frappe.db.sql(
+			"""
+			select coalesce(sum(leaves), 0)
+			from `tabLeave Ledger Entry`
+			where transaction_type = 'Leave Application'
+			  and transaction_name = %s
+			  and docstatus = 1
+			""",
+			(la.name,),
+		)[0][0]
+		net_leaves = flt(net_leaves)
+
+		# Expected deduction for a single-day half-day leave application
+		expected = -0.5
+		delta = expected - net_leaves
+		if abs(delta) < 0.0001:
+			continue
+
+		entry = {
+			"leave_application": la.name,
+			"employee": la.employee,
+			"from_date": la.from_date,
+			"to_date": la.to_date,
+			"current_net_deduction": net_leaves,
+			"expected_net_deduction": expected,
+			"correction_required": delta,
+			"applied": False,
+		}
+
+		if apply_fix:
+			doc = frappe.get_doc("Leave Application", la.name)
+			args = dict(
+				leaves=delta,
+				from_date=la.from_date,
+				to_date=la.to_date,
+				is_lwp=is_lwp(doc.leave_type),
+				holiday_list=get_holiday_list_for_employee(doc.employee, raise_exception=False) or "",
+			)
+			create_leave_ledger_entry(doc, args, submit=True)
+			entry["applied"] = True
+
+		results.append(entry)
+
+	if apply_fix and results:
+		frappe.db.commit()
+
+	return {
+		"mode": "apply" if apply_fix else "dry_run",
+		"employee_filter": employee,
+		"count": len(results),
+		"rows": results,
+	}
 
 
 def on_doctype_update():
