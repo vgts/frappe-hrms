@@ -309,39 +309,50 @@ def _dashboard_sql_params():
 
 @frappe.whitelist()
 def get_dashboard_data(limit_start=0, limit_page_length=80, status_filter=None):
-	"""Feed the HR Requests desk dashboard (cards); respects same visibility as VGTS HR Request list."""
+	"""Feed the HR Requests desk dashboard.
+
+	Phase 1 (as requested): return Leave Application rows only.
+	- HR roles (System Manager / HR Manager / HR User): see all employee leave requests.
+	- Other users: see own requests + requests where they are approver/secondary approver.
+	"""
 	start = cint(limit_start)
 	limit = cint(limit_page_length) or 80
 	if limit > 200:
 		limit = 200
 
-	base_query = _build_dashboard_base_query()
 	status_filter = (status_filter or "").strip()
-	where_extra = ""
-	params = {**_dashboard_sql_params(), "start": start, "limit": limit}
+	employee = frappe.db.get_value("Employee", {"user_id": frappe.session.user}, "name")
+	roles = set(frappe.get_roles(frappe.session.user))
+	is_hr_viewer = bool({"System Manager", "HR Manager", "HR User"} & roles)
+
+	params = {"user": frappe.session.user, "employee": employee, "start": start, "limit": limit}
+	where_parts = ["la.docstatus < 2"]
+
+	if not is_hr_viewer:
+		where_parts.append(
+			"(la.employee = %(employee)s or la.leave_approver = %(user)s or la.custom_secondary_leave_approver = %(user)s)"
+		)
 	if status_filter and status_filter.lower() != "all":
-		where_extra = " where status = %(status_filter)s"
+		where_parts.append("la.status = %(status_filter)s")
 		params["status_filter"] = status_filter
 
 	query = f"""
 		select
-			request_type,
-			reference_doctype,
-			reference_name,
-			employee_name,
-			status,
-			request_date,
-			reason,
-			approval_stage,
-			approver_name,
-			creation,
-			docstatus,
-			leave_approver,
-			custom_secondary_leave_approver
-		from (
-			{base_query}
-		) as unioned
-		{where_extra}
+			'Leave Application' as request_type,
+			'Leave Application' as reference_doctype,
+			la.name as reference_name,
+			la.employee_name,
+			la.status,
+			la.from_date as request_date,
+			la.leave_type as reason,
+			la.custom_approval_stage as approval_stage,
+			la.leave_approver_name as approver_name,
+			la.creation,
+			la.docstatus,
+			la.leave_approver,
+			la.custom_secondary_leave_approver
+		from `tabLeave Application` la
+		where {" and ".join(where_parts)}
 		order by creation desc
 		limit %(start)s, %(limit)s
 	"""
