@@ -45,7 +45,7 @@ frappe.pages["leave-requests-live"].on_page_load = function (wrapper) {
 	$more.on("click", () => load(true));
 
 	function actionType(doc) {
-		if (frappe.utils.cint(doc.docstatus) !== 0) return null;
+		if ((Number(doc.docstatus) || 0) !== 0) return null;
 		const user = frappe.session.user;
 		const hasSecondary = !!doc.custom_secondary_leave_approver;
 		if (hasSecondary && doc.custom_approval_stage === "Pending Secondary Reporting Approval" && user === doc.custom_secondary_leave_approver) return "secondary";
