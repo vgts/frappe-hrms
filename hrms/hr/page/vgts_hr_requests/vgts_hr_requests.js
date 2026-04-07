@@ -51,28 +51,12 @@ frappe.vgts_hr_req_dashboard = {
 			.vgts-req-dash-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 			.vgts-req-dash-chips .btn { border-radius: 20px; }
 			.vgts-req-dash-chips .btn.active { font-weight: 600; }
-			.vgts-req-dash-cards {
-				display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-				gap: 12px;
-			}
-			.vgts-req-card {
-				border: 1px solid var(--border-color); border-radius: 8px; padding: 14px;
-				background: var(--control-bg); box-shadow: 0 1px 2px rgba(0,0,0,.04);
-			}
-			.vgts-req-card__head {
-				display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 8px;
-			}
-			.vgts-req-type-badge {
-				display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600;
-				padding: 2px 8px; border-radius: 6px;
-			}
-			.vgts-req-type--leave { background: #dbeafe; color: #1d4ed8; }
-			.vgts-req-type--reg { background: #fef3c7; color: #b45309; }
-			.vgts-req-type--perm { background: #d1fae5; color: #047857; }
-			.vgts-req-type--clr { background: #ede9fe; color: #6d28d9; }
-			.vgts-req-type--atr { background: #fce7f3; color: #be185d; }
-			.vgts-req-card__meta { font-size: 12px; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
-			.vgts-req-card__actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+			.vgts-req-dash-table-wrap { border: 1px solid var(--border-color); border-radius: 8px; overflow: auto; }
+			.vgts-req-dash-table { width: 100%; border-collapse: collapse; min-width: 1100px; }
+			.vgts-req-dash-table th, .vgts-req-dash-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-color); font-size: 12px; }
+			.vgts-req-dash-table th { background: var(--subtle-fg); text-align: left; font-weight: 600; position: sticky; top: 0; z-index: 1; }
+			.vgts-req-row-actions { display: flex; gap: 6px; white-space: nowrap; }
+			.vgts-req-id { font-family: var(--font-stack-monospace); font-size: 11px; }
 			.vgts-req-dash-empty { padding: 48px; text-align: center; color: var(--text-muted); }
 		`;
 		document.head.appendChild(style);
@@ -125,7 +109,7 @@ frappe.vgts_hr_req_dashboard = {
 
 		this.toolbar.append(search, this.chipsWrap);
 
-		this.cardsWrap = $(`<div class="vgts-req-dash-cards"></div>`).appendTo(this.page.main);
+		this.cardsWrap = $(`<div class="vgts-req-dash-table-wrap"></div>`).appendTo(this.page.main);
 		this.moreWrap = $(`<div class="text-center" style="padding:16px;"></div>`).appendTo(this.page.main);
 		this.moreBtn = $(
 			`<button type="button" class="btn btn-default btn-sm">${__("Load more")}</button>`,
@@ -266,6 +250,7 @@ frappe.vgts_hr_req_dashboard = {
 				r.request_type,
 				r.reason,
 				r.approver_name,
+				r.pending_with,
 				r.approval_stage,
 				r.status,
 			]
@@ -285,9 +270,25 @@ frappe.vgts_hr_req_dashboard = {
 			);
 			return;
 		}
-		rows.forEach((row) => {
-			this.cardsWrap.append(this.buildCard(row));
-		});
+		const $table = $(`<table class="vgts-req-dash-table">
+			<thead>
+				<tr>
+					<th>${__("Employee Name")}</th>
+					<th>${__("Status")}</th>
+					<th>${__("From Date")}</th>
+					<th>${__("Leave Type")}</th>
+					<th>${__("Total Days")}</th>
+					<th>${__("Approval Stage")}</th>
+					<th>${__("Pending With")}</th>
+					<th>${__("ID")}</th>
+					<th>${__("Actions")}</th>
+				</tr>
+			</thead>
+			<tbody></tbody>
+		</table>`);
+		const $tbody = $table.find("tbody");
+		rows.forEach((row) => $tbody.append(this.buildCard(row)));
+		this.cardsWrap.append($table);
 	},
 
 	statusColor(status) {
@@ -300,42 +301,13 @@ frappe.vgts_hr_req_dashboard = {
 	},
 
 	buildCard(row) {
-		const meta = this.TYPE_META[row.request_type] || { short: "?", cls: "" };
 		const actionType = this.getActionType(row);
-		const showActionBadge = !!actionType;
-
-		const $card = $(`<div class="vgts-req-card"></div>`);
-		const idShort = frappe.utils.escape_html(row.reference_name || "");
 		const esc = frappe.utils.escape_html;
-		const reason = esc((row.reason || "").toString().slice(0, 120));
-		const stage = row.approval_stage ? esc(row.approval_stage) : "";
-		const emp = esc(row.employee_name || "");
-		const st = esc(row.status || "");
 		const adate = row.request_date ? frappe.datetime.str_to_user(row.request_date) : "";
+		const pendingWith = row.pending_with || "-";
+		const total = row.total_leave_days == null ? "-" : row.total_leave_days;
 
-		$card.append(`<div class="vgts-req-card__head">
-			<div>
-				<span class="vgts-req-type-badge ${meta.cls}"><span>${esc(meta.short)}</span><span>${esc(
-			row.request_type || "",
-		)}</span></span>
-				<div style="font-weight:600;margin-top:6px;">${emp}</div>
-			</div>
-			<div style="text-align:right;">
-				<span class="indicator-pill ${this.statusColor(row.status)}">${st}</span>
-				${showActionBadge ? `<div style="margin-top:6px;"><span class="indicator-pill yellow">${__("Action needed")}</span></div>` : ""}
-			</div>
-		</div>`);
-
-		$card.append(
-			`<div class="vgts-req-card__meta">
-				<div><strong>${__("ID")}:</strong> ${idShort}</div>
-				<div><strong>${__("Date")}:</strong> ${esc(adate)}</div>
-				${stage ? `<div><strong>${__("Stage")}:</strong> ${stage}</div>` : ""}
-				${reason ? `<div><strong>${__("Reason")}:</strong> ${reason}</div>` : ""}
-			</div>`,
-		);
-
-		const $actions = $(`<div class="vgts-req-card__actions"></div>`);
+		const $actions = $(`<div class="vgts-req-row-actions"></div>`);
 		$actions.append(
 			$(`<button class="btn btn-xs btn-primary">${__("Open")}</button>`).on("click", () => {
 				frappe.set_route("Form", row.reference_doctype, row.reference_name);
@@ -354,9 +326,17 @@ frappe.vgts_hr_req_dashboard = {
 				}),
 			);
 		}
-
-		$card.append($actions);
-		return $card;
+		return $(`<tr>
+			<td>${esc(row.employee_name || "")}</td>
+			<td><span class="indicator-pill ${this.statusColor(row.status)}">${esc(row.status || "")}</span></td>
+			<td>${esc(adate)}</td>
+			<td>${esc(row.reason || "")}</td>
+			<td>${esc(String(total))}</td>
+			<td>${esc(row.approval_stage || "-")}</td>
+			<td>${esc(pendingWith)}</td>
+			<td class="vgts-req-id">${esc(row.reference_name || "")}</td>
+			<td></td>
+		</tr>`).find("td:last").append($actions).end();
 	},
 
 	runApprove(row) {

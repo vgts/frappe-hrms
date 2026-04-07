@@ -345,12 +345,20 @@ def get_dashboard_data(limit_start=0, limit_page_length=80, status_filter=None):
 			la.status,
 			la.from_date as request_date,
 			la.leave_type as reason,
+			la.total_leave_days,
 			la.custom_approval_stage as approval_stage,
 			la.leave_approver_name as approver_name,
+			case
+				when la.custom_approval_stage = 'Pending Project Reporting Approval' then la.leave_approver_name
+				when la.custom_approval_stage = 'Pending Secondary Reporting Approval' then la.custom_secondary_approver_name
+				when la.status = 'Open' and ifnull(la.custom_secondary_leave_approver, '') = '' then la.leave_approver_name
+				else ''
+			end as pending_with,
 			la.creation,
 			la.docstatus,
 			la.leave_approver,
-			la.custom_secondary_leave_approver
+			la.custom_secondary_leave_approver,
+			la.custom_secondary_approver_name
 		from `tabLeave Application` la
 		where {" and ".join(where_parts)}
 		order by creation desc
