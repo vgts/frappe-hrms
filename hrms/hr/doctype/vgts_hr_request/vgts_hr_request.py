@@ -370,38 +370,37 @@ def get_dashboard_data(limit_start=0, limit_page_length=80, status_filter=None):
 def get_list(args):
 	limit = args.get("limit_page_length") or 20
 	start = args.get("limit_start") or 0
+	status_filter = (args.get("status") or "").strip()
+	employee = frappe.db.get_value("Employee", {"user_id": frappe.session.user}, "name")
+	roles = set(frappe.get_roles(frappe.session.user))
+	is_hr_viewer = bool({"System Manager", "HR Manager", "HR User"} & roles)
+	params = {"user": frappe.session.user, "employee": employee, "start": start, "limit": limit}
+	where_parts = ["la.docstatus < 2"]
+	if not is_hr_viewer:
+		where_parts.append(
+			"(la.employee = %(employee)s or la.leave_approver = %(user)s or la.custom_secondary_leave_approver = %(user)s)"
+		)
+	if status_filter and status_filter.lower() != "all":
+		where_parts.append("la.status = %(status_filter)s")
+		params["status_filter"] = status_filter
 
-	base_query = _build_base_query()
-
-	order_by = "order by creation desc"
 	query = f"""
 		select
-			request_type,
-			reference_doctype,
-			reference_name,
-			employee_name,
-			status,
-			request_date,
-			reason,
-			approval_stage,
-			approver_name
-		from (
-			{base_query}
-		) as q
-		{order_by}
+			'Leave Application' as request_type,
+			'Leave Application' as reference_doctype,
+			la.name as reference_name,
+			la.employee_name,
+			la.status,
+			la.from_date as request_date,
+			la.leave_type as reason,
+			la.custom_approval_stage as approval_stage,
+			la.leave_approver_name as approver_name
+		from `tabLeave Application` la
+		where {" and ".join(where_parts)}
+		order by la.creation desc
 		limit %(start)s, %(limit)s
 	"""
-
-	rows = frappe.db.sql(
-		query,
-		{
-			"user": frappe.session.user,
-			"employee": frappe.db.get_value("Employee", {"user_id": frappe.session.user}, "name"),
-			"start": start,
-			"limit": limit,
-		},
-		as_dict=True,
-	)
+	rows = frappe.db.sql(query, params, as_dict=True)
 
 	# Frappe expects "name" field; reuse reference_name for that.
 	for row in rows:
@@ -411,13 +410,19 @@ def get_list(args):
 
 
 def get_count(args):
-	base_query = _build_base_query()
-	query = f"select count(1) as cnt from ({base_query}) as q"
-	return frappe.db.sql(
-		query,
-		{
-			"user": frappe.session.user,
-			"employee": frappe.db.get_value("Employee", {"user_id": frappe.session.user}, "name"),
-		},
-	)[0][0]
+	status_filter = (args.get("status") or "").strip()
+	employee = frappe.db.get_value("Employee", {"user_id": frappe.session.user}, "name")
+	roles = set(frappe.get_roles(frappe.session.user))
+	is_hr_viewer = bool({"System Manager", "HR Manager", "HR User"} & roles)
+	params = {"user": frappe.session.user, "employee": employee}
+	where_parts = ["la.docstatus < 2"]
+	if not is_hr_viewer:
+		where_parts.append(
+			"(la.employee = %(employee)s or la.leave_approver = %(user)s or la.custom_secondary_leave_approver = %(user)s)"
+		)
+	if status_filter and status_filter.lower() != "all":
+		where_parts.append("la.status = %(status_filter)s")
+		params["status_filter"] = status_filter
+	query = f"select count(1) from `tabLeave Application` la where {' and '.join(where_parts)}"
+	return frappe.db.sql(query, params)[0][0]
 

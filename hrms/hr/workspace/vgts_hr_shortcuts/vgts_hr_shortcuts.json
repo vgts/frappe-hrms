@@ -89,8 +89,8 @@
    "type": "DocType"
   },
   {
-   "label": "HR Requests",
-   "link_to": "vgts-hr-requests",
+   "label": "Leave Requests Live",
+   "link_to": "leave-requests-live",
    "type": "Page"
   },
   {
