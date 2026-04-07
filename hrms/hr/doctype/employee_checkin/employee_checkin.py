@@ -34,8 +34,10 @@ class EmployeeCheckin(Document):
 		self.validate_duplicate_log()
 		self.validate_time_change()
 		self.fetch_shift()
-		self.set_geolocation()
-		self.validate_distance_from_shift_location()
+		# Auto-checkout OUT logs are created server-side without GPS; do not enforce geolocation.
+		if self.device_id != "Auto Checkout":
+			self.set_geolocation()
+			self.validate_distance_from_shift_location()
 
 	def validate_duplicate_log(self):
 		doc = frappe.db.exists(

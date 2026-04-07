@@ -89,7 +89,12 @@
    "type": "DocType"
   },
   {
-   "label": "Requests",
+   "label": "HR Requests",
+   "link_to": "vgts-hr-requests",
+   "type": "Page"
+  },
+  {
+   "label": "Requests (table)",
    "link_to": "VGTS HR Request",
    "type": "DocType"
   }

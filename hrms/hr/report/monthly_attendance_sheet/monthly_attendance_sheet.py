@@ -699,6 +699,7 @@ def get_rows(employee_details: dict, filters: Filters, holiday_map: dict, attend
 				permission_map,
 				checkin_map,
 				pending_leave_map,
+				details.joined_date,
 			)
 			# set employee details in the first row
 			for record in attendance_for_employee:
@@ -830,7 +831,7 @@ def _is_second_half_permission(from_time) -> bool:
 def get_attendance_status_for_detailed_view(
 	employee: str, filters: Filters, employee_attendance: dict, holidays: list,
 	leave_type_map: dict = None, permission_map: dict = None, checkin_map: dict = None,
-	pending_leave_map: dict = None,
+	pending_leave_map: dict = None, joined_date=None,
 ) -> list[dict]:
 	"""Returns list of shift-wise attendance status for employee
 	[
@@ -931,8 +932,12 @@ def get_attendance_status_for_detailed_view(
 				# Future workday — no attendance yet
 				abbr = "-"
 			else:
-				# Past unmarked day — leave blank (could be absent or unmarked)
-				abbr = ""
+				# Past working day with no submitted attendance and no leave/holiday:
+				# show Absent (A). Leave / pending leave / holidays / weekly off stay as above.
+				if joined_date and d < getdate(joined_date):
+					abbr = ""
+				else:
+					abbr = "A"
 
 			row[d.strftime("%d-%m-%Y")] = abbr
 
