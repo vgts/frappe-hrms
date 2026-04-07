@@ -28,6 +28,7 @@ status_map = {
 	"Half Day/Other Half Absent": "P/<type>",
 	"Half Day/Other Half Present": "<type>/P",
 	"Work From Home": "WFH",
+	"On Duty": "OD",
 	"On Leave": "L",
 	"Holiday": "H",
 	"Weekly Off": "W",

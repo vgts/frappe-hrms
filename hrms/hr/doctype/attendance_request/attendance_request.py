@@ -231,6 +231,8 @@ class AttendanceRequest(Document, PWANotificationsMixin):
 			return "Half Day"
 		elif self.reason == "Work From Home":
 			return "Work From Home"
+		elif self.reason == "On Duty":
+			return "On Duty"
 		else:
 			return "Present"
 
