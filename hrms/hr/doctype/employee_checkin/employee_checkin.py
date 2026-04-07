@@ -305,11 +305,14 @@ def get_today_checkin_seconds(employee):
 def process_attendance_from_checkin(employee, out_time):
 	"""
 	Called after an OUT log is inserted.
-	Walks back through the last 23 h 59 m to find the matching open IN log,
-	then calls process_attendance() with force_absent=False.
+	Walks back through the last 23 h 59 m to find all IN/OUT pairs, then
+	calls process_attendance() using the FIRST check-in of the day as in_time
+	and the current OUT as out_time so that working_hours = gross time
+	(first check-in → last check-out), matching what is displayed in the
+	Monthly Attendance Sheet.
 
-	Attendance date = date of the IN log (cross-midnight sessions belong to
-	the check-in date, not the check-out date).
+	Attendance date = date of the first IN log (cross-midnight sessions belong
+	to the check-in date, not the check-out date).
 	"""
 	since = out_time - timedelta(hours=23, minutes=59)
 	logs  = frappe.db.get_all(
@@ -319,9 +322,12 @@ def process_attendance_from_checkin(employee, out_time):
 		fields=["log_type", "time"],
 		order_by="time asc",
 	)
-	active_in = None
+	first_in  = None   # very first IN of the day/session window
+	active_in = None   # current open IN (tracks whether a session is open)
 	for log in logs:
 		if log.log_type == "IN":
+			if first_in is None:
+				first_in = log.time   # record the earliest IN only once
 			active_in = log.time
 		elif log.log_type == "OUT" and active_in:
 			if log.time == out_time:
@@ -331,7 +337,10 @@ def process_attendance_from_checkin(employee, out_time):
 	if not active_in:
 		return  # no open IN found — nothing to process
 
-	process_attendance(employee, active_in.date(), active_in, out_time, force_absent=False)
+	# Use first_in so working_hours = last_out − first_in (gross time).
+	# This ensures an employee who was in from 09:41 to 20:05 (with breaks)
+	# is correctly evaluated against the 9 h 30 m Present threshold.
+	process_attendance(employee, first_in.date(), first_in, out_time, force_absent=False)
 
 
 def process_attendance(employee, attendance_date, in_time, out_time, force_absent=False):
