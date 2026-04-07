@@ -162,9 +162,33 @@
    "link_type": "DocType",
    "show_arrow": 0,
    "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "layout-dashboard",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "HR Requests",
+   "link_to": "vgts-hr-requests",
+   "link_type": "Page",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "list",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Requests (table)",
+   "link_to": "VGTS HR Request",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
   }
  ],
- "modified": "2026-04-05 12:00:00.000000",
+ "modified": "2026-04-07 20:40:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "VGTS HR Shortcuts",

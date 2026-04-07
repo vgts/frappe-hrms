@@ -682,9 +682,3 @@ frappe.vgts_hr_req_dashboard = {
 		}
 	},
 };
-</think>
-
-The message was cut off. I'll complete the JS file and fix issues (frappe.utils.load_html_head_icon may not exist — remove it). Finish dispatchApprove/dispatchReject and use cint from frappe.utils.
-
-<｜tool▁calls▁begin｜><｜tool▁call▁begin｜>
-Read
