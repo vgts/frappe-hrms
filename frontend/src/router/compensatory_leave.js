@@ -15,4 +15,11 @@ export default [
 		props: true,
 		component: () => import("@/views/compensatory_leave/Form.vue"),
 	},
+	// Alias so FormView's auto-generated route name also works
+	{
+		path: "/compensatory-leave-request/:id",
+		name: "CompensatoryLeaveRequestDetailView",
+		props: true,
+		component: () => import("@/views/compensatory_leave/Form.vue"),
+	},
 ]

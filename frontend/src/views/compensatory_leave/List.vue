@@ -27,6 +27,11 @@ const FIELDS = [
 	"half_day",
 	"reason",
 	"status",
+	"custom_approval_stage",
+	"approver",
+	"approver_name",
+	"custom_secondary_leave_approver",
+	"custom_secondary_approver_name",
 ]
 const FILTER_CONFIG = [
 	{
