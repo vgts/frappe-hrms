@@ -24,9 +24,13 @@ from hrms.hr.utils import (
 	validate_dates,
 	validate_overlap,
 )
+from hrms.mixins.pwa_notifications import PWANotificationsMixin
 
 
-class CompensatoryLeaveRequest(Document):
+class CompensatoryLeaveRequest(Document, PWANotificationsMixin):
+	def after_insert(self):
+		self.notify_approver()
+
 	def validate(self):
 		validate_active_employee(self.employee)
 		validate_dates(self, self.work_from_date, self.work_end_date)
@@ -191,6 +195,10 @@ class CompensatoryLeaveRequest(Document):
 		if self.approver:
 			share_doc_with_approver(self, self.approver)
 		handle_secondary_approval_flow(self)
+		if not (self.custom_secondary_leave_approver and self.custom_approval_stage in (
+			"Pending Project Reporting Approval", "Pending Secondary Reporting Approval"
+		)):
+			self.notify_approval_status()
 		self.publish_update()
 
 	def after_delete(self):
@@ -345,3 +353,10 @@ def compensatory_secondary_reject(compensatory_leave_request, reason=None):
 	"""Secondary approver rejects."""
 	from hrms.hr.two_level_approval import secondary_reject
 	return secondary_reject("Compensatory Leave Request", compensatory_leave_request, reason)
+
+
+@frappe.whitelist()
+def get_compensatory_approval_details(compensatory_leave_request):
+	"""Return approval stage info with avatar details for the frontend tracker UI."""
+	from hrms.hr.two_level_approval import get_approval_details
+	return get_approval_details("Compensatory Leave Request", compensatory_leave_request)

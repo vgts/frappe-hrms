@@ -39,5 +39,7 @@ class PWANotification(Document):
 			return f"{base_url}/leave-applications/{self.reference_document_name}"
 		elif self.reference_document_type == "Expense Claim":
 			return f"{base_url}/expense-claims/{self.reference_document_name}"
+		elif self.reference_document_type == "Compensatory Leave Request":
+			return f"{frappe.utils.get_url()}/app/compensatory-leave-request/{self.reference_document_name}"
 
 		return base_url

@@ -68,6 +68,7 @@ class PWANotificationsMixin:
 			"Attendance Regularization": "status",
 			"Expense Claim": "approval_status",
 			"Shift Request": "status",
+			"Compensatory Leave Request": "status",
 		}
 		return APPROVAL_STATUS_FIELD.get(self.doctype)
 
@@ -78,6 +79,7 @@ class PWANotificationsMixin:
 			"Attendance Regularization": "leave_approver",
 			"Expense Claim": "expense_approver",
 			"Shift Request": "approver",
+			"Compensatory Leave Request": "approver",
 		}
 		approver_field = APPROVER_FIELD.get(self.doctype)
 		return self.get(approver_field) if approver_field else None
