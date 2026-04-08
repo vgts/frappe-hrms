@@ -91,6 +91,7 @@ def get_message() -> str:
 		"orange",
 		"#914EE3",
 		"green",
+		"#2563EB",
 		"#3187D8",
 		"#878787",
 		"#878787",
