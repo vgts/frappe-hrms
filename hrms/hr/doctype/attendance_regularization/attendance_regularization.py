@@ -204,6 +204,7 @@ class AttendanceRegularization(Document, PWANotificationsMixin):
 				checkin.log_type = "IN"
 				checkin.time = checkin_datetime
 				checkin.skip_auto_attendance = 1
+				checkin.device_id = "Attendance Regularization"
 				checkin.flags.ignore_permissions = True
 				checkin.insert()
 				checkin.add_comment("Info", _("Created via Attendance Regularization {0}").format(self.name))
@@ -221,6 +222,7 @@ class AttendanceRegularization(Document, PWANotificationsMixin):
 				checkout.log_type = "OUT"
 				checkout.time = checkout_datetime
 				checkout.skip_auto_attendance = 1
+				checkout.device_id = "Attendance Regularization"
 				checkout.flags.ignore_permissions = True
 				checkout.insert()
 				checkout.add_comment("Info", _("Created via Attendance Regularization {0}").format(self.name))

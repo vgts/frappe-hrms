@@ -34,8 +34,8 @@ class EmployeeCheckin(Document):
 		self.validate_duplicate_log()
 		self.validate_time_change()
 		self.fetch_shift()
-		# Auto-checkout OUT logs are created server-side without GPS; do not enforce geolocation.
-		if self.device_id != "Auto Checkout":
+		# Auto-checkout and Attendance Regularization logs are created server-side without GPS; do not enforce geolocation.
+		if self.device_id not in ("Auto Checkout", "Attendance Regularization"):
 			self.set_geolocation()
 			self.validate_distance_from_shift_location()
 
