@@ -60,14 +60,17 @@
    "fieldname": "leave_type",
    "fieldtype": "Link",
    "label": "Leave Type",
-   "options": "Leave Type"
+   "options": "Leave Type",
+   "read_only": 1,
+   "hidden": 0
   },
   {
    "fieldname": "leave_allocation",
    "fieldtype": "Link",
    "label": "Leave Allocation",
    "options": "Leave Allocation",
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "worked_on",
@@ -121,46 +124,51 @@
    "default": "Open",
    "fieldname": "status",
    "fieldtype": "Select",
-   "in_list_view": 1,
    "label": "Status",
-   "options": "Open\nApproved\nRejected"
+   "options": "Open\nApproved\nRejected",
+   "hidden": 1
   },
   {
    "fieldname": "approver",
    "fieldtype": "Link",
    "label": "Approver",
-   "options": "User"
+   "options": "User",
+   "hidden": 1
   },
   {
    "fieldname": "approver_name",
    "fieldtype": "Data",
    "label": "Approver Name",
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "custom_secondary_leave_approver",
    "fieldtype": "Link",
    "label": "Secondary Approver",
    "options": "User",
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "custom_secondary_approver_name",
    "fieldtype": "Data",
    "label": "Secondary Approver Name",
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "custom_approval_stage",
    "fieldtype": "Select",
    "label": "Approval Stage",
    "options": "\nPending Project Reporting Approval\nPending Secondary Reporting Approval\nApproved\nRejected",
-   "read_only": 1
+   "read_only": 1,
+   "hidden": 1
   }
  ],
  "is_submittable": 1,
  "links": [],
- "modified": "2026-04-08 00:00:00.000000",
+ "modified": "2026-04-08 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "Compensatory Leave Request",

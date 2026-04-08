@@ -73,6 +73,14 @@ class CompensatoryLeaveRequest(Document):
 				frappe.throw(_("You cannot approve or reject your own Compensatory Leave Request."))
 
 	def validate_attendance(self):
+		"""Validate that the employee was present on the applied dates.
+		For weekends: an attendance record OR a check-in record is acceptable.
+		For holidays: an attendance record is required.
+		"""
+		total_days = date_diff(self.work_end_date, self.work_from_date) + 1
+		holidays = get_holiday_dates_for_employee(self.employee, self.work_from_date, self.work_end_date)
+		holiday_strs = {str(getdate(h)) for h in (holidays or [])}
+
 		attendance_records = frappe.get_all(
 			"Attendance",
 			filters=[
@@ -83,31 +91,69 @@ class CompensatoryLeaveRequest(Document):
 			],
 			fields=["attendance_date", "status"],
 		)
+		att_dates  = {str(getdate(a.attendance_date)) for a in attendance_records}
+		half_days  = [str(getdate(a.attendance_date)) for a in attendance_records if a.status == "Half Day"]
 
-		half_days = [entry.attendance_date for entry in attendance_records if entry.status == "Half Day"]
-
-		if half_days and (not self.half_day or getdate(self.half_day_date) not in half_days):
+		if half_days and (not self.half_day or str(getdate(self.half_day_date)) not in half_days):
 			frappe.throw(
 				_(
 					"You were only present for Half Day on {}. Cannot apply for a full day compensatory leave"
-				).format(", ".join([frappe.bold(format_date(half_day)) for half_day in half_days]))
+				).format(", ".join([frappe.bold(format_date(d)) for d in half_days]))
 			)
 
-		if len(attendance_records) < date_diff(self.work_end_date, self.work_from_date) + 1:
-			frappe.throw(_("You are not present all day(s) between compensatory leave request days"))
+		for i in range(int(total_days)):
+			d        = getdate(add_days(self.work_from_date, i))
+			date_str = str(d)
+			is_weekend = d.weekday() in (5, 6)  # Saturday=5, Sunday=6
+
+			if date_str in att_dates:
+				continue   # attendance record exists — valid
+
+			if is_weekend:
+				# For weekends accept a check-in record as evidence of presence
+				has_checkin = frappe.db.exists(
+					"Employee Checkin",
+					{
+						"employee": self.employee,
+						"time": ["between", [date_str + " 00:00:00", date_str + " 23:59:59"]],
+					},
+				)
+				if has_checkin:
+					continue
+				# Weekend with no records — warn and allow (HR verifies during approval)
+				frappe.msgprint(
+					_("No attendance or check-in record found for {0} (weekend). Your presence will be verified during approval.").format(
+						frappe.bold(format_date(date_str))
+					),
+					indicator="orange",
+					alert=True,
+				)
+				continue
+
+			# Holiday date with no attendance record
+			frappe.throw(
+				_("You are not marked Present on {0}. Please ensure attendance is marked before applying.").format(
+					frappe.bold(format_date(date_str))
+				)
+			)
 
 	def validate_holidays(self):
-		holidays = get_holiday_dates_for_employee(self.employee, self.work_from_date, self.work_end_date)
-		if len(holidays) < date_diff(self.work_end_date, self.work_from_date) + 1:
-			if date_diff(self.work_end_date, self.work_from_date):
-				msg = _("The days between {0} to {1} are not valid holidays.").format(
-					frappe.bold(format_date(self.work_from_date)),
-					frappe.bold(format_date(self.work_end_date)),
-				)
-			else:
-				msg = _("{0} is not a holiday.").format(frappe.bold(format_date(self.work_from_date)))
+		"""Work dates must be holidays OR weekends (Saturday/Sunday)."""
+		total_days = date_diff(self.work_end_date, self.work_from_date) + 1
+		holidays   = get_holiday_dates_for_employee(self.employee, self.work_from_date, self.work_end_date)
+		holiday_strs = {str(getdate(h)) for h in (holidays or [])}
 
-			frappe.throw(msg)
+		for i in range(int(total_days)):
+			d          = getdate(add_days(self.work_from_date, i))
+			is_weekend = d.weekday() in (5, 6)   # Saturday=5, Sunday=6
+			is_holiday = str(d) in holiday_strs
+			if not (is_weekend or is_holiday):
+				frappe.throw(
+					_("{0} is not a holiday or weekend. Compensatory leave can only be applied for holidays or weekends worked.").format(
+						frappe.bold(format_date(str(d)))
+					),
+					title=_("Invalid Work Date"),
+				)
 
 	def before_submit(self):
 		gate_submission(self)
