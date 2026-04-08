@@ -48,6 +48,7 @@ import { myAttendanceRequests, myShiftRequests, teamShiftRequests, teamAttendanc
 import { myClaims, teamClaims } from "@/data/claims"
 import { myPermissions, teamPermissions, permissionBalance } from "@/data/permissions"
 import { myRegularizations, teamRegularizations } from "@/data/regularization"
+import { myCompensatoryRequests, teamCompensatoryRequests } from "@/data/compensatory"
 
 const __ = inject("$translate")
 
@@ -66,6 +67,8 @@ function refreshAll() {
 	permissionBalance.reload()
 	myRegularizations.reload()
 	teamRegularizations.reload()
+	myCompensatoryRequests.reload()
+	teamCompensatoryRequests.reload()
 }
 
 // Auto-refetch when app comes back to foreground (tab focus / app resume)
