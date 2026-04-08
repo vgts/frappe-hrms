@@ -308,6 +308,49 @@ export const EMPLOYEE_PERMISSION_FIELDS = [
 	},
 ]
 
+export const COMPENSATORY_LEAVE_FIELDS = [
+	{
+		fieldname: "name",
+		label: "ID",
+		fieldtype: "Data",
+	},
+	{
+		fieldname: "work_from_date",
+		label: "From Date",
+		fieldtype: "Date",
+	},
+	{
+		fieldname: "work_end_date",
+		label: "To Date",
+		fieldtype: "Date",
+	},
+	{
+		fieldname: "half_day",
+		label: "Half Day",
+		fieldtype: "Check",
+	},
+	{
+		fieldname: "leave_type",
+		label: "Leave Type",
+		fieldtype: "Link",
+	},
+	{
+		fieldname: "reason",
+		label: "Reason",
+		fieldtype: "Small Text",
+	},
+	{
+		fieldname: "employee",
+		label: "Employee",
+		fieldtype: "Link",
+	},
+	{
+		fieldname: "status",
+		label: "Status",
+		fieldtype: "Select",
+	},
+]
+
 export const EMPLOYEE_CHECKIN_FIELDS = [
 	{
 		fieldname: "name",

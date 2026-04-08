@@ -199,46 +199,58 @@ def get_attendance_regularizations(
 def get_compensatory_requests(
 	employee: str,
 	approver_id: str | None = None,
-	for_approval: bool = False,
+	for_approval=False,
 	limit: int | None = None,
 ) -> list[dict]:
-	fields = [
+	from frappe.utils import cint
+	for_approval = cint(for_approval)
+
+	base_fields = [
 		"name", "employee", "employee_name",
 		"work_from_date", "work_end_date", "half_day",
 		"leave_type", "reason", "status", "docstatus", "creation",
+	]
+	extra_fields = [
 		"approver", "approver_name",
 		"custom_secondary_leave_approver", "custom_secondary_approver_name",
 		"custom_approval_stage",
 	]
-	# Filter to only include fields that actually exist in the meta (safe if bench migrate not yet run)
-	meta_fields = {f.fieldname for f in frappe.get_meta("Compensatory Leave Request").fields}
-	safe_fields = [f for f in fields if f in meta_fields or f in ("name", "employee", "employee_name",
-	               "work_from_date", "work_end_date", "half_day", "leave_type", "reason",
-	               "status", "docstatus", "creation")]
+	try:
+		meta_fields = {f.fieldname for f in frappe.get_meta("Compensatory Leave Request").fields}
+		safe_fields = base_fields + [f for f in extra_fields if f in meta_fields]
+	except Exception:
+		safe_fields = base_fields
 
-	if for_approval:
-		filters = frappe._dict(docstatus=0, status=("!=", "Rejected"))
-		if approver_id:
-			or_filters = [["approver", "=", approver_id],
-			               ["custom_secondary_leave_approver", "=", approver_id]]
-		requests = frappe.get_list(
-			"Compensatory Leave Request",
-			fields=safe_fields,
-			filters=filters,
-			or_filters=or_filters if approver_id else None,
-			order_by="creation desc",
-			limit=limit,
-			ignore_permissions=True,
-		)
-	else:
-		requests = frappe.get_list(
-			"Compensatory Leave Request",
-			fields=safe_fields,
-			filters={"employee": employee, "docstatus": ("!=", 2)},
-			order_by="creation desc",
-			limit=limit,
-			ignore_permissions=True,
-		)
+	try:
+		if for_approval:
+			filters = frappe._dict(docstatus=0, status=("!=", "Rejected"))
+			or_filters = None
+			if approver_id:
+				or_filters = [
+					["approver", "=", approver_id],
+					["custom_secondary_leave_approver", "=", approver_id],
+				]
+			requests = frappe.get_list(
+				"Compensatory Leave Request",
+				fields=safe_fields,
+				filters=filters,
+				or_filters=or_filters,
+				order_by="creation desc",
+				limit=limit,
+				ignore_permissions=True,
+			)
+		else:
+			requests = frappe.get_list(
+				"Compensatory Leave Request",
+				fields=safe_fields,
+				filters={"employee": employee, "docstatus": ("!=", 2)},
+				order_by="creation desc",
+				limit=limit,
+				ignore_permissions=True,
+			)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "get_compensatory_requests failed")
+		requests = []
 
 	return requests
 
