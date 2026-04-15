@@ -75,6 +75,11 @@ const routes = [
 		name: "InvalidEmployee",
 		component: () => import("@/views/InvalidEmployee.vue"),
 	},
+	{
+		path: "/employee/:employeeName",
+		name: "EmployeeProfile",
+		component: () => import("@/views/EmployeeProfileView.vue"),
+	},
 	...attendanceRoutes,
 	...leaveRoutes,
 	...claimRoutes,

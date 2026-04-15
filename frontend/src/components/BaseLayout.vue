@@ -13,6 +13,14 @@
 							</h2>
 						</div>
 						<div class="flex flex-row items-center gap-3 ml-auto">
+							<!-- Search icon — mobile only -->
+							<button
+								class="flex flex-col items-center lg:hidden"
+								@click="showSearch = true"
+							>
+								<FeatherIcon name="search" class="h-6 w-6 text-gray-600" />
+							</button>
+
 							<!-- Bell / Notifications — mobile only (sidebar has it on desktop) -->
 							<router-link
 								:to="{ name: 'Notifications' }"
@@ -42,6 +50,9 @@
 			</div>
 		</ion-header>
 
+		<!-- Employee Search Modal -->
+		<EmployeeSearchModal v-model="showSearch" />
+
 		<ion-content class="ion-no-padding">
 			<ion-refresher slot="fixed" @ionRefresh="handleRefresh">
 				<ion-refresher-content></ion-refresher-content>
@@ -59,11 +70,14 @@ import { FeatherIcon, Avatar } from "frappe-ui"
 
 import { unreadNotificationsCount } from "@/data/notifications"
 import DesktopSidebar from "@/components/DesktopSidebar.vue"
+import EmployeeSearchModal from "@/components/EmployeeSearchModal.vue"
 
-import { inject } from "vue"
+import { inject, ref } from "vue"
 
 const user = inject("$user")
 const __ = inject("$translate")
+
+const showSearch = ref(false)
 
 const emit = defineEmits(["refresh"])
 
