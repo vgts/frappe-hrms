@@ -554,6 +554,16 @@ const getFailureMessage = ({ status = "", docstatus = 0 }) => {
 	}
 }
 
+const redirectToHomeAfterApproval = async () => {
+	try {
+		await modalController.dismiss()
+	} catch (e) {
+		// Modal may already be closed; continue navigation.
+	}
+
+	router.push({ name: "Home" })
+}
+
 const updateDocumentStatus = ({ status = "", docstatus = 0 }) => {
 	if (isCurrentUserEmployee.value) return
 
@@ -566,7 +576,11 @@ const updateDocumentStatus = ({ status = "", docstatus = 0 }) => {
 		{ ...updateValues },
 		{
 			onSuccess() {
-				if (docstatus !== 0) modalController.dismiss()
+				if (docstatus !== 0) {
+					modalController.dismiss()
+				} else if (status === "Approved" && twoLevelDoctypes.includes(props.modelValue.doctype)) {
+					redirectToHomeAfterApproval()
+				}
 
 				toast({
 					title: __("Success"),
@@ -632,7 +646,11 @@ function handleSecondaryAction(action) {
 		params: params,
 		auto: true,
 		onSuccess(data) {
-			modalController.dismiss()
+			if (action === "approve") {
+				redirectToHomeAfterApproval()
+			} else {
+				modalController.dismiss()
+			}
 			toast({
 				title: __("Success"),
 				text: data.message,

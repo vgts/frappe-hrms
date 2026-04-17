@@ -1067,8 +1067,9 @@ class LeaveApplication(Document, PWANotificationsMixin):
 		# Email notification
 		if cint(self.follow_via_email):
 			link = frappe.utils.get_url_to_form("Leave Application", self.name)
+			secondary_email = frappe.db.get_value("User", to_user, "email") or to_user
 			frappe.sendmail(
-				recipients=[to_user],
+				recipients=[secondary_email],
 				subject=_("Leave Application {0} – Pending Your Approval").format(self.name),
 				message=_(
 					"<p>Leave Application <b>{0}</b> by <b>{1}</b> has been approved by the "
