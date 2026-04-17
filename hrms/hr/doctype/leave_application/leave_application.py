@@ -804,16 +804,7 @@ class LeaveApplication(Document, PWANotificationsMixin):
 		subject = frappe.render_template(email_template.subject, args)
 		message = frappe.render_template(email_template.response_, args)
 
-		self.notify(
-			{
-				# for post in messages
-				"message": message,
-				"message_to": employee_email,
-				# for email
-				"subject": subject,
-				"notify": "employee",
-			}
-		)
+		self._send_leave_email([employee_email], subject, message)
 
 	def notify_leave_approver(self):
 		if self.leave_approver:
@@ -830,15 +821,8 @@ class LeaveApplication(Document, PWANotificationsMixin):
 			subject = frappe.render_template(email_template.subject, args)
 			message = frappe.render_template(email_template.response_, args)
 
-			self.notify(
-				{
-					# for post in messages
-					"message": message,
-					"message_to": self.leave_approver,
-					# for email
-					"subject": subject,
-				}
-			)
+			approver_email = frappe.db.get_value("User", self.leave_approver, "email")
+			self._send_leave_email([approver_email], subject, message)
 
 	def notify(self, args):
 		args = frappe._dict(args)
@@ -863,6 +847,30 @@ class LeaveApplication(Document, PWANotificationsMixin):
 				frappe.msgprint(_("Email sent to {0}").format(contact))
 			except frappe.OutgoingEmailError:
 				pass
+
+	def _send_leave_email(self, recipients, subject, message):
+		"""Send leave email safely and log delivery failures."""
+		valid_recipients = [email for email in (recipients or []) if email]
+		if not valid_recipients:
+			return
+
+		try:
+			frappe.sendmail(
+				recipients=valid_recipients,
+				subject=subject,
+				message=message,
+				reference_doctype="Leave Application",
+				reference_name=self.name,
+			)
+		except frappe.OutgoingEmailError:
+			frappe.log_error(
+				title="Leave notification email failed",
+				message=(
+					f"Leave Application: {self.name}\n"
+					f"Recipients: {', '.join(valid_recipients)}\n"
+					f"Subject: {subject}"
+				),
+			)
 
 	def create_leave_ledger_entry(self, submit=True):
 		if self.status != "Approved" and submit:
@@ -1065,29 +1073,26 @@ class LeaveApplication(Document, PWANotificationsMixin):
 		self._trigger_notification_count_refetch(to_user)
 
 		# Email notification
-		if cint(self.follow_via_email):
-			link = frappe.utils.get_url_to_form("Leave Application", self.name)
-			secondary_email = frappe.db.get_value("User", to_user, "email") or to_user
-			frappe.sendmail(
-				recipients=[secondary_email],
-				subject=_("Leave Application {0} – Pending Your Approval").format(self.name),
-				message=_(
-					"<p>Leave Application <b>{0}</b> by <b>{1}</b> has been approved by the "
-					"primary Leave Approver and is now pending your approval.</p>"
-					"<p>Leave Type: {2}<br>From: {3}<br>To: {4}<br>Total Days: {5}</p>"
-					'<p><a href="{6}">Review Leave Application</a></p>'
-				).format(
-					self.name,
-					self.employee_name,
-					self.leave_type,
-					formatdate(self.from_date),
-					formatdate(self.to_date),
-					self.total_leave_days,
-					link,
-				),
-				reference_doctype="Leave Application",
-				reference_name=self.name,
-			)
+		link = frappe.utils.get_url_to_form("Leave Application", self.name)
+		secondary_email = frappe.db.get_value("User", to_user, "email") or to_user
+		self._send_leave_email(
+			[secondary_email],
+			_("Leave Application {0} - Pending Your Approval").format(self.name),
+			_(
+				"<p>Leave Application <b>{0}</b> by <b>{1}</b> has been approved by the "
+				"primary Leave Approver and is now pending your approval.</p>"
+				"<p>Leave Type: {2}<br>From: {3}<br>To: {4}<br>Total Days: {5}</p>"
+				'<p><a href="{6}">Review Leave Application</a></p>'
+			).format(
+				self.name,
+				self.employee_name,
+				self.leave_type,
+				formatdate(self.from_date),
+				formatdate(self.to_date),
+				self.total_leave_days,
+				link,
+			),
+		)
 
 	def validate_for_self_approval(self):
 		self_leave_approval_not_allowed = frappe.db.get_single_value(
