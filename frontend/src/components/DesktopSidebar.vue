@@ -9,19 +9,8 @@
 			<span class="text-base font-bold text-gray-900">VGTS-HRMS</span>
 		</div>
 
-		<!-- Search button -->
-		<div class="px-3 pt-4 pb-1">
-			<button
-				@click="showSearch = true"
-				class="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-gray-500 bg-gray-50 hover:bg-gray-100 border border-gray-200 transition-colors"
-			>
-				<FeatherIcon name="search" class="h-4 w-4 text-gray-400 shrink-0" />
-				<span class="text-gray-400">{{ __("Search employee…") }}</span>
-			</button>
-		</div>
-
 		<!-- Navigation links -->
-		<nav class="flex flex-col gap-0.5 px-3 pt-2">
+		<nav class="flex flex-col gap-0.5 px-3 pt-4">
 			<router-link
 				v-for="item in navItems"
 				:key="item.route"
@@ -55,9 +44,6 @@
 			</button>
 		</div>
 
-		<!-- Employee Search Modal -->
-		<EmployeeSearchModal v-model="showSearch" />
-
 		<!-- Bottom: user + notifications -->
 		<div class="mt-auto border-t border-gray-100 px-4 py-4 flex items-center justify-between">
 			<router-link :to="{ name: 'Profile' }" class="flex items-center gap-2 min-w-0">
@@ -78,7 +64,7 @@
 </template>
 
 <script setup>
-import { inject, markRaw, ref } from "vue"
+import { inject, markRaw } from "vue"
 import { useRoute } from "vue-router"
 import { FeatherIcon, Avatar } from "frappe-ui"
 
@@ -89,14 +75,11 @@ import HomeIcon from "@/components/icons/HomeIcon.vue"
 import LeaveIcon from "@/components/icons/LeaveIcon.vue"
 import ExpenseIcon from "@/components/icons/ExpenseIcon.vue"
 import AttendanceIcon from "@/components/icons/AttendanceIcon.vue"
-import EmployeeSearchModal from "@/components/EmployeeSearchModal.vue"
 
 const __ = inject("$translate")
 const user = inject("$user")
 const route = useRoute()
 const { openForm } = useFormModal()
-
-const showSearch = ref(false)
 
 const navItems = [
 	{ icon: markRaw(HomeIcon),       label: __("Home"),       route: "/home" },
