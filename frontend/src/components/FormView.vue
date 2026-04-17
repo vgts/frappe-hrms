@@ -545,15 +545,15 @@ const docList = createListResource({
 				params: { id: data.name },
 			})
 		},
-		onError() {
+		onError(error) {
+			const msg = _extractErrorMessage(error) || __("Error creating {0}", [__(props.doctype)])
 			toast({
 				title: __("Error"),
-				text: __("Error creating {0}", [__(props.doctype)]),
+				text: msg,
 				icon: "alert-circle",
 				position: "bottom-center",
 				iconClasses: "text-red-500",
 			})
-			console.log(`Error creating ${props.doctype}`)
 		},
 	},
 })
@@ -572,15 +572,15 @@ const documentResource = createDocumentResource({
 				iconClasses: "text-green-500",
 			})
 		},
-		onError() {
+		onError(error) {
+			const msg = _extractErrorMessage(error) || __("Error updating {0}", [__(props.doctype)])
 			toast({
 				title: __("Error"),
-				text: __("Error updating {0}", [__(props.doctype)]),
+				text: msg,
 				icon: "alert-circle",
 				position: "bottom-center",
 				iconClasses: "text-red-500",
 			})
-			console.log(`Error updating ${props.doctype}`)
 		},
 	},
 	delete: {
@@ -594,15 +594,15 @@ const documentResource = createDocumentResource({
 				iconClasses: "text-green-500",
 			})
 		},
-		onError() {
+		onError(error) {
+			const msg = _extractErrorMessage(error) || __("Error deleting {0}", [__(props.doctype)])
 			toast({
 				title: __("Error"),
-				text: __("Error deleting {0}", [__(props.doctype)]),
+				text: msg,
 				icon: "alert-circle",
 				position: "bottom-center",
 				iconClasses: "text-red-500",
 			})
-			console.log(`Error deleting ${props.doctype}`)
 		},
 	},
 })
@@ -654,6 +654,20 @@ function isFieldReadOnly(field) {
 		|| isFormReadOnly.value
 		|| (props.id && !permittedWriteFields.data?.includes(field.fieldname))
 	)
+}
+
+/**
+ * Extract a clean, human-readable message from a frappe-ui error object.
+ * Strips any HTML tags (server errors can contain <a href="..."> links).
+ */
+function _extractErrorMessage(error) {
+	const raw =
+		(Array.isArray(error?.messages) && error.messages.length && error.messages[0]) ||
+		error?.message ||
+		null
+	if (!raw) return null
+	// Strip HTML tags so the toast shows plain text
+	return String(raw).replace(/<[^>]*>/g, "").trim() || null
 }
 
 function handleDocInsert() {
