@@ -12,7 +12,7 @@
 				:showFormButton="showFormButton"
 				@validateForm="validateForm"
 			>
-				<template #formButton v-if="showApprovalActions">
+				<template #formButton v-if="showSecondaryActions">
 					<div class="flex flex-col gap-3 w-full">
 						<!-- Approval Stage Tracker (only when secondary approver exists) -->
 						<ApprovalStageTracker
@@ -131,6 +131,7 @@ import { useRouter } from "vue-router"
 
 import FormView from "@/components/FormView.vue"
 import ApprovalStageTracker from "@/components/ApprovalStageTracker.vue"
+import { isDocumentOwner, isApprovalOwnerContextReady } from "@/utils/twoLevelApproval.js"
 
 const __ = inject("$translate")
 const router = useRouter()
@@ -211,17 +212,25 @@ const employeeDocLoaded = computed(
 	() => !!props.id && !!attendanceRequest.value?.employee
 )
 
+// ownerContextReady: approval details (is_owner flag) have loaded — prevents flash of approval buttons
+const ownerContextReady = computed(() =>
+	isApprovalOwnerContextReady(sessionEmployee, approvalDetails, attendanceRequest.value?.employee)
+)
+
 // True when current user IS the employee who owns this request
 const isCurrentUserEmployee = computed(
 	() =>
 		employeeDocLoaded.value &&
-		sessionEmployee.data?.name === attendanceRequest.value.employee
+		isDocumentOwner(sessionEmployee, approvalDetails, attendanceRequest.value?.employee)
 )
 
 // Primary leave approver can approve (covers both with-secondary and without-secondary flows)
 const isProjectReportingPending = computed(() => {
-	if (!props.id || !employeeDocLoaded.value || isCurrentUserEmployee.value) return false
 	return (
+		employeeDocLoaded.value &&
+		ownerContextReady.value &&
+		!isCurrentUserEmployee.value &&
+		props.id &&
 		attendanceRequest.value.status === "Open" &&
 		attendanceRequest.value.docstatus === 0 &&
 		sessionEmployee.data?.user_id === attendanceRequest.value.approver &&
@@ -232,18 +241,21 @@ const isProjectReportingPending = computed(() => {
 
 // Secondary approver can approve
 const isSecondaryApproverPending = computed(() => {
-	if (!props.id || !employeeDocLoaded.value || isCurrentUserEmployee.value) return false
 	return (
+		employeeDocLoaded.value &&
+		ownerContextReady.value &&
+		!isCurrentUserEmployee.value &&
 		attendanceRequest.value.custom_approval_stage === "Pending Secondary Reporting Approval" &&
 		sessionEmployee.data?.user_id === attendanceRequest.value.custom_secondary_leave_approver &&
 		attendanceRequest.value.docstatus === 0
 	)
 })
 
-// Waiting message: forwarded to secondary (everyone except secondary approver, including applicant)
+// Waiting message: forwarded to secondary (everyone except secondary approver)
 const isPendingSecondaryByOther = computed(() => {
-	if (!props.id || !employeeDocLoaded.value) return false
 	return (
+		employeeDocLoaded.value &&
+		ownerContextReady.value &&
 		attendanceRequest.value.custom_approval_stage === "Pending Secondary Reporting Approval" &&
 		sessionEmployee.data?.user_id !== attendanceRequest.value.custom_secondary_leave_approver &&
 		attendanceRequest.value.docstatus === 0 &&
@@ -252,8 +264,9 @@ const isPendingSecondaryByOther = computed(() => {
 })
 
 // Show custom approval action buttons/messages (replaces default form button)
-const showApprovalActions = computed(() => {
+const showSecondaryActions = computed(() => {
 	if (!props.id || attendanceRequest.value.docstatus !== 0) return false
+	if (!ownerContextReady.value) return false
 	return (
 		isProjectReportingPending.value ||
 		isSecondaryApproverPending.value ||
@@ -261,13 +274,11 @@ const showApprovalActions = computed(() => {
 	)
 })
 
-// Show default form Save/Submit button:
-// - Always for new requests (no id)
-// - For existing: only if no approval actions AND user is not the employee
+// Show default form Save/Submit button
 const showFormButton = computed(() => {
 	if (!props.id) return true
 	if (!employeeDocLoaded.value) return false
-	return !showApprovalActions.value && !isCurrentUserEmployee.value
+	return !showSecondaryActions.value && !isCurrentUserEmployee.value
 })
 
 // ── Approval state ────────────────────────────────────────────────────────────
