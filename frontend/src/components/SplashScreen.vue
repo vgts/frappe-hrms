@@ -4,17 +4,13 @@
 			v-if="visible"
 			class="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-white"
 		>
-			<div class="flex flex-col items-center gap-4">
-				<VGTSLogo class="h-16 w-auto" />
-				<span class="text-xl font-bold text-gray-900 tracking-tight">VGTS-HRMS</span>
-			</div>
+			<span class="text-xl font-bold text-gray-900 tracking-tight">VGTS - HRMS</span>
 		</div>
 	</Transition>
 </template>
 
 <script setup>
 import { ref, onMounted } from "vue"
-import VGTSLogo from "@/components/icons/FrappeHRLogo.vue"
 
 const visible = ref(true)
 
