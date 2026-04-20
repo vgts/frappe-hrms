@@ -4,7 +4,7 @@
 			v-if="visible"
 			class="fixed inset-0 z-[9999] flex flex-col items-center justify-center gap-3 bg-white"
 		>
-			<img src="/assets/hrms/frontend/favicon.png" alt="VGTS Logo" class="h-16 w-auto" />
+			<img src="/favicon.png" alt="VGTS Logo" class="h-16 w-auto" />
 			<span class="text-xl font-bold text-gray-900 tracking-tight">VGTS - HRMS</span>
 		</div>
 	</Transition>
