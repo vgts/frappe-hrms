@@ -73,6 +73,12 @@ class LeaveApplication(Document, PWANotificationsMixin):
 
 	def after_insert(self):
 		self.notify_approver()
+		if (
+			self.docstatus < 1
+			and self.status in ("Open", "Draft")
+			and frappe.db.get_single_value("HR Settings", "send_leave_notification")
+		):
+			self.notify_leave_approver()
 
 	def validate(self):
 		validate_active_employee(self.employee)
@@ -821,7 +827,7 @@ class LeaveApplication(Document, PWANotificationsMixin):
 			subject = frappe.render_template(email_template.subject, args)
 			message = frappe.render_template(email_template.response_, args)
 
-			approver_email = frappe.db.get_value("User", self.leave_approver, "email")
+			approver_email = frappe.db.get_value("User", self.leave_approver, "email") or self.leave_approver
 			self._send_leave_email([approver_email], subject, message)
 
 	def notify(self, args):

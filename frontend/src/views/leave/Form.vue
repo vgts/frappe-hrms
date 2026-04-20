@@ -593,6 +593,19 @@ function syncHalfDaySession(changedField = "") {
 	leaveApplication.value.__syncing_half_day_session = true
 
 	try {
+		// When a custom session checkbox is explicitly enabled, auto-enable half_day
+		// so the user doesn't need to tick the main half_day field separately
+		if (
+			(changedField === "custom_first_half" && leaveApplication.value.custom_first_half) ||
+			(changedField === "custom_second_half" && leaveApplication.value.custom_second_half)
+		) {
+			leaveApplication.value.half_day = 1
+			// Ensure half_day_date is set immediately so total_leave_days → 0.5
+			if (leaveApplication.value.from_date) {
+				leaveApplication.value.half_day_date = leaveApplication.value.from_date
+			}
+		}
+
 		const halfDayEnabled = !!leaveApplication.value.half_day
 		const hasFirst = !!leaveApplication.value.custom_first_half
 		const hasSecond = !!leaveApplication.value.custom_second_half
@@ -603,6 +616,7 @@ function syncHalfDaySession(changedField = "") {
 			return
 		}
 
+		// Mutual exclusion: only one session can be selected at a time
 		if (hasFirst && hasSecond) {
 			if (changedField === "custom_second_half") {
 				leaveApplication.value.custom_first_half = 0
@@ -611,6 +625,7 @@ function syncHalfDaySession(changedField = "") {
 			}
 		}
 
+		// Default to first half when half_day is enabled but no session chosen yet
 		if (!leaveApplication.value.custom_first_half && !leaveApplication.value.custom_second_half) {
 			leaveApplication.value.custom_first_half = 1
 		}
