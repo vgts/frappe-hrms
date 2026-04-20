@@ -29,6 +29,7 @@ export default defineConfig({
 				start_url: "/hrms",
 				description: "Everyday HR & Payroll operations at your fingertips",
 				theme_color: "#ffffff",
+				background_color: "#ffffff",
 				icons: [
 					{
 						src: "/assets/hrms/manifest/manifest-icon-192.maskable.png",
