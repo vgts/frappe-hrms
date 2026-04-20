@@ -149,6 +149,16 @@ export const ATTENDANCE_REQUEST_FIELDS = [
 		label: "Employee",
 		fieldtype: "Link",
 	},
+	{
+		fieldname: "status",
+		label: "Status",
+		fieldtype: "Select",
+	},
+	{
+		fieldname: "explanation",
+		label: "Explanation",
+		fieldtype: "Small Text",
+	},
 ]
 
 export const SHIFT_FIELDS = [
