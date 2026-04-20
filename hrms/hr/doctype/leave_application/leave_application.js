@@ -328,6 +328,21 @@ function hrms_sync_half_day_session(frm, changed_field = null) {
 	frm.__syncing_half_day_session = true;
 
 	try {
+		// When a custom session checkbox is explicitly enabled, auto-enable half_day
+		// so it isn't immediately cleared by the !halfDayEnabled guard below.
+		if (
+			(changed_field === "custom_first_half" && cint(frm.doc.custom_first_half)) ||
+			(changed_field === "custom_second_half" && cint(frm.doc.custom_second_half))
+		) {
+			frm.doc.half_day = 1;
+			frm.refresh_field("half_day");
+			// Set half_day_date immediately so calculate_total_days returns 0.5
+			if (frm.doc.from_date) {
+				frm.doc.half_day_date = frm.doc.from_date;
+				frm.refresh_field("half_day_date");
+			}
+		}
+
 		const halfDayEnabled = cint(frm.doc.half_day);
 		let first = cint(frm.doc.custom_first_half);
 		let second = cint(frm.doc.custom_second_half);
