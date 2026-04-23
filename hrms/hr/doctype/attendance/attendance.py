@@ -253,19 +253,81 @@ class Attendance(Document):
 
 @frappe.whitelist()
 def get_events(start: date | str, end: date | str, filters: str | list | None = None) -> list[dict]:
+	import json
+	from datetime import timedelta
+
 	employee = frappe.db.get_value("Employee", {"user_id": frappe.session.user})
 	if not employee:
 		return []
 
 	if isinstance(filters, str):
-		import json
-
 		filters = json.loads(filters)
 	if not filters:
 		filters = []
-	filters.append(["attendance_date", "between", [get_datetime(start).date(), get_datetime(end).date()]])
+
+	start_date = get_datetime(start).date()
+	end_date   = get_datetime(end).date()
+	filters.append(["attendance_date", "between", [start_date, end_date]])
+
 	attendance_records = add_attendance(filters)
 	add_holidays(attendance_records, start, end, employee)
+
+	# --- detect which employee is being viewed (from calendar filters) ---
+	target_employee = None
+	for f in filters:
+		if isinstance(f, (list, tuple)) and len(f) >= 3:
+			if str(f[0]) == "employee" and str(f[1]) in ("=", "=="):
+				target_employee = f[2]
+				break
+	if not target_employee:
+		target_employee = employee
+
+	# --- dates already covered by an existing record --------------------
+	marked_dates = set()
+	for rec in attendance_records:
+		d = rec.get("attendance_date")
+		if d:
+			marked_dates.add(str(d))
+
+	# --- full holiday list for the employee (regular + weekly offs) -----
+	holiday_list = frappe.db.get_value("Employee", target_employee, "holiday_list")
+	if not holiday_list:
+		company = frappe.db.get_value("Employee", target_employee, "company")
+		if company:
+			holiday_list = frappe.db.get_value("Company", company, "default_holiday_list")
+
+	holiday_set = set()
+	if holiday_list:
+		hol_dates = frappe.db.get_all(
+			"Holiday",
+			filters={"parent": holiday_list, "holiday_date": ["between", [start_date, end_date]]},
+			pluck="holiday_date",
+		)
+		holiday_set = {str(h) for h in hol_dates}
+
+	today_date    = getdate(nowdate())
+	employee_name = frappe.db.get_value("Employee", target_employee, "employee_name") or target_employee
+
+	# --- inject Absent events for past workdays with no record ----------
+	d = start_date
+	while d <= end_date:
+		if d > today_date:
+			break
+		d_str = str(d)
+		dow   = d.weekday()   # 0=Mon … 6=Sun
+		if d_str not in marked_dates and d_str not in holiday_set and dow < 5:
+			attendance_records.append({
+				"doctype":         "Attendance",
+				"attendance_date": d,
+				"employee":        target_employee,
+				"employee_name":   employee_name,
+				"status":          "Absent",
+				"docstatus":       1,
+				"name":            f"__absent_{target_employee}_{d_str}",
+				"title":           f"{employee_name} : Absent",
+			})
+		d += timedelta(days=1)
+
 	return attendance_records
 
 
