@@ -448,6 +448,7 @@ def get_attendance_calendar_events(from_date: str, to_date: str) -> dict[str, st
 	attendance = get_attendance_for_calendar(employee, from_date, to_date)
 	events = {}
 
+	today = getdate()
 	date = getdate(from_date)
 	while date_diff(to_date, date) >= 0:
 		date_str = date.strftime("%Y-%m-%d")
@@ -455,6 +456,9 @@ def get_attendance_calendar_events(from_date: str, to_date: str) -> dict[str, st
 			events[date_str] = attendance[date]
 		elif date in holidays:
 			events[date_str] = "Holiday"
+		elif date < today and date.weekday() < 5:
+			# Past weekday with no attendance record → Absent
+			events[date_str] = "Absent"
 		date = add_days(date, 1)
 
 	return events

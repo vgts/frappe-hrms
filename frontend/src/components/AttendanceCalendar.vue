@@ -54,7 +54,7 @@
 			<hr />
 
 			<!-- Summary -->
-			<div class="grid grid-cols-4 mx-2">
+			<div class="grid grid-cols-3 gap-y-4 mx-2">
 				<div v-for="status in summaryStatuses" class="flex flex-col gap-1">
 					<div class="flex flex-row gap-1 items-center">
 						<span class="rounded full h-3 w-3" :class="colorMap[status]" />
@@ -70,7 +70,7 @@
 </template>
 
 <script setup>
-import { computed, inject, ref, watch } from "vue"
+import { computed, inject, onMounted, onUnmounted, ref, watch } from "vue"
 import { createResource } from "frappe-ui"
 
 const dayjs = inject("$dayjs")
@@ -88,21 +88,26 @@ const colorMap = {
 }
 
 // __("Present"), __("Half Day"), __("Absent"), __("On Leave"), __("Work From Home")
-const summaryStatuses = ["Present", "Half Day", "Absent", "On Leave"]
+const summaryStatuses = ["Present", "Half Day", "Absent", "On Leave", "Weekend", "Holiday"]
 
 const summary = computed(() => {
-	const summary = {}
+	const result = {}
 
+	// Count statuses returned from API (Present, Absent, Holiday, On Leave, Half Day, etc.)
 	for (const status of Object.values(calendarEvents.data)) {
-		let updatedStatus = status === "Work From Home" ? "Present" : status
-		if (updatedStatus in summary) {
-			summary[updatedStatus] += 1
-		} else {
-			summary[updatedStatus] = 1
-		}
+		const updatedStatus = status === "Work From Home" ? "Present" : status
+		result[updatedStatus] = (result[updatedStatus] || 0) + 1
 	}
 
-	return summary
+	// Count Weekend days directly from calendar (not in API data)
+	const daysInMonth = firstOfMonth.value.endOf("M").get("D")
+	let weekends = 0
+	for (let i = 1; i <= daysInMonth; i++) {
+		if (isWeekend(i)) weekends++
+	}
+	result["Weekend"] = weekends
+
+	return result
 })
 
 watch(
@@ -111,6 +116,17 @@ watch(
 		calendarEvents.fetch()
 	}
 )
+
+// Auto-refresh every 30 seconds for live attendance updates
+let refreshTimer = null
+onMounted(() => {
+	refreshTimer = setInterval(() => {
+		calendarEvents.fetch()
+	}, 30000)
+})
+onUnmounted(() => {
+	if (refreshTimer) clearInterval(refreshTimer)
+})
 
 const getEventOnDate = (date) => {
 	return calendarEvents.data[firstOfMonth.value.date(date).format("YYYY-MM-DD")]
@@ -149,7 +165,7 @@ const DAYS = [
 const calendarEvents = createResource({
 	url: "hrms.api.get_attendance_calendar_events",
 	auto: true,
-	cache: "hrms:attendance_calendar_events",
+	cache: () => `hrms:attendance_calendar_events:${firstOfMonth.value.format("YYYY-MM")}`,
 	makeParams() {
 		return {
 			from_date: firstOfMonth.value.format("YYYY-MM-DD"),
