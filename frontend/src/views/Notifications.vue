@@ -88,7 +88,7 @@
 								{{ __('Load more') }}
 							</Button>
 						</div>
-						<EmptyState v-else-if="!notifications.data" :message="__('You have no notifications')" />
+						<EmptyState v-else-if="!notifications.data?.length" :message="__('You have no notifications')" />
 					</div>
 				</div>
 			</div>
@@ -110,6 +110,8 @@ import {
 	notifications,
 	arePushNotificationsEnabled,
 } from "@/data/notifications"
+
+const userResource = inject("$user")
 
 const dayjs = inject("$dayjs")
 const router = useRouter()
@@ -150,8 +152,10 @@ function getItemRoute(item) {
 }
 
 onMounted(() => {
-	notifications.start = 0,
-	notifications.pageLength = 10,
+	// Set filter here — userResource.data is guaranteed loaded after router.beforeEach
+	notifications.filters = { to_user: userResource.data?.name }
+	notifications.start = 0
+	notifications.pageLength = 10
 	notifications.fetch()
 })
 
