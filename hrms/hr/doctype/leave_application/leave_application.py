@@ -78,6 +78,7 @@ class LeaveApplication(Document, PWANotificationsMixin):
 			and self.status in ("Open", "Draft")
 			and frappe.db.get_single_value("HR Settings", "send_leave_notification")
 		):
+			self.notify_employee_on_creation()
 			self.notify_leave_approver()
 
 	def validate(self):
@@ -132,11 +133,6 @@ class LeaveApplication(Document, PWANotificationsMixin):
 				)
 
 	def on_update(self):
-		if self.status == "Open" and self.docstatus < 1:
-			# notify leave approver about creation
-			if frappe.db.get_single_value("HR Settings", "send_leave_notification"):
-				self.notify_leave_approver()
-
 		share_doc_with_approver(self, self.leave_approver)
 		self.handle_secondary_approval_flow()
 
@@ -793,6 +789,32 @@ class LeaveApplication(Document, PWANotificationsMixin):
 		if self.half_day == 0:
 			self.half_day_date = None
 
+	def notify_employee_on_creation(self):
+		"""Send leave submission confirmation to the employee who created the leave."""
+		employee_email = get_employee_email(self.employee)
+		if not employee_email:
+			return
+
+		link = frappe.utils.get_url_to_form("Leave Application", self.name)
+		self._send_leave_email(
+			[employee_email],
+			_("Leave Application {0} Submitted Successfully").format(self.name),
+			_(
+				"<p>Your Leave Application <b>{0}</b> has been submitted and is pending approval.</p>"
+				"<p>Leave Type: {1}<br>From: {2}<br>To: {3}<br>Total Days: {4}</p>"
+				"<p>Leave Approver: {5}</p>"
+				'<p><a href="{6}">View Leave Application</a></p>'
+			).format(
+				self.name,
+				self.leave_type,
+				formatdate(self.from_date),
+				formatdate(self.to_date),
+				self.total_leave_days,
+				self.leave_approver_name or self.leave_approver,
+				link,
+			),
+		)
+
 	def notify_employee(self):
 		employee_email = get_employee_email(self.employee)
 
@@ -1078,8 +1100,8 @@ class LeaveApplication(Document, PWANotificationsMixin):
 
 		self._trigger_notification_count_refetch(to_user)
 
-		# Email notification
-		link = frappe.utils.get_url_to_form("Leave Application", self.name)
+		# Email notification — link opens HRMS PWA (not Frappe desk)
+		link = f"{frappe.utils.get_url()}/hrms/leave-applications/{self.name}"
 		secondary_email = frappe.db.get_value("User", to_user, "email") or to_user
 		self._send_leave_email(
 			[secondary_email],
@@ -1088,7 +1110,9 @@ class LeaveApplication(Document, PWANotificationsMixin):
 				"<p>Leave Application <b>{0}</b> by <b>{1}</b> has been approved by the "
 				"primary Leave Approver and is now pending your approval.</p>"
 				"<p>Leave Type: {2}<br>From: {3}<br>To: {4}<br>Total Days: {5}</p>"
-				'<p><a href="{6}">Review Leave Application</a></p>'
+				'<p><a href="{6}" style="display:inline-block;padding:10px 20px;'
+				'background:#1e3a8a;color:#fff;border-radius:6px;text-decoration:none;'
+				'font-weight:600">Review &amp; Approve in HRMS →</a></p>'
 			).format(
 				self.name,
 				self.employee_name,
