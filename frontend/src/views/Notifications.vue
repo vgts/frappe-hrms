@@ -39,7 +39,7 @@
 									{{ __("Settings") }}
 								</Button>
 								<Button
-									v-if="unreadNotificationsCount.data"
+									v-if="unreadNotificationsCount.data > 0"
 									variant="outline"
 									@click="markAllAsRead.submit()"
 									:loading="markAllAsRead.loading"
@@ -52,15 +52,22 @@
 							</div>
 						</div>
 
-						<!-- Loading state -->
-						<div v-if="notifications.loading && !notifications.data?.length" class="flex justify-center py-8">
-							<div class="text-sm text-gray-400">{{ __("Loading...") }}</div>
+						<!-- Initial loading skeleton -->
+						<div v-if="notifications.loading && !notifications.data?.length" class="flex flex-col gap-3">
+							<div v-for="n in 5" :key="n" class="flex items-center gap-3 p-4 bg-white rounded border border-gray-100">
+								<div class="w-2 h-2 rounded-full bg-gray-200 shrink-0"></div>
+								<div class="w-9 h-9 rounded-full bg-gray-200 shrink-0 animate-pulse"></div>
+								<div class="flex flex-col gap-2 grow">
+									<div class="h-4 bg-gray-200 rounded animate-pulse w-3/4"></div>
+									<div class="h-3 bg-gray-100 rounded animate-pulse w-1/4"></div>
+								</div>
+							</div>
 						</div>
 
 						<!-- Notification list -->
 						<div
-							class="flex flex-col bg-white rounded border border-gray-100 divide-y divide-gray-50"
 							v-else-if="notifications.data?.length"
+							class="flex flex-col bg-white rounded border border-gray-100 divide-y divide-gray-50"
 						>
 							<router-link
 								v-for="item in notifications.data"
@@ -97,10 +104,9 @@
 						/>
 
 						<!-- Load more -->
-						<div v-if="notifications.data?.length && notifications.hasNextPage" class="flex">
+						<div v-if="notifications.hasNextPage" class="flex justify-center">
 							<Button
 								variant="outline"
-								class="ml-auto"
 								@click="loadMore"
 								:loading="notifications.loading"
 							>
@@ -118,8 +124,8 @@
 import { IonContent, IonPage } from "@ionic/vue"
 import { useRouter } from "vue-router"
 import { createResource, FeatherIcon } from "frappe-ui"
+import { computed, inject, onMounted } from "vue"
 
-import { computed, inject, onMounted, ref } from "vue"
 import EmployeeAvatar from "@/components/EmployeeAvatar.vue"
 import EmptyState from "@/components/EmptyState.vue"
 
@@ -133,8 +139,6 @@ const userResource = inject("$user")
 const dayjs = inject("$dayjs")
 const router = useRouter()
 const __ = inject("$translate")
-const pageLength = 10
-const currentStart = ref(0)
 
 const allowPushNotifications = computed(
 	() =>
@@ -145,21 +149,17 @@ const allowPushNotifications = computed(
 const markAllAsRead = createResource({
 	url: "hrms.api.mark_all_notifications_as_read",
 	onSuccess() {
+		// reload() re-fetches all currently visible items and resets unread count
 		notifications.reload()
 	},
 })
 
 function markAsRead(item) {
 	if (item.read) return
-	notifications.setValue.submit(
-		{ name: item.name, read: 1 },
-		{
-			onSuccess: () => {
-				item.read = 1
-				unreadNotificationsCount.reload()
-			},
-		}
-	)
+	// Optimistic update so the blue dot disappears immediately
+	item.read = 1
+	unreadNotificationsCount.reload()
+	notifications.setValue.submit({ name: item.name, read: 1 })
 }
 
 // Map doctype name → PWA route name
@@ -187,19 +187,16 @@ function getItemRoute(item) {
 }
 
 onMounted(() => {
-	// userResource.data is guaranteed loaded after router.beforeEach
 	const user = userResource.data?.name
+	// Reset to first page for this user, then fetch
 	notifications.filters = { to_user: user }
 	notifications.start = 0
-	notifications.pageLength = pageLength
-	currentStart.value = 0
+	notifications.pageLength = 20
 	notifications.fetch()
 })
 
+// next() increments start by pageLength internally and appends new items to the list
 function loadMore() {
-	currentStart.value += pageLength
-	notifications.start = currentStart.value
-	notifications.pageLength = pageLength
-	notifications.fetch()
+	notifications.next()
 }
 </script>

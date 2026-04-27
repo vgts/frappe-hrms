@@ -20,6 +20,7 @@ export const notifications = createListResource({
 		"reference_document_type",
 		"reference_document_name",
 	],
+	pageLength: 20,
 	auto: false,
 	orderBy: "creation desc",
 	onSuccess() {

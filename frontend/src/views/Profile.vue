@@ -121,32 +121,46 @@
 		<ion-modal
 			:is-open="isInfoModalOpen"
 			@didDismiss="closeInfoModal"
-			:initial-breakpoint="1"
-			:breakpoints="[0, 1]"
+			:initial-breakpoint="0.75"
+			:breakpoints="[0, 0.75, 1]"
+			:handle="true"
 		>
-			<div v-if="selectedItem" class="bg-white w-full min-h-[60vh]">
-				<!-- Loading skeleton while doc fetches -->
-				<div v-if="!employeeDoc.doc" class="flex flex-col gap-4 p-6 pt-10">
-					<div class="h-6 w-40 bg-gray-100 rounded animate-pulse mx-auto mb-4"></div>
-					<div v-for="n in 5" :key="n" class="flex justify-between items-center">
-						<div class="h-4 w-28 bg-gray-100 rounded animate-pulse"></div>
-						<div class="h-4 w-24 bg-gray-100 rounded animate-pulse"></div>
+			<ion-content>
+				<div v-if="selectedItem" class="pb-8">
+					<!-- Modal header with close button -->
+					<div class="flex items-center justify-between px-4 pt-4 pb-3 border-b border-gray-100 sticky top-0 bg-white z-10">
+						<span class="text-base font-semibold text-gray-900">{{ selectedItem.title }}</span>
+						<button
+							class="flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100 active:bg-gray-200"
+							@click="closeInfoModal"
+						>
+							<FeatherIcon name="x" class="w-4 h-4 text-gray-500" />
+						</button>
+					</div>
+
+					<!-- Loading skeleton while doc fetches -->
+					<div v-if="!employeeDoc.doc" class="flex flex-col gap-4 p-5 pt-6">
+						<div v-for="n in 6" :key="n" class="flex justify-between items-center py-1">
+							<div class="h-4 w-28 bg-gray-100 rounded animate-pulse"></div>
+							<div class="h-4 w-24 bg-gray-100 rounded animate-pulse"></div>
+						</div>
+					</div>
+
+					<!-- Content: field list -->
+					<div v-else class="flex flex-col divide-y divide-gray-50 px-4 pt-2">
+						<div
+							v-for="field in selectedItem.fields"
+							:key="field"
+							class="flex flex-row items-center justify-between py-3 gap-4"
+						>
+							<span class="text-sm text-gray-500 shrink-0">{{ getFieldLabel(field) }}</span>
+							<span class="text-sm text-gray-900 text-right truncate">
+								{{ employeeDoc.doc?.[field] ?? "—" }}
+							</span>
+						</div>
 					</div>
 				</div>
-				<ProfileInfoModal
-					v-else
-					:title="selectedItem.title"
-					:data="selectedItem.fields.map((field) => {
-						const [label, fieldtype] = getFieldInfo(field)
-						return {
-							fieldname: field,
-							value: employeeDoc.doc?.[field] ?? null,
-							label: label,
-							fieldtype: fieldtype,
-						}
-					})"
-				/>
-			</div>
+			</ion-content>
 		</ion-modal>
 	</ion-page>
 </template>
@@ -158,9 +172,6 @@ import { IonModal, IonPage, IonContent } from "@ionic/vue"
 import { FeatherIcon, createDocumentResource, createResource, call } from "frappe-ui"
 
 import { showErrorAlert } from "@/utils/dialogs"
-import { formatCurrency } from "@/utils/formatters"
-
-import ProfileInfoModal from "@/components/ProfileInfoModal.vue"
 
 import { arePushNotificationsEnabled } from "@/data/notifications"
 
@@ -305,28 +316,11 @@ const closeInfoModal = () => {
 	selectedItem.value = null
 }
 
-// Only fetch the fields actually displayed in the profile sections
-const PROFILE_FIELDS = [
-	"employee_name", "employee_number", "gender", "date_of_birth",
-	"date_of_joining", "blood_group",
-	"company", "department", "designation", "branch", "grade",
-	"reports_to", "employment_type",
-	"cell_number", "personal_email", "company_email", "preferred_email",
-	"ctc", "salary_currency", "payroll_cost_center", "pan_number",
-	"provident_fund_account", "salary_mode", "bank_name", "bank_ac_no",
-	"ifsc_code", "micr_code", "iban",
-]
-
 const employeeDoc = createDocumentResource({
 	doctype: DOCTYPE,
 	name: employee.data.name,
-	fields: PROFILE_FIELDS,
 	cache: `hrms:employee_doc:${employee.data.name}`,
 	auto: true,
-	transform: (data) => {
-		data.ctc = formatCurrency(data.ctc, data.salary_currency)
-		return data
-	},
 })
 
 const employeeDocType = createResource({
@@ -336,11 +330,9 @@ const employeeDocType = createResource({
 	auto: true,
 })
 
-const getFieldInfo = (fieldname) => {
-	const field = employeeDocType.data?.find(
-		(f) => f.fieldname === fieldname
-	)
-	return [__(field?.label, null, "Employee"), field?.fieldtype]
+const getFieldLabel = (fieldname) => {
+	const field = employeeDocType.data?.find((f) => f.fieldname === fieldname)
+	return __(field?.label ?? fieldname, null, "Employee")
 }
 
 const logout = async () => {
