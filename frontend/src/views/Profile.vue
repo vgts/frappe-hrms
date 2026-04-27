@@ -19,7 +19,6 @@
 
 					<!-- Avatar card -->
 					<div class="avatar-card">
-						<!-- Clickable avatar with camera overlay -->
 						<div class="avatar-wrapper" @click="triggerImageUpload">
 							<img
 								v-if="user.data.user_image"
@@ -46,7 +45,6 @@
 						<span v-if="employee" class="emp-name">{{ employee?.data?.employee_name }}</span>
 						<span v-if="employee" class="emp-designation">{{ employee?.data?.designation }}</span>
 
-						<!-- Quick info row -->
 						<div class="info-row" v-if="employee?.data">
 							<span v-if="employee.data.department" class="info-item">
 								<FeatherIcon name="briefcase" class="info-icon" />
@@ -58,7 +56,6 @@
 							</span>
 						</div>
 
-						<!-- Default Present Badge -->
 						<div
 							v-if="isDefaultPresent"
 							class="flex items-center gap-1.5 mt-1 px-3 py-1 rounded-full bg-green-100 border border-green-300"
@@ -72,10 +69,11 @@
 
 					<!-- Profile sections -->
 					<div class="sections-list">
-						<div
+						<!-- Use button (not div) so click events fire reliably inside ion-content -->
+						<button
 							v-for="link in profileLinks"
 							:key="link.title"
-							class="section-row"
+							class="section-row w-full"
 							@click="openInfoModal(link)"
 						>
 							<div class="section-left">
@@ -83,9 +81,8 @@
 								<span class="section-label">{{ link.title }}</span>
 							</div>
 							<FeatherIcon name="chevron-right" class="section-arrow" />
-						</div>
+						</button>
 
-						<!-- Settings -->
 						<router-link
 							v-if="allowPushNotifications"
 							:to="{ name: 'Settings' }"
@@ -117,62 +114,62 @@
 			</div>
 		</ion-content>
 
-		<!-- Info modal — direct child of ion-page so Ionic can present it correctly -->
-		<ion-modal
-			:is-open="isInfoModalOpen"
-			@didDismiss="closeInfoModal"
-			:initial-breakpoint="0.75"
-			:breakpoints="[0, 0.75, 1]"
-			:handle="true"
-		>
-			<ion-content>
-				<div v-if="selectedItem" class="pb-8">
-					<!-- Modal header with close button -->
-					<div class="flex items-center justify-between px-4 pt-4 pb-3 border-b border-gray-100 sticky top-0 bg-white z-10">
-						<span class="text-base font-semibold text-gray-900">{{ selectedItem.title }}</span>
-						<button
-							class="flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100 active:bg-gray-200"
-							@click="closeInfoModal"
-						>
+		<!-- Bottom-sheet info panel — uses Teleport so it renders at body level,
+		     completely outside Ionic's ion-content scroll handler.
+		     This guarantees the sheet always appears regardless of Ionic's internal
+		     modal lifecycle quirks. -->
+		<Teleport to="body">
+			<div v-if="isInfoModalOpen" class="profile-sheet-overlay" @click.self="closeInfoModal">
+				<!-- Backdrop -->
+				<div class="profile-sheet-backdrop" @click="closeInfoModal"></div>
+
+				<!-- Sheet panel -->
+				<div class="profile-sheet">
+					<!-- Drag handle -->
+					<div class="profile-sheet-handle-row">
+						<div class="profile-sheet-handle"></div>
+					</div>
+
+					<!-- Sheet header -->
+					<div class="profile-sheet-header">
+						<span class="profile-sheet-title">{{ selectedItem?.title }}</span>
+						<button class="profile-sheet-close" @click="closeInfoModal">
 							<FeatherIcon name="x" class="w-4 h-4 text-gray-500" />
 						</button>
 					</div>
 
-					<!-- Loading skeleton while doc fetches -->
-					<div v-if="!employeeDoc.doc" class="flex flex-col gap-4 p-5 pt-6">
-						<div v-for="n in 6" :key="n" class="flex justify-between items-center py-1">
-							<div class="h-4 w-28 bg-gray-100 rounded animate-pulse"></div>
-							<div class="h-4 w-24 bg-gray-100 rounded animate-pulse"></div>
+					<!-- Loading skeleton -->
+					<div v-if="!employeeDoc.doc" class="profile-sheet-body">
+						<div v-for="n in 7" :key="n" class="profile-field-row">
+							<div class="skeleton-label"></div>
+							<div class="skeleton-value"></div>
 						</div>
 					</div>
 
-					<!-- Content: field list -->
-					<div v-else class="flex flex-col divide-y divide-gray-50 px-4 pt-2">
+					<!-- Field list -->
+					<div v-else class="profile-sheet-body">
 						<div
 							v-for="field in selectedItem.fields"
 							:key="field"
-							class="flex flex-row items-center justify-between py-3 gap-4"
+							class="profile-field-row"
 						>
-							<span class="text-sm text-gray-500 shrink-0">{{ getFieldLabel(field) }}</span>
-							<span class="text-sm text-gray-900 text-right truncate">
-								{{ employeeDoc.doc?.[field] ?? "—" }}
-							</span>
+							<span class="profile-field-label">{{ getFieldLabel(field) }}</span>
+							<span class="profile-field-value">{{ employeeDoc.doc?.[field] || "—" }}</span>
 						</div>
 					</div>
 				</div>
-			</ion-content>
-		</ion-modal>
+			</div>
+		</Teleport>
 	</ion-page>
 </template>
 
 <script setup>
 import { computed, inject, ref, onMounted, onBeforeUnmount } from "vue"
 import { useRouter } from "vue-router"
-import { IonModal, IonPage, IonContent } from "@ionic/vue"
+import { IonPage, IonContent } from "@ionic/vue"
 import { FeatherIcon, createDocumentResource, createResource, call } from "frappe-ui"
 
 import { showErrorAlert } from "@/utils/dialogs"
-
 import { arePushNotificationsEnabled } from "@/data/notifications"
 
 const DOCTYPE = "Employee"
@@ -185,7 +182,7 @@ const __ = inject("$translate")
 
 const router = useRouter()
 
-// ── Profile image upload ───────────────────────────────────────────────────
+// ── Profile image upload ──────────────────────────────────────────────────
 const fileInput = ref(null)
 const isUploading = ref(false)
 
@@ -196,7 +193,6 @@ function triggerImageUpload() {
 async function onImageSelected(event) {
 	const file = event.target.files?.[0]
 	if (!file) return
-
 	isUploading.value = true
 	try {
 		const dataUrl = await readFileAsDataUrl(file)
@@ -232,6 +228,7 @@ function readFileAsDataUrl(file) {
 	})
 }
 
+// ── Profile sections ──────────────────────────────────────────────────────
 const profileLinks = [
 	{
 		icon: "user",
@@ -286,16 +283,28 @@ const profileLinks = [
 	},
 ]
 
+// ── Sheet open / close ────────────────────────────────────────────────────
 const isInfoModalOpen = ref(false)
 const selectedItem = ref(null)
 
+function openInfoModal(link) {
+	selectedItem.value = link
+	isInfoModalOpen.value = true
+}
+
+function closeInfoModal() {
+	isInfoModalOpen.value = false
+	selectedItem.value = null
+}
+
+// ── Push notifications ────────────────────────────────────────────────────
 const allowPushNotifications = computed(
 	() =>
 		window.frappe?.boot.push_relay_server_url &&
 		arePushNotificationsEnabled.data
 )
 
-// ── Default Present status ────────────────────────────────────────────────
+// ── Default Present badge ─────────────────────────────────────────────────
 const defaultPresentResource = createResource({
 	url: "vgts.default_present.default_present.is_default_present",
 	params: { employee: employee.data.name },
@@ -305,17 +314,7 @@ const defaultPresentResource = createResource({
 
 const isDefaultPresent = computed(() => !!defaultPresentResource.data)
 
-// ── Profile modal ─────────────────────────────────────────────────────────
-const openInfoModal = (request) => {
-	selectedItem.value = request
-	isInfoModalOpen.value = true
-}
-
-const closeInfoModal = () => {
-	isInfoModalOpen.value = false
-	selectedItem.value = null
-}
-
+// ── Employee document (for field values) ──────────────────────────────────
 const employeeDoc = createDocumentResource({
 	doctype: DOCTYPE,
 	name: employee.data.name,
@@ -323,6 +322,7 @@ const employeeDoc = createDocumentResource({
 	auto: true,
 })
 
+// ── Employee doctype fields (for labels) ──────────────────────────────────
 const employeeDocType = createResource({
 	url: "hrms.api.get_doctype_fields",
 	params: { doctype: DOCTYPE },
@@ -330,11 +330,12 @@ const employeeDocType = createResource({
 	auto: true,
 })
 
-const getFieldLabel = (fieldname) => {
+function getFieldLabel(fieldname) {
 	const field = employeeDocType.data?.find((f) => f.fieldname === fieldname)
 	return __(field?.label ?? fieldname, null, "Employee")
 }
 
+// ── Logout ────────────────────────────────────────────────────────────────
 const logout = async () => {
 	try {
 		await session.logout.submit()
@@ -345,6 +346,7 @@ const logout = async () => {
 	}
 }
 
+// ── Live reload via socket ────────────────────────────────────────────────
 onMounted(() => {
 	socket.emit("doctype_subscribe", DOCTYPE)
 	socket.on("list_update", (data) => {
@@ -362,6 +364,7 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+/* ── Page ─────────────────────────────────────────────────────────────── */
 .profile-page {
 	min-height: 100%;
 	background: #f9fafb;
@@ -374,21 +377,15 @@ onBeforeUnmount(() => {
 }
 
 @media (min-width: 768px) {
-	.profile-container {
-		max-width: 520px;
-	}
+	.profile-container { max-width: 520px; }
 }
 
 @media (min-width: 1024px) {
-	.profile-page {
-		padding: 0 40px 60px;
-	}
-	.profile-container {
-		max-width: 680px;
-	}
+	.profile-page { padding: 0 40px 60px; }
+	.profile-container { max-width: 680px; }
 }
 
-/* Nav */
+/* ── Nav ──────────────────────────────────────────────────────────────── */
 .profile-nav {
 	display: flex;
 	align-items: center;
@@ -407,7 +404,7 @@ onBeforeUnmount(() => {
 	margin: 0;
 }
 
-/* Avatar card */
+/* ── Avatar card ──────────────────────────────────────────────────────── */
 .avatar-card {
 	display: flex;
 	flex-direction: column;
@@ -461,18 +458,9 @@ onBeforeUnmount(() => {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	transition: background 0.15s;
 }
 
-.avatar-wrapper:hover .avatar-edit-badge {
-	background: #f3f4f6;
-}
-
-.edit-icon {
-	height: 12px;
-	width: 12px;
-	color: #6b7280;
-}
+.edit-icon { height: 12px; width: 12px; color: #6b7280; }
 
 .upload-spinner-sm {
 	width: 12px;
@@ -483,20 +471,10 @@ onBeforeUnmount(() => {
 	animation: spin 0.7s linear infinite;
 }
 
-@keyframes spin {
-	to { transform: rotate(360deg); }
-}
+@keyframes spin { to { transform: rotate(360deg); } }
 
-.emp-name {
-	font-size: 1.125rem;
-	font-weight: 700;
-	color: #111827;
-}
-
-.emp-designation {
-	font-size: 0.8125rem;
-	color: #6b7280;
-}
+.emp-name { font-size: 1.125rem; font-weight: 700; color: #111827; }
+.emp-designation { font-size: 0.8125rem; color: #6b7280; }
 
 .info-row {
 	display: flex;
@@ -514,12 +492,9 @@ onBeforeUnmount(() => {
 	color: #9ca3af;
 }
 
-.info-icon {
-	height: 12px;
-	width: 12px;
-}
+.info-icon { height: 12px; width: 12px; }
 
-/* Section list */
+/* ── Section list ─────────────────────────────────────────────────────── */
 .sections-list {
 	margin-top: 16px;
 	background: #ffffff;
@@ -536,52 +511,156 @@ onBeforeUnmount(() => {
 	cursor: pointer;
 	border-bottom: 1px solid #f3f4f6;
 	text-decoration: none;
+	background: transparent;
+	border-radius: 0;
 	transition: background 0.1s;
+	text-align: left;
 }
 
-.section-row:last-child {
-	border-bottom: none;
-}
+.section-row:last-child { border-bottom: none; }
+.section-row:active { background: #f9fafb; }
 
-.section-row:active {
-	background: #f9fafb;
-}
+.section-left { display: flex; align-items: center; gap: 12px; }
+.section-icon { height: 18px; width: 18px; color: #9ca3af; }
+.section-label { font-size: 0.9375rem; font-weight: 500; color: #374151; }
+.section-arrow { height: 16px; width: 16px; color: #d1d5db; }
 
-.section-left {
-	display: flex;
-	align-items: center;
-	gap: 12px;
-}
+/* ── Logout / Footer ──────────────────────────────────────────────────── */
+.logout-btn { border-radius: 12px !important; }
 
-.section-icon {
-	height: 18px;
-	width: 18px;
-	color: #9ca3af;
-}
-
-.section-label {
-	font-size: 0.9375rem;
-	font-weight: 500;
-	color: #374151;
-}
-
-.section-arrow {
-	height: 16px;
-	width: 16px;
-	color: #d1d5db;
-}
-
-/* Logout */
-.logout-btn {
-	border-radius: 12px !important;
-}
-
-/* Footer */
 .footer-text {
 	text-align: center;
 	font-size: 0.6875rem;
 	color: #d1d5db;
 	padding: 20px 0 0;
 	letter-spacing: 0.05em;
+}
+
+/* ── Bottom sheet (Teleport — not scoped to ion-page) ─────────────────── */
+.profile-sheet-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 9999;
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-end;
+}
+
+.profile-sheet-backdrop {
+	position: absolute;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.45);
+}
+
+.profile-sheet {
+	position: relative;
+	background: #ffffff;
+	border-radius: 20px 20px 0 0;
+	max-height: 85vh;
+	display: flex;
+	flex-direction: column;
+	box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
+	animation: sheet-slide-up 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@keyframes sheet-slide-up {
+	from { transform: translateY(100%); }
+	to   { transform: translateY(0); }
+}
+
+.profile-sheet-handle-row {
+	display: flex;
+	justify-content: center;
+	padding: 12px 0 4px;
+	flex-shrink: 0;
+}
+
+.profile-sheet-handle {
+	width: 40px;
+	height: 4px;
+	border-radius: 99px;
+	background: #d1d5db;
+}
+
+.profile-sheet-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 8px 16px 12px;
+	border-bottom: 1px solid #f3f4f6;
+	flex-shrink: 0;
+}
+
+.profile-sheet-title {
+	font-size: 1rem;
+	font-weight: 600;
+	color: #111827;
+}
+
+.profile-sheet-close {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	transition: background 0.15s;
+}
+
+.profile-sheet-close:active { background: #f3f4f6; }
+
+.profile-sheet-body {
+	overflow-y: auto;
+	flex: 1;
+	padding: 4px 16px 24px;
+}
+
+.profile-field-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 13px 0;
+	border-bottom: 1px solid #f9fafb;
+}
+
+.profile-field-row:last-child { border-bottom: none; }
+
+.profile-field-label {
+	font-size: 0.875rem;
+	color: #6b7280;
+	flex-shrink: 0;
+}
+
+.profile-field-value {
+	font-size: 0.875rem;
+	color: #111827;
+	text-align: right;
+	word-break: break-word;
+}
+
+/* Skeleton shimmer */
+.skeleton-label {
+	height: 14px;
+	width: 100px;
+	border-radius: 6px;
+	background: #f3f4f6;
+	animation: shimmer 1.2s ease-in-out infinite;
+}
+
+.skeleton-value {
+	height: 14px;
+	width: 80px;
+	border-radius: 6px;
+	background: #f3f4f6;
+	animation: shimmer 1.2s ease-in-out infinite 0.2s;
+}
+
+@keyframes shimmer {
+	0%, 100% { opacity: 1; }
+	50%       { opacity: 0.4; }
 }
 </style>
