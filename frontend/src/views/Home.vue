@@ -71,11 +71,17 @@ function refreshAll() {
 	teamCompensatoryRequests.reload()
 }
 
-// Auto-refetch when app comes back to foreground (tab focus / app resume)
+// Auto-refetch when app comes back to foreground — throttled to once per 30s
+// to prevent hammering the server when the user switches apps frequently
+let lastRefreshAt = 0
+const REFRESH_COOLDOWN = 30_000
+
 function onVisibilityChange() {
-	if (document.visibilityState === "visible") {
-		refreshAll()
-	}
+	if (document.visibilityState !== "visible") return
+	const now = Date.now()
+	if (now - lastRefreshAt < REFRESH_COOLDOWN) return
+	lastRefreshAt = now
+	refreshAll()
 }
 
 onMounted(() => {

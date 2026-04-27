@@ -124,11 +124,19 @@
 			:initial-breakpoint="1"
 			:breakpoints="[0, 1]"
 		>
-			<ProfileInfoModal
-				v-if="selectedItem && employeeDoc.doc"
-				:title="selectedItem.title"
-				:data="
-					selectedItem.fields.map((field) => {
+			<div v-if="selectedItem" class="bg-white w-full min-h-[60vh]">
+				<!-- Loading skeleton while doc fetches -->
+				<div v-if="!employeeDoc.doc" class="flex flex-col gap-4 p-6 pt-10">
+					<div class="h-6 w-40 bg-gray-100 rounded animate-pulse mx-auto mb-4"></div>
+					<div v-for="n in 5" :key="n" class="flex justify-between items-center">
+						<div class="h-4 w-28 bg-gray-100 rounded animate-pulse"></div>
+						<div class="h-4 w-24 bg-gray-100 rounded animate-pulse"></div>
+					</div>
+				</div>
+				<ProfileInfoModal
+					v-else
+					:title="selectedItem.title"
+					:data="selectedItem.fields.map((field) => {
 						const [label, fieldtype] = getFieldInfo(field)
 						return {
 							fieldname: field,
@@ -136,9 +144,9 @@
 							label: label,
 							fieldtype: fieldtype,
 						}
-					})
-				"
-			/>
+					})"
+				/>
+			</div>
 		</ion-modal>
 	</ion-page>
 </template>
@@ -280,6 +288,7 @@ const allowPushNotifications = computed(
 const defaultPresentResource = createResource({
 	url: "vgts.default_present.default_present.is_default_present",
 	params: { employee: employee.data.name },
+	cache: `hrms:default_present:${employee.data.name}`,
 	auto: true,
 })
 
@@ -296,10 +305,23 @@ const closeInfoModal = () => {
 	selectedItem.value = null
 }
 
+// Only fetch the fields actually displayed in the profile sections
+const PROFILE_FIELDS = [
+	"employee_name", "employee_number", "gender", "date_of_birth",
+	"date_of_joining", "blood_group",
+	"company", "department", "designation", "branch", "grade",
+	"reports_to", "employment_type",
+	"cell_number", "personal_email", "company_email", "preferred_email",
+	"ctc", "salary_currency", "payroll_cost_center", "pan_number",
+	"provident_fund_account", "salary_mode", "bank_name", "bank_ac_no",
+	"ifsc_code", "micr_code", "iban",
+]
+
 const employeeDoc = createDocumentResource({
 	doctype: DOCTYPE,
 	name: employee.data.name,
-	fields: "*",
+	fields: PROFILE_FIELDS,
+	cache: `hrms:employee_doc:${employee.data.name}`,
 	auto: true,
 	transform: (data) => {
 		data.ctc = formatCurrency(data.ctc, data.salary_currency)
@@ -310,6 +332,7 @@ const employeeDoc = createDocumentResource({
 const employeeDocType = createResource({
 	url: "hrms.api.get_doctype_fields",
 	params: { doctype: DOCTYPE },
+	cache: "hrms:employee_doctype_fields",
 	auto: true,
 })
 
