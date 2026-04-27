@@ -73,13 +73,7 @@ class LeaveApplication(Document, PWANotificationsMixin):
 
 	def after_insert(self):
 		self.notify_approver()
-		if (
-			self.docstatus < 1
-			and self.status in ("Open", "Draft")
-			and frappe.db.get_single_value("HR Settings", "send_leave_notification")
-		):
-			self.notify_employee_on_creation()
-			self.notify_leave_approver()
+		# vgts.notifications.notify_new_request handles email to employee + primary approver
 
 	def validate(self):
 		validate_active_employee(self.employee)
@@ -199,9 +193,7 @@ class LeaveApplication(Document, PWANotificationsMixin):
 		self.update_attendance()
 		self.validate_for_self_approval()
 
-		# notify leave applier about approval
-		if frappe.db.get_single_value("HR Settings", "send_leave_notification"):
-			self.notify_employee()
+		# vgts.notifications.notify_request_approved handles employee approval email
 
 		self.create_leave_ledger_entry()
 		# create a reverse ledger entry for backdated leave applications for whom expiry entry already exists

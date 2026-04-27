@@ -14,11 +14,12 @@
 							>
 								<FeatherIcon name="chevron-left" class="h-5 w-5" />
 							</Button>
-							<h2 class="text-xl font-semibold text-gray-900">{{ __("Notifications") }} </h2>
+							<h2 class="text-xl font-semibold text-gray-900">{{ __("Notifications") }}</h2>
 						</div>
 					</header>
 
 					<div class="flex flex-col gap-4 mt-5 p-4 lg:px-10 lg:py-8 lg:max-w-3xl lg:mx-auto">
+						<!-- Top bar: unread count + action buttons -->
 						<div class="flex flex-row justify-between items-center">
 							<div
 								class="text-lg text-gray-800 font-semibold"
@@ -40,7 +41,7 @@
 								<Button
 									v-if="unreadNotificationsCount.data"
 									variant="outline"
-									@click="markAllAsRead.submit"
+									@click="markAllAsRead.submit()"
 									:loading="markAllAsRead.loading"
 								>
 									<template #prefix>
@@ -51,44 +52,61 @@
 							</div>
 						</div>
 
+						<!-- Loading state -->
+						<div v-if="notifications.loading && !notifications.data?.length" class="flex justify-center py-8">
+							<div class="text-sm text-gray-400">{{ __("Loading...") }}</div>
+						</div>
+
+						<!-- Notification list -->
 						<div
-							class="flex flex-col bg-white rounded"
-							v-if="notifications.data?.length"
+							class="flex flex-col bg-white rounded border border-gray-100 divide-y divide-gray-50"
+							v-else-if="notifications.data?.length"
 						>
 							<router-link
-								:class="[
-									'flex flex-row items-start p-4 justify-between border-b before:mt-3',
-									`before:content-[''] before:mr-2 before:shrink-0 before:w-1.5 before:h-1.5 before:rounded-full`,
-									item.read ? 'bg-white-500' : 'before:bg-blue-500',
-								]"
 								v-for="item in notifications.data"
 								:key="item.name"
+								:class="[
+									'flex flex-row items-start p-4 gap-3',
+									item.read ? 'bg-white' : 'bg-blue-50',
+								]"
 								:to="getItemRoute(item)"
-								@click="markAsRead(item.name)"
+								@click="markAsRead(item)"
 							>
-								<EmployeeAvatar :userID="item.from_user" size="lg" />
-								<div class="flex flex-col gap-0.5 grow ml-3">
+								<!-- Unread dot -->
+								<span
+									class="mt-2 shrink-0 w-2 h-2 rounded-full"
+									:class="item.read ? 'bg-transparent' : 'bg-blue-500'"
+								></span>
+								<EmployeeAvatar :userID="item.from_user" size="md" />
+								<div class="flex flex-col gap-1 grow min-w-0">
 									<div
 										class="text-sm leading-5 font-normal text-gray-800"
 										v-html="item.message"
 									></div>
-									<div class="text-xs font-normal text-gray-500">
+									<div class="text-xs font-normal text-gray-400">
 										{{ dayjs(item.creation).fromNow() }}
 									</div>
 								</div>
 							</router-link>
-							
 						</div>
+
+						<!-- Empty state -->
+						<EmptyState
+							v-else-if="!notifications.loading"
+							:message="__('You have no notifications')"
+						/>
+
+						<!-- Load more -->
 						<div v-if="notifications.data?.length && notifications.hasNextPage" class="flex">
 							<Button
 								variant="outline"
 								class="ml-auto"
 								@click="loadMore"
+								:loading="notifications.loading"
 							>
-								{{ __('Load more') }}
+								{{ __("Load more") }}
 							</Button>
 						</div>
-						<EmptyState v-else-if="!notifications.data?.length" :message="__('You have no notifications')" />
 					</div>
 				</div>
 			</div>
@@ -112,13 +130,11 @@ import {
 } from "@/data/notifications"
 
 const userResource = inject("$user")
-
 const dayjs = inject("$dayjs")
 const router = useRouter()
 const __ = inject("$translate")
-const currentStart = ref(0)
 const pageLength = 10
-
+const currentStart = ref(0)
 
 const allowPushNotifications = computed(
 	() =>
@@ -133,29 +149,50 @@ const markAllAsRead = createResource({
 	},
 })
 
-function markAsRead(name) {
+function markAsRead(item) {
+	if (item.read) return
 	notifications.setValue.submit(
-		{ name, read: 1 },
+		{ name: item.name, read: 1 },
 		{
 			onSuccess: () => {
+				item.read = 1
 				unreadNotificationsCount.reload()
 			},
 		}
 	)
 }
 
+// Map doctype name → PWA route name
+const DOCTYPE_ROUTE = {
+	"Leave Application": "LeaveApplicationDetailView",
+	"Attendance Request": "AttendanceRequestDetailView",
+	"Shift Request": "ShiftRequestDetailView",
+	"Employee Permission": "EmployeePermissionDetailView",
+	"Attendance Regularization": "AttendanceRegularizationDetailView",
+	"Compensatory Leave Request": "CompensatoryLeaveRequestDetailView",
+	"Expense Claim": "ExpenseClaimDetailView",
+}
+
 function getItemRoute(item) {
+	if (!item.reference_document_type || !item.reference_document_name) {
+		return { name: "Notifications" }
+	}
+	const routeName =
+		DOCTYPE_ROUTE[item.reference_document_type] ||
+		`${item.reference_document_type.replace(/\s+/g, "")}DetailView`
 	return {
-		name: `${item.reference_document_type.replace(/\s+/g, "")}DetailView`,
+		name: routeName,
 		params: { id: item.reference_document_name },
 	}
 }
 
 onMounted(() => {
-	// Set filter here — userResource.data is guaranteed loaded after router.beforeEach
-	notifications.filters = { to_user: userResource.data?.name }
+	// userResource.data is guaranteed loaded after router.beforeEach
+	const user = userResource.data?.name
+	notifications.filters = { to_user: user }
 	notifications.start = 0
-	notifications.pageLength = 10
+	notifications.pageLength = pageLength
+	currentStart.value = 0
 	notifications.fetch()
 })
 
@@ -163,6 +200,6 @@ function loadMore() {
 	currentStart.value += pageLength
 	notifications.start = currentStart.value
 	notifications.pageLength = pageLength
-	notifications.list.fetch()
+	notifications.fetch()
 }
 </script>

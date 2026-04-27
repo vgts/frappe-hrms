@@ -21,7 +21,6 @@ export const notifications = createListResource({
 		"reference_document_name",
 	],
 	auto: false,
-	cache: "hrms:notifications",
 	orderBy: "creation desc",
 	onSuccess() {
 		unreadNotificationsCount.reload()
