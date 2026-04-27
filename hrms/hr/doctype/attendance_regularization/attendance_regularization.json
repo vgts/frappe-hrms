@@ -244,7 +244,8 @@
    "report": 1,
    "role": "Employee",
    "share": 1,
-   "write": 1
+   "write": 1,
+   "delete": 1
   }
  ],
  "sort_field": "creation",
