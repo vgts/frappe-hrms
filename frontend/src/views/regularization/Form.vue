@@ -12,7 +12,7 @@
 				:showFormButton="showFormButton"
 				@validateForm="validateForm"
 			>
-				<template #formButton v-if="showApprovalActions">
+				<template #formButton v-if="showApprovalActions || showDeleteButton">
 					<div class="flex flex-col gap-3 w-full">
 						<!-- Approval Stage Tracker (only when secondary approver exists) -->
 						<ApprovalStageTracker
@@ -117,6 +117,29 @@
 							</div>
 						</template>
 					</div>
+
+					<!-- Delete button (only for document owner, draft state) -->
+					<template v-if="showDeleteButton">
+						<div v-if="showDeleteConfirm" class="flex flex-col gap-2 w-full">
+							<div class="text-center text-sm font-medium text-red-700 bg-red-50 rounded-lg p-2">
+								{{ __("Are you sure you want to delete this request?") }}
+							</div>
+							<div class="flex flex-row gap-3">
+								<Button @click="showDeleteConfirm = false" class="w-full py-5" variant="subtle" theme="gray">
+									{{ __("Cancel") }}
+								</Button>
+								<Button @click="handleDelete" class="w-full py-5" variant="solid" theme="red">
+									{{ __("Delete") }}
+								</Button>
+							</div>
+						</div>
+						<Button v-else @click="showDeleteConfirm = true" class="w-full py-5" variant="subtle" theme="red">
+							<template #prefix>
+								<FeatherIcon name="trash-2" class="w-4 h-4" />
+							</template>
+							{{ __("Delete") }}
+						</Button>
+					</template>
 				</template>
 			</FormView>
 		</ion-content>
@@ -125,7 +148,7 @@
 
 <script setup>
 import { IonPage, IonContent } from "@ionic/vue"
-import { createResource, toast } from "frappe-ui"
+import { createResource, toast, FeatherIcon } from "frappe-ui"
 import { ref, watch, inject, computed } from "vue"
 import { useRouter } from "vue-router"
 
@@ -274,6 +297,33 @@ const showFormButton = computed(() => {
 	if (!employeeDocLoaded.value || !ownerContextReady.value) return false
 	return !showApprovalActions.value && !isCurrentUserEmployee.value
 })
+
+// Employee can delete their own draft request
+const showDeleteButton = computed(
+	() =>
+		!!props.id &&
+		isCurrentUserEmployee.value &&
+		regularization.value.docstatus === 0 &&
+		!showApprovalActions.value
+)
+
+const showDeleteConfirm = ref(false)
+
+function handleDelete() {
+	createResource({
+		url: "frappe.client.delete",
+		params: { doctype: "Attendance Regularization", name: props.id },
+		auto: true,
+		onSuccess() {
+			toast({ title: __(""), text: __("Regularization request deleted."), icon: "check-circle", position: "bottom-center", iconClasses: "text-green-500" })
+			router.back()
+		},
+		onError() {
+			showDeleteConfirm.value = false
+			toast({ title: __("Error"), text: __("Delete failed. Please try again."), icon: "alert-circle", position: "bottom-center", iconClasses: "text-red-500" })
+		},
+	})
+}
 
 // ── Approval state ────────────────────────────────────────────────────────────
 const showRejectReason = ref(false)
