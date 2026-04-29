@@ -343,19 +343,52 @@ def process_attendance_from_checkin(employee, out_time):
 	process_attendance(employee, first_in.date(), first_in, out_time, force_absent=False)
 
 
+def _has_wfh_approval(employee, attendance_date):
+	"""Returns True if the employee has an approved Work From Home leave on attendance_date."""
+	return bool(frappe.db.exists("Leave Application", {
+		"employee":   employee,
+		"leave_type": ["in", ["Work From Home", "WFH"]],
+		"docstatus":  1,
+		"from_date":  ["<=", attendance_date],
+		"to_date":    [">=", attendance_date],
+	}))
+
+
+def _has_od_approval(employee, attendance_date):
+	"""Returns True if the employee has an approved On Duty attendance request on attendance_date."""
+	return bool(frappe.db.exists("Attendance Request", {
+		"employee":   employee,
+		"reason":     ["in", ["On Duty", "OD"]],
+		"docstatus":  1,
+		"from_date":  ["<=", attendance_date],
+		"to_date":    [">=", attendance_date],
+	}))
+
+
 def process_attendance(employee, attendance_date, in_time, out_time, force_absent=False):
 	"""
 	Create or update (cancel → amend) the Attendance record for one session.
 
-	Rules:
-	  force_absent=True  → always Absent  (used for auto-checkout sessions)
-	  working_hours >= PRESENT_THRESHOLD_HOURS → Present
-	  working_hours <  PRESENT_THRESHOLD_HOURS → Absent
+	Status priority (evaluated top to bottom):
+	  1. Approved WFH leave for this date  → Work From Home
+	  2. Approved OD request for this date  → On Duty
+	  3. force_absent = True (auto-checkout) → Absent
+	  4. Normal check-in + check-out        → Present  (no hour threshold)
 
 	Returns the saved Attendance document.
 	"""
 	working_hours = round((out_time - in_time).total_seconds() / 3600, 2)
-	status  = "Absent" if force_absent or working_hours < PRESENT_THRESHOLD_HOURS else "Present"
+
+	if _has_wfh_approval(employee, attendance_date):
+		status = "Work From Home"
+	elif _has_od_approval(employee, attendance_date):
+		status = "On Duty"
+	elif force_absent:
+		status = "Absent"
+	else:
+		# Any valid check-in + check-out = Present regardless of hours worked
+		status = "Present"
+
 	company = frappe.db.get_value("Employee", employee, "company")
 
 	existing = frappe.db.get_value(
@@ -749,3 +782,609 @@ def calculate_time_difference(start_time, end_time):
 	time_difference = abs(start_time - end_time)
 
 	return round(time_difference.total_seconds() / 3600, 2)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Batch attendance processing — called by the MCP and schedulers
+# ══════════════════════════════════════════════════════════════════════════════
+
+@frappe.whitelist()
+def process_monthly_attendance(month, year, company=""):
+	"""
+	Batch-process attendance for all active employees for a given month/year.
+
+	Rules applied per employee per past working day (Mon–Fri, non-holiday):
+	  1. Approved WFH leave          → Work From Home (WFH)
+	  2. Approved OD request         → On Duty (OD)
+	  3. Both IN and OUT check-ins   → Present (P)
+	  4. Only IN (no OUT)            → auto-checkout at 23:59:59 + Absent (A)
+	  5. No check-ins at all         → Absent (A)
+
+	Called by the MCP via:
+	    POST /api/method/hrms.hr.doctype.employee_checkin.employee_checkin.process_monthly_attendance
+	    body: {"month": 4, "year": 2026, "company": ""}
+	"""
+	from datetime import date
+
+	month = frappe.utils.cint(month)
+	year  = frappe.utils.cint(year)
+	today = date.today()
+
+	first_day = date(year, month, 1)
+	last_day  = (date(year, month + 1, 1) if month < 12 else date(year + 1, 1, 1)) - timedelta(days=1)
+	month_start = str(first_day)
+	month_end   = str(last_day)
+
+	# ── 1. Holiday dates ──────────────────────────────────────────────────────
+	holiday_dates = set(frappe.db.sql_list("""
+		SELECT DATE_FORMAT(holiday_date, %s)
+		FROM `tabHoliday`
+		WHERE parent IN (SELECT name FROM `tabHoliday List` WHERE disabled = 0)
+		  AND holiday_date BETWEEN %s AND %s
+	""", ("%%Y-%%m-%%d", month_start, month_end)))
+
+	past_working_days = [
+		d for d in (first_day + timedelta(n) for n in range((last_day - first_day).days + 1))
+		if d.weekday() < 5 and str(d) not in holiday_dates and d < today
+	]
+	all_working_days = [
+		d for d in (first_day + timedelta(n) for n in range((last_day - first_day).days + 1))
+		if d.weekday() < 5 and str(d) not in holiday_dates
+	]
+
+	# ── 2. Active employees ───────────────────────────────────────────────────
+	emp_filters = {"status": "Active"}
+	if company:
+		emp_filters["company"] = company
+
+	employees = frappe.db.get_all(
+		"Employee",
+		filters=emp_filters,
+		fields=["name", "employee_name", "company", "department"],
+		limit=0,
+	)
+
+	# ── 3. Check-in logs for the month ────────────────────────────────────────
+	raw_checkins = frappe.db.get_all(
+		"Employee Checkin",
+		filters={"time": ["between", [f"{month_start} 00:00:00", f"{month_end} 23:59:59"]]},
+		fields=["employee", "log_type", "time"],
+		order_by="time asc",
+		limit=0,
+	)
+
+	checkin_map = {}  # [emp_id][day_str] = {"IN": first_in_log, "OUT": last_out_log}
+	for ci in raw_checkins:
+		emp_id   = ci["employee"]
+		day_str  = str(ci["time"])[:10]
+		log_type = ci.get("log_type") or ""
+		if log_type not in ("IN", "OUT"):
+			continue
+		checkin_map.setdefault(emp_id, {}).setdefault(day_str, {})
+		prev = checkin_map[emp_id][day_str].get(log_type)
+		if prev is None:
+			checkin_map[emp_id][day_str][log_type] = ci
+		elif log_type == "IN"  and ci["time"] < prev["time"]:
+			checkin_map[emp_id][day_str]["IN"]  = ci   # keep earliest IN
+		elif log_type == "OUT" and ci["time"] > prev["time"]:
+			checkin_map[emp_id][day_str]["OUT"] = ci   # keep latest OUT
+
+	# ── 4. Approved WFH leaves for the month ─────────────────────────────────
+	wfh_map = {}   # wfh_map[emp_id] = set of date strings
+	for app in frappe.db.get_all(
+		"Leave Application",
+		filters={
+			"leave_type": ["in", ["Work From Home", "WFH"]],
+			"docstatus":  1,
+			"from_date":  ["<=", month_end],
+			"to_date":    [">=", month_start],
+		},
+		fields=["employee", "from_date", "to_date"],
+		limit=0,
+	):
+		cur = get_datetime(str(app["from_date"])).date()
+		end = get_datetime(str(app["to_date"])).date()
+		while cur <= end:
+			wfh_map.setdefault(app["employee"], set()).add(str(cur))
+			cur += timedelta(days=1)
+
+	# ── 5. Existing attendance for the month ──────────────────────────────────
+	att_filters = {"attendance_date": ["between", [month_start, month_end]]}
+	if company:
+		att_filters["company"] = company
+
+	att_map = {}
+	for a in frappe.db.get_all(
+		"Attendance",
+		filters=att_filters,
+		fields=["name", "employee", "attendance_date", "status", "docstatus"],
+		limit=0,
+	):
+		att_map[(a["employee"], str(a["attendance_date"])[:10])] = a
+
+	# ── 5a. Approved OD attendance requests for the month ─────────────────────
+	od_map = {}  # od_map[emp_id] = set of date strings
+	for req in frappe.db.get_all(
+		"Attendance Request",
+		filters={
+			"reason":    ["in", ["On Duty", "OD"]],
+			"docstatus": 1,
+			"from_date": ["<=", month_end],
+			"to_date":   [">=", month_start],
+		},
+		fields=["employee", "from_date", "to_date"],
+		limit=0,
+	):
+		cur = get_datetime(str(req["from_date"])).date()
+		end = get_datetime(str(req["to_date"])).date()
+		while cur <= end:
+			od_map.setdefault(req["employee"], set()).add(str(cur))
+			cur += timedelta(days=1)
+
+	# ── 6. Process each employee for each past working day ────────────────────
+	auto_checkouts = []
+	processed      = []
+	skipped        = []
+	errors         = []
+
+	for emp in employees:
+		emp_id = emp["name"]
+		emp_co = emp.get("company") or company
+
+		for d in past_working_days:
+			day_str      = str(d)
+			day_logs     = checkin_map.get(emp_id, {}).get(day_str, {})
+			has_in       = "IN"  in day_logs
+			has_out      = "OUT" in day_logs
+			existing_att = att_map.get((emp_id, day_str))
+			is_wfh       = day_str in wfh_map.get(emp_id, set())
+			is_od        = day_str in od_map.get(emp_id, set())
+
+			# Determine the correct status
+			if is_wfh:
+				correct_status = "Work From Home"
+			elif is_od:
+				correct_status = "On Duty"
+			elif has_in and has_out:
+				correct_status = "Present"
+			else:
+				correct_status = "Absent"
+
+			# Already correct — skip
+			if existing_att and existing_att["status"] == correct_status:
+				continue
+
+			# Auto-checkout: IN without OUT (only for non-WFH absent case)
+			if correct_status == "Absent" and has_in and not has_out:
+				auto_out_time = f"{day_str} 23:59:59"
+				try:
+					out_doc           = frappe.new_doc("Employee Checkin")
+					out_doc.employee  = emp_id
+					out_doc.log_type  = "OUT"
+					out_doc.time      = get_datetime(auto_out_time)
+					out_doc.device_id = "Auto Checkout"
+					out_doc.insert(ignore_permissions=True)
+					checkout_note = "created"
+				except Exception as exc:
+					checkout_note = f"failed: {str(exc)[:80]}"
+				auto_checkouts.append({
+					"employee":      emp_id,
+					"employee_name": emp.get("employee_name"),
+					"date":          day_str,
+					"auto_out_time": auto_out_time,
+					"note":          checkout_note,
+				})
+
+			# Build payload fields
+			in_time  = str(day_logs["IN"]["time"])  if has_in  else None
+			out_time = str(day_logs["OUT"]["time"]) if has_out else None
+
+			try:
+				if existing_att:
+					if existing_att.get("docstatus") == 1:
+						# Cancel submitted record first
+						att_doc = frappe.get_doc("Attendance", existing_att["name"])
+						att_doc.flags.ignore_permissions = True
+						att_doc.cancel()
+						existing_att = None
+					elif existing_att.get("docstatus") == 0:
+						# Update draft in place and submit
+						updates = {"status": correct_status}
+						if in_time:
+							updates["in_time"] = in_time
+						if out_time:
+							updates["out_time"] = out_time
+						frappe.db.set_value("Attendance", existing_att["name"], updates)
+						att_doc = frappe.get_doc("Attendance", existing_att["name"])
+						att_doc.flags.ignore_permissions = True
+						att_doc.submit()
+						att_map[(emp_id, day_str)]["status"] = correct_status
+						processed.append({
+							"employee":      emp_id,
+							"employee_name": emp.get("employee_name"),
+							"date":          day_str,
+							"action":        f"updated_to_{correct_status.lower().replace(' ', '_')}",
+						})
+						continue
+
+				# Create new record (after cancel or when none existed)
+				att_doc = frappe.new_doc("Attendance")
+				att_doc.employee        = emp_id
+				att_doc.attendance_date = day_str
+				att_doc.status          = correct_status
+				att_doc.company         = emp_co
+				if in_time:
+					att_doc.in_time = in_time
+				if out_time:
+					att_doc.out_time = out_time
+				att_doc.flags.ignore_permissions = True
+				att_doc.insert(ignore_permissions=True)
+				att_doc.flags.ignore_permissions = True
+				att_doc.submit()
+
+				att_map[(emp_id, day_str)] = {
+					"name":            att_doc.name,
+					"employee":        emp_id,
+					"attendance_date": day_str,
+					"status":          correct_status,
+					"docstatus":       1,
+				}
+				processed.append({
+					"employee":      emp_id,
+					"employee_name": emp.get("employee_name"),
+					"date":          day_str,
+					"action":        f"created_{correct_status.lower().replace(' ', '_')}",
+				})
+
+			except Exception as exc:
+				errors.append({"employee": emp_id, "date": day_str, "error": str(exc)[:200]})
+
+	frappe.db.commit()
+
+	# ── 7. Build the attendance grid ──────────────────────────────────────────
+	STATUS_ABBR = {
+		"Present":        "P",
+		"Absent":         "A",
+		"Half Day":       "HD",
+		"Work From Home": "WFH",
+		"On Leave":       "L",
+		"Holiday":        "H",
+		"Weekly Off":     "WO",
+	}
+
+	sheet_rows = []
+	for emp in employees:
+		emp_id = emp["name"]
+		row    = {
+			"employee":      emp_id,
+			"employee_name": emp.get("employee_name", ""),
+			"department":    emp.get("department", ""),
+		}
+		total_present = total_absent = total_wfh = 0
+		total_od = 0
+
+		for d in all_working_days:
+			day_str = str(d)
+			rec     = att_map.get((emp_id, day_str))
+
+			if d >= today:
+				abbr = "-"
+			elif rec:
+				abbr = STATUS_ABBR.get(rec["status"], rec["status"][:1])
+			else:
+				abbr = "A"
+
+			row[str(d.day)] = abbr
+			if   abbr == "P":   total_present += 1
+			elif abbr == "A":   total_absent  += 1
+			elif abbr == "WFH": total_wfh     += 1
+			elif abbr == "OD":  total_od      += 1
+
+		row["total_present"] = total_present
+		row["total_absent"]  = total_absent
+		row["total_wfh"]     = total_wfh
+		row["total_od"]      = total_od
+		sheet_rows.append(row)
+
+	return {
+		"monthly_attendance_sheet": {
+			"month":   month,
+			"year":    year,
+			"company": company or "All",
+			"columns": (
+				["employee", "employee_name", "department"]
+				+ [str(d.day) for d in all_working_days]
+				+ ["total_present", "total_absent", "total_wfh", "total_od"]
+			),
+			"rows": sheet_rows,
+		},
+		"processing_summary": {
+			"total_employees":   len(employees),
+			"past_working_days": len(past_working_days),
+			"processed_count":   len(processed),
+			"processed":         processed,
+			"auto_checkouts":    auto_checkouts,
+			"skipped":           skipped,
+			"errors":            errors,
+		},
+	}
+
+
+@frappe.whitelist()
+def fix_employee_attendance(employee, attendance_date):
+	"""
+	Fix attendance for a single employee on a specific date.
+
+	Checks WFH approval and check-in/out records, then creates or corrects
+	the Attendance record:
+	  - WFH approved          → Work From Home
+	  - OD approved           → On Duty
+	  - IN + OUT logs exist   → Present
+	  - Otherwise             → returns skipped (no change)
+
+	Called by the MCP via:
+	    POST /api/method/hrms.hr.doctype.employee_checkin.employee_checkin.fix_employee_attendance
+	    body: {"employee": "HR-EMP-0057", "attendance_date": "2026-04-24"}
+	"""
+	wfh_approved = _has_wfh_approval(employee, attendance_date)
+	od_approved = _has_od_approval(employee, attendance_date)
+
+	# Fetch check-in logs
+	checkins = frappe.db.get_all(
+		"Employee Checkin",
+		filters={
+			"employee": employee,
+			"time":     ["between", [
+				f"{attendance_date} 00:00:00",
+				f"{attendance_date} 23:59:59",
+			]],
+		},
+		fields=["log_type", "time"],
+		order_by="time asc",
+		limit=0,
+	)
+	in_logs  = [c for c in checkins if c.get("log_type") == "IN"]
+	out_logs = [c for c in checkins if c.get("log_type") == "OUT"]
+
+	first_in  = in_logs[0]["time"]  if in_logs  else None
+	last_out  = out_logs[-1]["time"] if out_logs else None
+
+	working_hours = None
+	if first_in and last_out:
+		working_hours = round(
+			(get_datetime(str(last_out)) - get_datetime(str(first_in))).total_seconds() / 3600, 2
+		)
+
+	# Determine correct status
+	if wfh_approved:
+		correct_status = "Work From Home"
+	elif od_approved:
+		correct_status = "On Duty"
+	elif first_in and last_out:
+		correct_status = "Present"
+	else:
+		return {
+			"status":   "skipped",
+			"employee": employee,
+			"date":     attendance_date,
+			"message":  "No WFH approval and no complete check-in/out found",
+			"wfh":      bool(wfh_approved),
+			"in_logs":  len(in_logs),
+			"out_logs": len(out_logs),
+		}
+
+	# Fetch existing attendance
+	existing = frappe.db.get_value(
+		"Attendance",
+		{"employee": employee, "attendance_date": attendance_date, "docstatus": ["!=", 2]},
+		["name", "status", "docstatus"],
+		as_dict=True,
+	)
+
+	if existing and existing.get("status") == correct_status:
+		return {
+			"status":         "already_correct",
+			"employee":       employee,
+			"date":           attendance_date,
+			"current_status": existing["status"],
+			"message":        f"Attendance is already {correct_status}",
+		}
+
+	company  = frappe.db.get_value("Employee", employee, "company")
+	old_name = existing["name"] if existing else None
+
+	# Cancel existing submitted record
+	if existing and existing.get("docstatus") == 1:
+		att_doc = frappe.get_doc("Attendance", existing["name"])
+		att_doc.flags.ignore_permissions = True
+		att_doc.cancel()
+
+	# Create corrected record
+	att_doc = frappe.new_doc("Attendance")
+	att_doc.employee        = employee
+	att_doc.attendance_date = attendance_date
+	att_doc.status          = correct_status
+	att_doc.company         = company
+	if first_in:
+		att_doc.in_time = first_in
+	if last_out:
+		att_doc.out_time = last_out
+	if working_hours is not None:
+		att_doc.working_hours = working_hours
+	att_doc.flags.ignore_permissions = True
+	att_doc.insert(ignore_permissions=True)
+	att_doc.flags.ignore_permissions = True
+	att_doc.submit()
+
+	frappe.db.commit()
+
+	return {
+		"status":         "fixed",
+		"employee":       employee,
+		"date":           attendance_date,
+		"old_attendance": old_name,
+		"new_attendance": att_doc.name,
+		"new_status":     correct_status,
+		"wfh_approved":   bool(wfh_approved),
+		"first_in":       str(first_in)  if first_in  else None,
+		"last_out":       str(last_out)  if last_out  else None,
+		"working_hours":  working_hours,
+	}
+
+
+@frappe.whitelist()
+def fix_wfh_od_attendance(from_date, to_date, company=""):
+	"""
+	Scan all approved WFH leave applications and approved OD attendance requests
+	within the date range and correct existing attendance records accordingly.
+
+	Priority:
+	  1. Approved WFH leave (Leave Application, leave_type="Work From Home", docstatus=1)
+	     → status = "Work From Home"
+	  2. Approved OD (Attendance Request, reason="On Duty", docstatus=1)
+	     → status = "On Duty"
+
+	Cancels any wrong submitted attendance and creates the corrected one.
+
+	Called by the MCP via:
+	    POST /api/method/hrms.hr.doctype.employee_checkin.employee_checkin.fix_wfh_od_attendance
+	    body: {"from_date": "2026-04-01", "to_date": "2026-04-30", "company": ""}
+	"""
+	# ── 1. Approved WFH leaves ────────────────────────────────────────────────
+	wfh_map = {}  # {(employee, date_str): "Work From Home"}
+	wfh_filters = {
+		"leave_type": ["in", ["Work From Home", "WFH"]],
+		"docstatus":  1,
+		"from_date":  ["<=", to_date],
+		"to_date":    [">=", from_date],
+	}
+	if company:
+		wfh_filters["company"] = company
+
+	for app in frappe.db.get_all(
+		"Leave Application",
+		filters=wfh_filters,
+		fields=["employee", "from_date", "to_date"],
+		limit=0,
+	):
+		cur = get_datetime(str(app["from_date"])).date()
+		end = get_datetime(str(app["to_date"])).date()
+		while cur <= end:
+			d_str = str(cur)
+			if from_date <= d_str <= to_date:
+				wfh_map[(app["employee"], d_str)] = "Work From Home"
+			cur += timedelta(days=1)
+
+	# ── 2. Approved OD attendance requests ────────────────────────────────────
+	od_map = {}   # {(employee, date_str): "On Duty"}
+	od_filters = {
+		"reason":    ["in", ["On Duty", "OD"]],
+		"docstatus": 1,
+		"from_date": ["<=", to_date],
+		"to_date":   [">=", from_date],
+	}
+	if company:
+		od_filters["company"] = company
+
+	for req in frappe.db.get_all(
+		"Attendance Request",
+		filters=od_filters,
+		fields=["employee", "from_date", "to_date"],
+		limit=0,
+	):
+		cur = get_datetime(str(req["from_date"])).date()
+		end = get_datetime(str(req["to_date"])).date()
+		while cur <= end:
+			d_str = str(cur)
+			if from_date <= d_str <= to_date:
+				# WFH takes priority — only add OD if no WFH on this day
+				if (req["employee"], d_str) not in wfh_map:
+					od_map[(req["employee"], d_str)] = "On Duty"
+			cur += timedelta(days=1)
+
+	# Merge: WFH priority already enforced above
+	all_corrections = {**od_map, **wfh_map}
+
+	processed = []
+	skipped   = []
+	errors    = []
+
+	for (emp_id, day_str), correct_status in all_corrections.items():
+		try:
+			existing = frappe.db.get_value(
+				"Attendance",
+				{"employee": emp_id, "attendance_date": day_str, "docstatus": ["!=", 2]},
+				["name", "status", "docstatus"],
+				as_dict=True,
+			)
+
+			if existing and existing["status"] == correct_status:
+				skipped.append({
+					"employee": emp_id,
+					"date":     day_str,
+					"status":   correct_status,
+					"note":     "already_correct",
+				})
+				continue
+
+			company_name = company or frappe.db.get_value("Employee", emp_id, "company")
+			old_name     = existing["name"] if existing else None
+			old_status   = existing["status"] if existing else None
+
+			if existing and existing["docstatus"] == 1:
+				att_doc = frappe.get_doc("Attendance", existing["name"])
+				att_doc.flags.ignore_permissions = True
+				att_doc.cancel()
+			elif existing and existing["docstatus"] == 0:
+				frappe.db.set_value("Attendance", existing["name"], "status", correct_status)
+				att_doc = frappe.get_doc("Attendance", existing["name"])
+				att_doc.flags.ignore_permissions = True
+				att_doc.submit()
+				processed.append({
+					"employee":       emp_id,
+					"date":           day_str,
+					"old_status":     old_status,
+					"new_status":     correct_status,
+					"old_attendance": old_name,
+					"new_attendance": old_name,
+					"action":         "updated_draft",
+				})
+				continue
+
+			att_doc                 = frappe.new_doc("Attendance")
+			att_doc.employee        = emp_id
+			att_doc.attendance_date = day_str
+			att_doc.status          = correct_status
+			att_doc.company         = company_name
+			att_doc.flags.ignore_permissions = True
+			att_doc.insert(ignore_permissions=True)
+			att_doc.flags.ignore_permissions = True
+			att_doc.submit()
+
+			processed.append({
+				"employee":       emp_id,
+				"date":           day_str,
+				"old_status":     old_status,
+				"new_status":     correct_status,
+				"old_attendance": old_name,
+				"new_attendance": att_doc.name,
+				"action":         "cancelled_and_recreated" if old_name else "created",
+			})
+
+		except Exception as exc:
+			errors.append({"employee": emp_id, "date": day_str, "error": str(exc)[:200]})
+
+	frappe.db.commit()
+
+	return {
+		"from_date":       from_date,
+		"to_date":         to_date,
+		"total_wfh_days":  len(wfh_map),
+		"total_od_days":   len(od_map),
+		"processed_count": len(processed),
+		"skipped_count":   len(skipped),
+		"error_count":     len(errors),
+		"processed":       processed,
+		"skipped":         skipped,
+		"errors":          errors,
+	}

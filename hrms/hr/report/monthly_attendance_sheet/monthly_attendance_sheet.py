@@ -68,7 +68,13 @@ def execute(filters: Filters | None = None) -> tuple:
 			filters.companies.extend(get_descendants_of("Company", filters.company))
 
 	attendance_map, leave_type_map = get_attendance_map(filters)
+
+	# Pending Leave Applications (WFH, On Leave, etc.) + pending Attendance Requests (WFH, On Duty)
 	pending_leave_map = get_pending_leave_applications(filters)
+	for key, val in get_pending_attendance_requests(filters).items():
+		# Leave Application entry takes priority; only fill gaps
+		if key not in pending_leave_map:
+			pending_leave_map[key] = val
 
 	columns = get_columns(filters)
 	data = get_data(filters, attendance_map, leave_type_map, pending_leave_map)
@@ -650,12 +656,88 @@ def get_pending_leave_applications(filters: Filters) -> dict:
 				status_label = (
 					"Half Day/Other Half Absent" if is_second_half else "Half Day/Other Half Present"
 				)
+			elif leave_type == "Work From Home":
+				# WFH leave applied (even before approval) → show WFH
+				status_label = "Work From Home"
 			else:
 				status_label = "On Leave"
 
 			pending_leave_map[(employee, d)] = {"status": status_label, "leave_type": leave_type}
 
 	return pending_leave_map
+
+
+def get_pending_attendance_requests(filters: Filters) -> dict:
+	"""
+	Build a map for pending (Open, before approval) Attendance Requests so the
+	Monthly Attendance Sheet shows WFH / OD immediately after the employee applies,
+	without waiting for manager approval.
+
+	reason = "Work From Home" → status "Work From Home" → displays WFH
+	reason = "On Duty"        → status "On Duty"        → displays OD
+
+	Returns:
+	    {(employee, date): {"status": <MonthlySheetStatus>, "leave_type": ""}}
+	"""
+	if not filters.company:
+		return {}
+
+	if filters.filter_based_on == "Month":
+		start_date = date(cint(filters.year), cint(filters.month), 1)
+		end_date   = date(cint(filters.year), cint(filters.month), get_total_days_in_month(filters))
+	else:
+		start_date = getdate(filters.start_date)
+		end_date   = getdate(filters.end_date)
+
+	AttendanceRequest = frappe.qb.DocType("Attendance Request")
+
+	try:
+		pending_rows = (
+			frappe.qb.from_(AttendanceRequest)
+			.select(
+				AttendanceRequest.employee,
+				AttendanceRequest.from_date,
+				AttendanceRequest.to_date,
+				AttendanceRequest.reason,
+			)
+			.where(
+				(AttendanceRequest.company.isin(filters.companies))
+				& (AttendanceRequest.status == "Open")
+				& (AttendanceRequest.docstatus == 0)
+				& (AttendanceRequest.from_date <= end_date)
+				& (AttendanceRequest.to_date >= start_date)
+			)
+		).run(as_dict=True)
+	except Exception:
+		return {}
+
+	REASON_STATUS = {
+		"Work From Home": "Work From Home",
+		"WFH":            "Work From Home",
+		"On Duty":        "On Duty",
+		"OD":             "On Duty",
+	}
+
+	pending_map = {}
+	for ar in pending_rows:
+		employee     = ar.get("employee")
+		raw_reason = (ar.get("reason") or "").strip()
+		status_label = REASON_STATUS.get(raw_reason)
+		if not employee or not status_label:
+			continue
+
+		overlap_start = max(getdate(ar.from_date), start_date)
+		overlap_end   = min(getdate(ar.to_date),   end_date)
+		if overlap_start > overlap_end:
+			continue
+
+		for d_str in get_date_range(str(overlap_start), str(overlap_end)):
+			d = getdate(d_str)
+			# Only set if no Leave Application entry already exists for this day
+			if (employee, d) not in pending_map:
+				pending_map[(employee, d)] = {"status": status_label, "leave_type": ""}
+
+	return pending_map
 
 
 def get_rows(employee_details: dict, filters: Filters, holiday_map: dict, attendance_map: dict,
@@ -756,7 +838,14 @@ def get_attendance_summary_and_days(employee: str, filters: Filters) -> tuple[di
 
 	present_case = (
 		frappe.qb.terms.Case()
-		.when(((Attendance.status == "Present") | (Attendance.status == "Work From Home")), 1)
+		.when(
+			(
+				(Attendance.status == "Present")
+				| (Attendance.status == "Work From Home")
+				| (Attendance.status == "On Duty")
+			),
+			1,
+		)
 		.else_(0)
 	)
 	sum_present = Sum(present_case).as_("total_present")
@@ -907,8 +996,11 @@ def get_attendance_status_for_detailed_view(
 					absent_code = lt_abbr or perm_code or "A"
 					abbr = f"{absent_code}/P"
 			elif d == today_date:
-				# Today: holiday/weekly-off take priority, then check-in, then status, then pending
+				# Today: priority order → Holiday/Weekly Off → WFH → check-in → status → pending
 				if status in ("Holiday", "Weekly Off"):
+					abbr = status_map.get(status, "")
+				elif status in ("Work From Home", "On Duty"):
+					# Approved WFH/OD attendance should be shown as-is even if checked in.
 					abbr = status_map.get(status, "")
 				else:
 					ci_info = checkin_map.get(employee)
@@ -1057,7 +1149,7 @@ def get_chart_data(attendance_map: dict, filters: Filters) -> dict:
 					break
 				elif attendance_on_day == "Absent":
 					total_absent_on_day += 1
-				elif attendance_on_day in ["Present", "Work From Home"]:
+				elif attendance_on_day in ["Present", "Work From Home", "On Duty"]:
 					total_present_on_day += 1
 				elif attendance_on_day == "Half Day":
 					total_present_on_day += 0.5
