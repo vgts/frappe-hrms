@@ -9,7 +9,7 @@
  "label": "VGTS-HRMS",
  "link": "/desk/people",
  "link_type": "External",
- "logo_url": "/assets/hrms/images/frappe-hr-logo.svg",
+ "logo_url": "/assets/hrms/frontend/favicon.png",
  "modified": "2026-01-09 17:29:44.070361",
  "modified_by": "Administrator",
  "name": "VGTS-HRMS",

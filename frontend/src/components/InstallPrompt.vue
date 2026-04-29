@@ -77,26 +77,33 @@ if (isIos() && !isInStandaloneMode()) {
 	iosInstallMessage.value = true
 }
 
-window.addEventListener("beforeinstallprompt", (e) => {
-	// Prevent the mini-infobar from appearing on mobile
-	e.preventDefault()
+function syncFromGlobalDeferredPrompt() {
+	const e = window.__hrmsDeferredPrompt
+	if (!e) return
+
 	// Stash the event so it can be triggered later.
 	deferredPrompt.value = e
+
 	if (isIos() && !isInStandaloneMode()) {
 		iosInstallMessage.value = true
 	} else {
 		showDialog.value = true
 	}
-	// Optionally, send analytics event that PWA install promo was shown.
-	console.log(`'beforeinstallprompt' event was fired.`)
-})
+}
 
-window.addEventListener("appinstalled", () => {
+// `main.js` stores the real `beforeinstallprompt` event and re-emits it
+// immediately to avoid missing it on fast navigations.
+window.addEventListener("hrms:beforeinstallprompt", syncFromGlobalDeferredPrompt)
+window.addEventListener("hrms:appinstalled", () => {
 	showDialog.value = false
 	deferredPrompt.value = null
 })
 
+// If the event already fired before this component mounted, use cached value.
+if (window.__hrmsDeferredPrompt) syncFromGlobalDeferredPrompt()
+
 async function install() {
+	if (!deferredPrompt.value) return
 	deferredPrompt.value.prompt()
 	showDialog.value = false
 }

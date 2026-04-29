@@ -155,8 +155,8 @@ import { formatTimestamp } from "@/utils/formatters"
 
 const DOCTYPE = "Employee Checkin"
 
-const socket   = inject("$socket")
-const employee = inject("$employee")
+const socket   = inject("$socket", null)
+const employee = inject("$employee", null)
 const dayjs    = inject("$dayjs")
 const __       = inject("$translate")
 
@@ -179,6 +179,7 @@ const isCheckedIn      = computed(() => checkinStatus.data?.is_checked_in      ?
 const checkedInSeconds = computed(() => checkinStatus.data?.checked_in_seconds ?? 0)
 const lastCheckinTime  = computed(() => checkinStatus.data?.last_checkin_time  ?? null)
 const firstCheckinTime = computed(() => checkinStatus.data?.first_checkin_time ?? null)
+const employeeName = computed(() => employee?.data?.name ?? "")
 
 const nextAction = computed(() =>
 	isCheckedIn.value
@@ -261,7 +262,6 @@ watch(() => checkinStatus.data, () => startTimer(), { deep: true })
 const checkins = createListResource({
 	doctype: DOCTYPE,
 	fields:  ["name", "log_type", "time"],
-	filters: { employee: employee.data.name },
 	orderBy: "time desc",
 	pageLength: 1,
 })
@@ -313,9 +313,19 @@ const openCheckinModal = () => {
 
 const submitLog = (logType) => {
 	const actionLabel = logType === "IN" ? __("Check-in") : __("Check-out")
+	if (!employeeName.value) {
+		toast({
+			title: __("Error"),
+			text: __("Employee details are still loading. Please try again."),
+			icon: "alert-circle",
+			position: "bottom-center",
+			iconClasses: "text-red-500",
+		})
+		return
+	}
 	checkins.insert.submit(
 		{
-			employee:  employee.data.name,
+			employee:  employeeName.value,
 			log_type:  logType,
 			time:      checkinTimestamp.value,
 			latitude:  latitude.value,
@@ -353,8 +363,8 @@ const submitLog = (logType) => {
 
 onMounted(() => {
 	// Socket: instant update when any Employee Checkin record changes
-	socket.emit("doctype_subscribe", DOCTYPE)
-	socket.on("list_update", (data) => {
+	socket?.emit("doctype_subscribe", DOCTYPE)
+	socket?.on("list_update", (data) => {
 		if (data.doctype === DOCTYPE) refreshStatus()
 	})
 
@@ -371,7 +381,7 @@ onBeforeUnmount(() => {
 	stopTimer()
 	clearInterval(pollInterval.value)
 	document.removeEventListener("visibilitychange", onVisibilityChange)
-	socket.emit("doctype_unsubscribe", DOCTYPE)
-	socket.off("list_update")
+	socket?.emit("doctype_unsubscribe", DOCTYPE)
+	socket?.off("list_update")
 })
 </script>

@@ -58,6 +58,25 @@ app.provide("$employee", employeeResource)
 app.provide("$socket", socket)
 app.provide("$dayjs", dayjs)
 
+// PWA install prompt: register as early as possible so we don't miss
+// the one-time `beforeinstallprompt` event when landing on certain routes.
+window.__hrmsDeferredPrompt = null
+const HRMS_BEFOREINSTALL_EVENT = "hrms:beforeinstallprompt"
+const HRMS_APPINSTALLED_EVENT = "hrms:appinstalled"
+
+window.addEventListener("beforeinstallprompt", (e) => {
+	try {
+		e.preventDefault()
+	} catch (_) {}
+	window.__hrmsDeferredPrompt = e
+	window.dispatchEvent(new Event(HRMS_BEFOREINSTALL_EVENT))
+})
+
+window.addEventListener("appinstalled", () => {
+	window.__hrmsDeferredPrompt = null
+	window.dispatchEvent(new Event(HRMS_APPINSTALLED_EVENT))
+})
+
 const registerServiceWorker = async () => {
 	window.frappePushNotification = new FrappePushNotification("hrms")
 
