@@ -79,7 +79,8 @@ const firstOfMonth = ref(dayjs().date(1).startOf("D"))
 
 const colorMap = {
 	Present: "bg-green-300",
-	"Work From Home": "bg-green-300",
+	"Work From Home": "bg-violet-300",
+	"On Duty": "bg-cyan-300",
 	"Half Day": "bg-yellow-200",
 	Absent: "bg-red-200",
 	"On Leave": "bg-blue-300",
@@ -87,16 +88,15 @@ const colorMap = {
 	Weekend: "bg-orange-100",
 }
 
-// __("Present"), __("Half Day"), __("Absent"), __("On Leave"), __("Work From Home")
-const summaryStatuses = ["Present", "Half Day", "Absent", "On Leave", "Weekend", "Holiday"]
+// __("Present"), __("Work From Home"), __("On Duty"), __("Half Day"), __("Absent"), __("On Leave")
+const summaryStatuses = ["Present", "Work From Home", "On Duty", "Half Day", "Absent", "On Leave", "Weekend", "Holiday"]
 
 const summary = computed(() => {
 	const result = {}
 
-	// Count statuses returned from API (Present, Absent, Holiday, On Leave, Half Day, etc.)
+	// Count statuses returned from API (Present, Work From Home, On Duty, Absent, etc.)
 	for (const status of Object.values(calendarEvents.data)) {
-		const updatedStatus = status === "Work From Home" ? "Present" : status
-		result[updatedStatus] = (result[updatedStatus] || 0) + 1
+		result[status] = (result[status] || 0) + 1
 	}
 
 	// Count Weekend days directly from calendar (not in API data)

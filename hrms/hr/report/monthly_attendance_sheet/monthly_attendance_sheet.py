@@ -75,9 +75,11 @@ def execute(filters: Filters | None = None) -> tuple:
 		# Leave Application entry takes priority; only fill gaps
 		if key not in pending_leave_map:
 			pending_leave_map[key] = val
+	# Approved Attendance Requests should also reflect in sheet display
+	approved_request_map = get_approved_attendance_requests(filters)
 
 	columns = get_columns(filters)
-	data = get_data(filters, attendance_map, leave_type_map, pending_leave_map)
+	data = get_data(filters, attendance_map, leave_type_map, pending_leave_map, approved_request_map)
 
 	if not data:
 		frappe.msgprint(_("No employees found for this criteria."), alert=True, indicator="orange")
@@ -268,6 +270,7 @@ def get_data(
 	attendance_map: dict,
 	leave_type_map: dict = None,
 	pending_leave_map: dict = None,
+	approved_request_map: dict = None,
 ) -> list[dict]:
 	employee_details, group_by_param_values = get_employee_related_details(filters)
 	holiday_map = get_holiday_map(filters)
@@ -283,7 +286,7 @@ def get_data(
 				continue
 
 			records = get_rows(employee_details[value], filters, holiday_map, attendance_map,
-			                   leave_type_map, permission_map, checkin_map, pending_leave_map)
+			                   leave_type_map, permission_map, checkin_map, pending_leave_map, approved_request_map)
 
 			if records:
 				data.append({group_by_column: value})
@@ -299,6 +302,7 @@ def get_data(
 			permission_map,
 			checkin_map,
 			pending_leave_map,
+			approved_request_map,
 		)
 
 	return data
@@ -740,9 +744,77 @@ def get_pending_attendance_requests(filters: Filters) -> dict:
 	return pending_map
 
 
+def get_approved_attendance_requests(filters: Filters) -> dict:
+	"""
+	Build a map for approved Attendance Requests so Monthly Attendance Sheet can
+	display WFH / OD even when Attendance status is limited to standard values.
+
+	Returns:
+	    {(employee, date): {"status": "Work From Home" | "On Duty", "leave_type": ""}}
+	"""
+	if not filters.company:
+		return {}
+
+	if filters.filter_based_on == "Month":
+		start_date = date(cint(filters.year), cint(filters.month), 1)
+		end_date = date(cint(filters.year), cint(filters.month), get_total_days_in_month(filters))
+	else:
+		start_date = getdate(filters.start_date)
+		end_date = getdate(filters.end_date)
+
+	AttendanceRequest = frappe.qb.DocType("Attendance Request")
+	try:
+		rows = (
+			frappe.qb.from_(AttendanceRequest)
+			.select(
+				AttendanceRequest.employee,
+				AttendanceRequest.from_date,
+				AttendanceRequest.to_date,
+				AttendanceRequest.reason,
+			)
+			.where(
+				(AttendanceRequest.company.isin(filters.companies))
+				& (AttendanceRequest.docstatus == 1)
+				& (AttendanceRequest.from_date <= end_date)
+				& (AttendanceRequest.to_date >= start_date)
+				& (AttendanceRequest.reason.isin(["Work From Home", "WFH", "On Duty", "OD"]))
+			)
+		).run(as_dict=True)
+	except Exception:
+		return {}
+
+	reason_status = {
+		"Work From Home": "Work From Home",
+		"WFH": "Work From Home",
+		"On Duty": "On Duty",
+		"OD": "On Duty",
+	}
+
+	out = {}
+	for ar in rows:
+		employee = ar.get("employee")
+		status_label = reason_status.get((ar.get("reason") or "").strip())
+		if not employee or not status_label:
+			continue
+
+		overlap_start = max(getdate(ar.from_date), start_date)
+		overlap_end = min(getdate(ar.to_date), end_date)
+		if overlap_start > overlap_end:
+			continue
+
+		for d_str in get_date_range(str(overlap_start), str(overlap_end)):
+			d = getdate(d_str)
+			key = (employee, d)
+			# WFH takes precedence over OD if both exist for same day.
+			if key not in out or status_label == "Work From Home":
+				out[key] = {"status": status_label, "leave_type": ""}
+
+	return out
+
+
 def get_rows(employee_details: dict, filters: Filters, holiday_map: dict, attendance_map: dict,
              leave_type_map: dict = None, permission_map: dict = None, checkin_map: dict = None,
-             pending_leave_map: dict = None) -> list[dict]:
+             pending_leave_map: dict = None, approved_request_map: dict = None) -> list[dict]:
 	records = []
 	default_holiday_list = frappe.get_cached_value("Company", filters.company, "default_holiday_list")
 	checkin_map = checkin_map or {}
@@ -783,6 +855,7 @@ def get_rows(employee_details: dict, filters: Filters, holiday_map: dict, attend
 				permission_map,
 				checkin_map,
 				pending_leave_map,
+				approved_request_map,
 				details.joined_date,
 			)
 			# set employee details in the first row
@@ -922,7 +995,7 @@ def _is_second_half_permission(from_time) -> bool:
 def get_attendance_status_for_detailed_view(
 	employee: str, filters: Filters, employee_attendance: dict, holidays: list,
 	leave_type_map: dict = None, permission_map: dict = None, checkin_map: dict = None,
-	pending_leave_map: dict = None, joined_date=None,
+	pending_leave_map: dict = None, approved_request_map: dict = None, joined_date=None,
 ) -> list[dict]:
 	"""Returns list of shift-wise attendance status for employee
 	[
@@ -936,6 +1009,7 @@ def get_attendance_status_for_detailed_view(
 	permission_map = permission_map or {}
 	checkin_map = checkin_map or {}
 	pending_leave_map = pending_leave_map or {}
+	approved_request_map = approved_request_map or {}
 	today_date = date.today()
 
 	for shift, status_dict in employee_attendance.items():
@@ -967,6 +1041,11 @@ def get_attendance_status_for_detailed_view(
 					status = pending_status
 				elif pending_status and pending_status.startswith("Half Day/") and status not in ("Holiday", "Weekly Off"):
 					status = pending_status
+
+			# Approved Attendance Requests should be visible in report output.
+			approved = approved_request_map.get((employee, d)) if approved_request_map else None
+			if approved and status not in ("Holiday", "Weekly Off"):
+				status = approved.get("status") or status
 
 			# Resolve abbreviation
 			perm = permission_map.get((employee, d))
