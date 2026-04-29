@@ -344,10 +344,20 @@ def process_attendance_from_checkin(employee, out_time):
 
 
 def _has_wfh_approval(employee, attendance_date):
-	"""Returns True if the employee has an approved Work From Home leave on attendance_date."""
-	return bool(frappe.db.exists("Leave Application", {
+	"""Returns True for approved WFH from Leave Application or Attendance Request."""
+	has_wfh_leave = bool(frappe.db.exists("Leave Application", {
 		"employee":   employee,
 		"leave_type": ["in", ["Work From Home", "WFH"]],
+		"docstatus":  1,
+		"from_date":  ["<=", attendance_date],
+		"to_date":    [">=", attendance_date],
+	}))
+	if has_wfh_leave:
+		return True
+
+	return bool(frappe.db.exists("Attendance Request", {
+		"employee":   employee,
+		"reason":     ["in", ["Work From Home", "WFH"]],
 		"docstatus":  1,
 		"from_date":  ["<=", attendance_date],
 		"to_date":    [">=", attendance_date],
@@ -869,23 +879,23 @@ def process_monthly_attendance(month, year, company=""):
 		elif log_type == "OUT" and ci["time"] > prev["time"]:
 			checkin_map[emp_id][day_str]["OUT"] = ci   # keep latest OUT
 
-	# ── 4. Approved WFH leaves for the month ─────────────────────────────────
+	# ── 4. Approved WFH requests for the month (Attendance Request) ──────────
 	wfh_map = {}   # wfh_map[emp_id] = set of date strings
-	for app in frappe.db.get_all(
-		"Leave Application",
+	for req in frappe.db.get_all(
+		"Attendance Request",
 		filters={
-			"leave_type": ["in", ["Work From Home", "WFH"]],
-			"docstatus":  1,
-			"from_date":  ["<=", month_end],
-			"to_date":    [">=", month_start],
+			"reason":    ["in", ["Work From Home", "WFH"]],
+			"docstatus": 1,
+			"from_date": ["<=", month_end],
+			"to_date":   [">=", month_start],
 		},
 		fields=["employee", "from_date", "to_date"],
 		limit=0,
 	):
-		cur = get_datetime(str(app["from_date"])).date()
-		end = get_datetime(str(app["to_date"])).date()
+		cur = get_datetime(str(req["from_date"])).date()
+		end = get_datetime(str(req["to_date"])).date()
 		while cur <= end:
-			wfh_map.setdefault(app["employee"], set()).add(str(cur))
+			wfh_map.setdefault(req["employee"], set()).add(str(cur))
 			cur += timedelta(days=1)
 
 	# ── 5. Existing attendance for the month ──────────────────────────────────
@@ -1235,11 +1245,11 @@ def fix_employee_attendance(employee, attendance_date):
 @frappe.whitelist()
 def fix_wfh_od_attendance(from_date, to_date, company=""):
 	"""
-	Scan all approved WFH leave applications and approved OD attendance requests
+	Scan all approved WFH/OD attendance requests
 	within the date range and correct existing attendance records accordingly.
 
 	Priority:
-	  1. Approved WFH leave (Leave Application, leave_type="Work From Home", docstatus=1)
+	  1. Approved WFH (Attendance Request, reason in ["Work From Home", "WFH"], docstatus=1)
 	     → status = "Work From Home"
 	  2. Approved OD (Attendance Request, reason="On Duty", docstatus=1)
 	     → status = "On Duty"
@@ -1250,29 +1260,29 @@ def fix_wfh_od_attendance(from_date, to_date, company=""):
 	    POST /api/method/hrms.hr.doctype.employee_checkin.employee_checkin.fix_wfh_od_attendance
 	    body: {"from_date": "2026-04-01", "to_date": "2026-04-30", "company": ""}
 	"""
-	# ── 1. Approved WFH leaves ────────────────────────────────────────────────
+	# ── 1. Approved WFH (Attendance Request) ───────────────────────────────────
 	wfh_map = {}  # {(employee, date_str): "Work From Home"}
-	wfh_filters = {
-		"leave_type": ["in", ["Work From Home", "WFH"]],
-		"docstatus":  1,
-		"from_date":  ["<=", to_date],
-		"to_date":    [">=", from_date],
+	wfh_req_filters = {
+		"reason":    ["in", ["Work From Home", "WFH"]],
+		"docstatus": 1,
+		"from_date": ["<=", to_date],
+		"to_date":   [">=", from_date],
 	}
 	if company:
-		wfh_filters["company"] = company
+		wfh_req_filters["company"] = company
 
-	for app in frappe.db.get_all(
-		"Leave Application",
-		filters=wfh_filters,
+	for req in frappe.db.get_all(
+		"Attendance Request",
+		filters=wfh_req_filters,
 		fields=["employee", "from_date", "to_date"],
 		limit=0,
 	):
-		cur = get_datetime(str(app["from_date"])).date()
-		end = get_datetime(str(app["to_date"])).date()
+		cur = get_datetime(str(req["from_date"])).date()
+		end = get_datetime(str(req["to_date"])).date()
 		while cur <= end:
 			d_str = str(cur)
 			if from_date <= d_str <= to_date:
-				wfh_map[(app["employee"], d_str)] = "Work From Home"
+				wfh_map[(req["employee"], d_str)] = "Work From Home"
 			cur += timedelta(days=1)
 
 	# ── 2. Approved OD attendance requests ────────────────────────────────────
