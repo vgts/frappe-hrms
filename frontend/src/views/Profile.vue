@@ -137,7 +137,7 @@
 				</div>
 
 				<!-- Loading skeleton -->
-				<div v-if="!employeeDoc.doc" class="profile-sheet-body">
+				<div v-if="!employeeDoc.data" class="profile-sheet-body">
 					<div v-for="n in 7" :key="n" class="profile-field-row">
 						<div class="skeleton-label"></div>
 						<div class="skeleton-value"></div>
@@ -152,7 +152,7 @@
 						class="profile-field-row"
 					>
 						<span class="profile-field-label">{{ getFieldLabel(field) }}</span>
-						<span class="profile-field-value">{{ employeeDoc.doc?.[field] || "—" }}</span>
+						<span class="profile-field-value">{{ employeeDoc.data?.[field] || "—" }}</span>
 					</div>
 				</div>
 			</div>
@@ -164,7 +164,7 @@
 import { computed, inject, ref, onMounted, onBeforeUnmount } from "vue"
 import { useRouter } from "vue-router"
 import { IonPage, IonContent } from "@ionic/vue"
-import { FeatherIcon, createDocumentResource, createResource, call } from "frappe-ui"
+import { FeatherIcon, createResource, call } from "frappe-ui"
 
 import { showErrorAlert } from "@/utils/dialogs"
 import { arePushNotificationsEnabled } from "@/data/notifications"
@@ -287,6 +287,8 @@ const selectedItem = ref(null)
 function openInfoModal(link) {
 	selectedItem.value = link
 	isInfoModalOpen.value = true
+	// Reload employee doc if not yet loaded (e.g. after cold app resume)
+	if (!employeeDoc.data) employeeDoc.reload()
 }
 
 function closeInfoModal() {
@@ -312,9 +314,9 @@ const defaultPresentResource = createResource({
 const isDefaultPresent = computed(() => !!defaultPresentResource.data)
 
 // ── Employee document (for field values) ──────────────────────────────────
-const employeeDoc = createDocumentResource({
-	doctype: DOCTYPE,
-	name: employee.data.name,
+const employeeDoc = createResource({
+	url: "frappe.client.get",
+	params: { doctype: DOCTYPE, name: employee.data.name },
 	cache: `hrms:employee_doc:${employee.data.name}`,
 	auto: true,
 })
