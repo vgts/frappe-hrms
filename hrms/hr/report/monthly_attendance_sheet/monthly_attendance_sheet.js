@@ -129,30 +129,31 @@ frappe.query_reports["Monthly Attendance Sheet"] = {
 		const freeze_count = group_by ? 3 : 2;
 		const $wrapper = $(dt.wrapper);
 
-		// Compute cumulative left offsets from actual rendered widths
+		// Calculate left offsets using the header row cells (same width for all rows)
+		const $header_cells = $wrapper.find(".dt-row").first().find(".dt-cell");
 		const offsets = [];
 		let left = 0;
 		for (let i = 0; i < freeze_count; i++) {
 			offsets.push(left);
-			const w = $wrapper.find(`.dt-cell--col-${i}`).first().outerWidth() || 120;
-			left += w;
+			left += ($header_cells.eq(i).outerWidth() || 120);
 		}
 
-		for (let i = 0; i < freeze_count; i++) {
-			const $cells = $wrapper.find(`.dt-cell--col-${i}`);
-			$cells.css({
-				"position": "sticky",
-				"left": offsets[i] + "px",
-				"z-index": 2,
-				"background-color": "var(--bg-color, #fff)",
-			});
-			// Give header cells higher z-index so they sit above body cells
-			$wrapper.find(`.dt-cell--header.dt-cell--col-${i}`).css("z-index", 4);
-			// Add a shadow on the last frozen column to signal the boundary
-			if (i === freeze_count - 1) {
-				$cells.css("box-shadow", "3px 0 6px -2px rgba(0,0,0,0.15)");
+		// Apply sticky to the first freeze_count cells of every row
+		$wrapper.find(".dt-row").each(function () {
+			const $cells = $(this).find(".dt-cell");
+			const is_header_row = $(this).hasClass("dt-row-header");
+			for (let i = 0; i < freeze_count && i < $cells.length; i++) {
+				$cells.eq(i).css({
+					"position": "sticky",
+					"left": offsets[i] + "px",
+					"z-index": is_header_row ? 4 : 2,
+					"background-color": "var(--bg-color, #fff)",
+					"box-shadow": i === freeze_count - 1
+						? "3px 0 6px -2px rgba(0,0,0,0.15)"
+						: "none",
+				});
 			}
-		}
+		});
 	},
 	formatter: function (value, row, column, data, default_formatter) {
 		value = default_formatter(value, row, column, data);
