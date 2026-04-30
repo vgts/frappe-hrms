@@ -167,8 +167,10 @@ frappe.query_reports["Monthly Attendance Sheet"] = {
 		if (!summarized_view) {
 			if ((group_by && column.colIndex > 3) || (!group_by && column.colIndex > 2)) {
 				if (value && value.startsWith && value.includes("/")) {
-						// New half-day formatting outputs e.g. `MO/P`, `P/MO`, `LWP/P`, `P/LWP`.
-						if (value.startsWith("MO/") || value.endsWith("/MO"))
+						// Half-day and WFH combo formatting
+						if (value.startsWith("WFH/") || value.endsWith("/WFH"))
+							value = "<span style='color:#10B981'>" + value + "</span>";
+						else if (value.startsWith("MO/") || value.endsWith("/MO"))
 							value = "<span style='color:#F59E0B'>" + value + "</span>";
 						else if (value.startsWith("LWP/") || value.endsWith("/LWP"))
 							value = "<span style='color:#EF4444'>" + value + "</span>";

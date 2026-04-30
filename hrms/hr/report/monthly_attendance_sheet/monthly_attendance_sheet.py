@@ -123,6 +123,10 @@ def get_message() -> str:
 		("Half Day + Permission (Other half absent)", "P/<n>PM", "#06B6D4"),
 		("Half Day + Permission (Other half present)", "<n>PM/P", "#06B6D4"),
 		("Present + Permission", "P/&lt;n&gt;PM", "#06B6D4"),
+		("WFH + Permission (second half)", "WFH/&lt;n&gt;PM", "#06B6D4"),
+		("WFH + Permission (first half)", "&lt;n&gt;PM/WFH", "#06B6D4"),
+		("WFH + Leave (second half)", "WFH/&lt;type&gt;", "#10B981"),
+		("WFH + Leave (first half)", "&lt;type&gt;/WFH", "#10B981"),
 	]
 	for status, abbr, color in extra_legends:
 		message += f"""
@@ -271,6 +275,7 @@ def get_data(
 	leave_type_map: dict = None,
 	pending_leave_map: dict = None,
 	approved_request_map: dict = None,
+	half_day_leave_map: dict = None,
 ) -> list[dict]:
 	employee_details, group_by_param_values = get_employee_related_details(filters)
 	holiday_map = get_holiday_map(filters)
@@ -286,7 +291,7 @@ def get_data(
 				continue
 
 			records = get_rows(employee_details[value], filters, holiday_map, attendance_map,
-			                   leave_type_map, permission_map, checkin_map, pending_leave_map, approved_request_map)
+			                   leave_type_map, permission_map, checkin_map, pending_leave_map, approved_request_map, half_day_leave_map)
 
 			if records:
 				data.append({group_by_column: value})
@@ -303,6 +308,7 @@ def get_data(
 			checkin_map,
 			pending_leave_map,
 			approved_request_map,
+			half_day_leave_map,
 		)
 
 	return data
@@ -812,9 +818,60 @@ def get_approved_attendance_requests(filters: Filters) -> dict:
 	return out
 
 
+
+def get_half_day_leave_map(filters: Filters) -> dict:
+	"""Returns {(employee, date): {leave_type, is_second_half}} for approved half-day leaves.
+	Used to display WFH/<leave> or <leave>/WFH combos in the attendance sheet."""
+	if not filters.company:
+		return {}
+
+	if filters.filter_based_on == "Month":
+		start_date = date(cint(filters.year), cint(filters.month), 1)
+		end_date = date(cint(filters.year), cint(filters.month), get_total_days_in_month(filters))
+	else:
+		start_date = getdate(filters.start_date)
+		end_date = getdate(filters.end_date)
+
+	LeaveApplication = frappe.qb.DocType("Leave Application")
+	try:
+		rows = (
+			frappe.qb.from_(LeaveApplication)
+			.select(
+				LeaveApplication.employee,
+				LeaveApplication.leave_type,
+				LeaveApplication.half_day_date,
+				LeaveApplication.custom_second_half,
+			)
+			.where(
+				(LeaveApplication.company.isin(filters.companies))
+				& (LeaveApplication.docstatus == 1)
+				& (LeaveApplication.status == "Approved")
+				& (LeaveApplication.half_day == 1)
+				& (LeaveApplication.half_day_date >= start_date)
+				& (LeaveApplication.half_day_date <= end_date)
+			)
+		).run(as_dict=True)
+	except Exception:
+		return {}
+
+	result = {}
+	for la in rows:
+		if not la.employee or not la.half_day_date:
+			continue
+		d = getdate(la.half_day_date)
+		is_second_half = bool(cint(la.get("custom_second_half")))
+		result[(la.employee, d)] = {
+			"leave_type": la.leave_type or "",
+			"is_second_half": is_second_half,
+		}
+
+	return result
+
+
 def get_rows(employee_details: dict, filters: Filters, holiday_map: dict, attendance_map: dict,
              leave_type_map: dict = None, permission_map: dict = None, checkin_map: dict = None,
-             pending_leave_map: dict = None, approved_request_map: dict = None) -> list[dict]:
+             pending_leave_map: dict = None, approved_request_map: dict = None,
+             half_day_leave_map: dict = None) -> list[dict]:
 	records = []
 	default_holiday_list = frappe.get_cached_value("Company", filters.company, "default_holiday_list")
 	checkin_map = checkin_map or {}
@@ -857,6 +914,7 @@ def get_rows(employee_details: dict, filters: Filters, holiday_map: dict, attend
 				pending_leave_map,
 				approved_request_map,
 				details.joined_date,
+				half_day_leave_map,
 			)
 			# set employee details in the first row
 			for record in attendance_for_employee:
@@ -996,6 +1054,7 @@ def get_attendance_status_for_detailed_view(
 	employee: str, filters: Filters, employee_attendance: dict, holidays: list,
 	leave_type_map: dict = None, permission_map: dict = None, checkin_map: dict = None,
 	pending_leave_map: dict = None, approved_request_map: dict = None, joined_date=None,
+	half_day_leave_map: dict = None,
 ) -> list[dict]:
 	"""Returns list of shift-wise attendance status for employee
 	[
@@ -1010,6 +1069,7 @@ def get_attendance_status_for_detailed_view(
 	checkin_map = checkin_map or {}
 	pending_leave_map = pending_leave_map or {}
 	approved_request_map = approved_request_map or {}
+	half_day_leave_map = half_day_leave_map or {}
 	today_date = date.today()
 
 	for shift, status_dict in employee_attendance.items():
@@ -1081,6 +1141,18 @@ def get_attendance_status_for_detailed_view(
 				elif status in ("Work From Home", "On Duty"):
 					# Approved WFH/OD attendance should be shown as-is even if checked in.
 					abbr = status_map.get(status, "")
+					if abbr == "WFH":
+						if perm:
+							duration = _fmt_perm_duration(perm.get('from_time'), perm.get('to_time'))
+							if _is_second_half_permission(perm.get('from_time')):
+								abbr = f"WFH/{duration}"
+							else:
+								abbr = f"{duration}/WFH"
+						else:
+							hd = half_day_leave_map.get((employee, d))
+							if hd:
+								lt_abbr = LEAVE_SHORT_CODES.get(hd.get("leave_type") or "", hd.get("leave_type") or "L")
+								abbr = f"WFH/{lt_abbr}" if hd.get("is_second_half") else f"{lt_abbr}/WFH"
 				else:
 					ci_info = checkin_map.get(employee)
 					if ci_info:
@@ -1099,6 +1171,19 @@ def get_attendance_status_for_detailed_view(
 				if abbr == "P" and perm:
 					duration = _fmt_perm_duration(perm.get('from_time'), perm.get('to_time'))
 					abbr = f"P/{duration}"
+				# WFH + permission → WFH/<duration> (second half) or <duration>/WFH (first half)
+				elif abbr == "WFH" and perm:
+					duration = _fmt_perm_duration(perm.get('from_time'), perm.get('to_time'))
+					if _is_second_half_permission(perm.get('from_time')):
+						abbr = f"WFH/{duration}"
+					else:
+						abbr = f"{duration}/WFH"
+				# WFH + half-day leave → WFH/<leave> (second half) or <leave>/WFH (first half)
+				elif abbr == "WFH":
+					hd = half_day_leave_map.get((employee, d))
+					if hd:
+						lt_abbr = LEAVE_SHORT_CODES.get(hd.get("leave_type") or "", hd.get("leave_type") or "L")
+						abbr = f"WFH/{lt_abbr}" if hd.get("is_second_half") else f"{lt_abbr}/WFH"
 			elif d > today_date:
 				# Future workday — no attendance yet
 				abbr = "-"
