@@ -256,6 +256,89 @@ def secondary_reject(doctype, docname, reason=None):
 
 
 @frappe.whitelist()
+def force_approve_all_pending(doctype=None, from_date=None, to_date=None):
+	"""
+	Admin-only: bulk approve all pending requests bypassing the approver user check.
+	Approves both Stage 1 (Pending Project Reporting) and Stage 2 (Pending Secondary Reporting).
+
+	Called by the MCP via:
+	    POST /api/method/hrms.hr.two_level_approval.force_approve_all_pending
+	    body: {"doctype": "Attendance Request", "from_date": "2026-04-01", "to_date": "2026-04-30"}
+	    (doctype=None → processes both Leave Application and Attendance Request)
+	"""
+	if not any(r in frappe.get_roles() for r in ("HR Manager", "HR User", "System Manager")):
+		frappe.throw("Only HR Manager / System Manager can use force approve.", frappe.PermissionError)
+
+	doctypes = [doctype] if doctype else ["Leave Application", "Attendance Request"]
+	processed = []; skipped = []; errors = []
+
+	for dt in doctypes:
+		filters = {"docstatus": 0}
+		if from_date:
+			filters["from_date"] = [">=", from_date]
+		if to_date:
+			filters["to_date"] = ["<=", to_date]
+
+		pending = frappe.db.get_all(
+			dt,
+			filters=filters,
+			fields=["name", "employee_name", "status", "custom_approval_stage",
+			        "custom_secondary_leave_approver"],
+			limit=0,
+		)
+
+		for rec in pending:
+			name  = rec["name"]
+			stage = rec.get("custom_approval_stage") or ""
+			try:
+				doc = frappe.get_doc(dt, name)
+
+				# Stage 1: forward to secondary if not yet done
+				if stage == "Pending Project Reporting Approval":
+					if doc.custom_secondary_leave_approver:
+						doc.db_set("custom_approval_stage", "Pending Secondary Reporting Approval")
+						doc.custom_approval_stage = "Pending Secondary Reporting Approval"
+						frappe.share.add_docshare(
+							dt, name, doc.custom_secondary_leave_approver,
+							write=1, submit=1,
+							flags={"ignore_share_permission": True},
+						)
+					# Fall through to Stage 2 submission below
+
+				# Stage 2: mark fully approved and submit
+				doc.reload()
+				doc.status            = "Approved"
+				doc.custom_approval_stage = "Approved"
+				doc.flags.ignore_permissions = True
+				doc.flags.ignore_validate_update_after_submit = True
+				doc.submit()
+
+				processed.append({
+					"doctype":  dt,
+					"name":     name,
+					"employee": rec.get("employee_name"),
+					"from_stage": stage,
+				})
+
+			except Exception as exc:
+				errors.append({
+					"doctype": dt, "name": name,
+					"employee": rec.get("employee_name"),
+					"error": str(exc)[:200],
+				})
+
+	frappe.db.commit()
+
+	return {
+		"processed_count": len(processed),
+		"skipped_count":   len(skipped),
+		"error_count":     len(errors),
+		"processed":       processed,
+		"errors":          errors,
+	}
+
+
+@frappe.whitelist()
 def get_approval_details(doctype, docname):
 	"""Return approval stage info with avatar details for the frontend."""
 	doc = frappe.get_doc(doctype, docname)
