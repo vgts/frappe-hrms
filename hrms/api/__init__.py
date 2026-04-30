@@ -1281,3 +1281,35 @@ def get_allowed_states_for_workflow(workflow: dict, user_id: str) -> list[str]:
 @frappe.whitelist()
 def get_permitted_fields_for_write(doctype: str) -> list[str]:
 	return get_permitted_fields(doctype, permission_type="write")
+
+
+@frappe.whitelist()
+def get_employee_checkins_on_date(date: str) -> dict:
+	"""Return first IN and last OUT checkin for the logged-in employee on a given date,
+	including latitude/longitude so the frontend can reverse-geocode the location."""
+	employee = frappe.db.get_value("Employee", {"user_id": frappe.session.user}, "name")
+	if not employee:
+		return {}
+
+	checkins = frappe.get_all(
+		"Employee Checkin",
+		filters={
+			"employee": employee,
+			"time": ["between", [f"{date} 00:00:00", f"{date} 23:59:59"]],
+		},
+		fields=["log_type", "time", "latitude", "longitude"],
+		order_by="time asc",
+	)
+
+	result = {}
+	for c in checkins:
+		if c.log_type == "IN" and "in_time" not in result:
+			result["in_time"] = str(c.time)
+			result["in_lat"]  = c.latitude
+			result["in_lng"]  = c.longitude
+		elif c.log_type == "OUT":
+			result["out_time"] = str(c.time)
+			result["out_lat"]  = c.latitude
+			result["out_lng"]  = c.longitude
+
+	return result

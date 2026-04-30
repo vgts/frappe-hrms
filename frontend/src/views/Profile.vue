@@ -114,52 +114,49 @@
 			</div>
 		</ion-content>
 
-		<!-- Bottom-sheet info panel — uses Teleport so it renders at body level,
-		     completely outside Ionic's ion-content scroll handler.
-		     This guarantees the sheet always appears regardless of Ionic's internal
-		     modal lifecycle quirks. -->
-		<Teleport to="body">
-			<div v-if="isInfoModalOpen" class="profile-sheet-overlay" @click.self="closeInfoModal">
-				<!-- Backdrop -->
-				<div class="profile-sheet-backdrop" @click="closeInfoModal"></div>
+		<!-- Bottom-sheet info panel — rendered directly inside ion-page (outside
+		     ion-content) so Ionic's stacking context is correct on all mobile
+		     browsers including iOS Safari PWA mode. -->
+		<div v-if="isInfoModalOpen" class="profile-sheet-overlay" @click.self="closeInfoModal">
+			<!-- Backdrop -->
+			<div class="profile-sheet-backdrop" @click="closeInfoModal"></div>
 
-				<!-- Sheet panel -->
-				<div class="profile-sheet">
-					<!-- Drag handle -->
-					<div class="profile-sheet-handle-row">
-						<div class="profile-sheet-handle"></div>
+			<!-- Sheet panel -->
+			<div class="profile-sheet">
+				<!-- Drag handle -->
+				<div class="profile-sheet-handle-row">
+					<div class="profile-sheet-handle"></div>
+				</div>
+
+				<!-- Sheet header -->
+				<div class="profile-sheet-header">
+					<span class="profile-sheet-title">{{ selectedItem?.title }}</span>
+					<button class="profile-sheet-close" @click="closeInfoModal">
+						<FeatherIcon name="x" class="w-4 h-4 text-gray-500" />
+					</button>
+				</div>
+
+				<!-- Loading skeleton -->
+				<div v-if="!employeeDoc.doc" class="profile-sheet-body">
+					<div v-for="n in 7" :key="n" class="profile-field-row">
+						<div class="skeleton-label"></div>
+						<div class="skeleton-value"></div>
 					</div>
+				</div>
 
-					<!-- Sheet header -->
-					<div class="profile-sheet-header">
-						<span class="profile-sheet-title">{{ selectedItem?.title }}</span>
-						<button class="profile-sheet-close" @click="closeInfoModal">
-							<FeatherIcon name="x" class="w-4 h-4 text-gray-500" />
-						</button>
-					</div>
-
-					<!-- Loading skeleton -->
-					<div v-if="!employeeDoc.doc" class="profile-sheet-body">
-						<div v-for="n in 7" :key="n" class="profile-field-row">
-							<div class="skeleton-label"></div>
-							<div class="skeleton-value"></div>
-						</div>
-					</div>
-
-					<!-- Field list -->
-					<div v-else class="profile-sheet-body">
-						<div
-							v-for="field in selectedItem.fields"
-							:key="field"
-							class="profile-field-row"
-						>
-							<span class="profile-field-label">{{ getFieldLabel(field) }}</span>
-							<span class="profile-field-value">{{ employeeDoc.doc?.[field] || "—" }}</span>
-						</div>
+				<!-- Field list -->
+				<div v-else class="profile-sheet-body">
+					<div
+						v-for="field in selectedItem.fields"
+						:key="field"
+						class="profile-field-row"
+					>
+						<span class="profile-field-label">{{ getFieldLabel(field) }}</span>
+						<span class="profile-field-value">{{ employeeDoc.doc?.[field] || "—" }}</span>
 					</div>
 				</div>
 			</div>
-		</Teleport>
+		</div>
 	</ion-page>
 </template>
 
@@ -536,14 +533,15 @@ onBeforeUnmount(() => {
 	letter-spacing: 0.05em;
 }
 
-/* ── Bottom sheet (Teleport — not scoped to ion-page) ─────────────────── */
+/* ── Bottom sheet (inside ion-page, outside ion-content) ──────────────── */
 .profile-sheet-overlay {
-	position: fixed;
+	position: absolute;
 	inset: 0;
 	z-index: 9999;
 	display: flex;
 	flex-direction: column;
 	justify-content: flex-end;
+	pointer-events: all;
 }
 
 .profile-sheet-backdrop {

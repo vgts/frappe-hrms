@@ -19,7 +19,16 @@
 			</router-link>
 		</div>
 
-		<template v-if="settings.data?.allow_employee_checkin_from_mobile_app">
+		<!-- Loading skeleton while settings loads (e.g. after app reopen) -->
+	<template v-if="!settings.data">
+		<div class="mt-4 rounded-xl bg-gray-50 border border-gray-100 px-4 py-6 flex flex-col items-center gap-3 animate-pulse">
+			<div class="w-24 h-4 bg-gray-200 rounded-full"></div>
+			<div class="w-16 h-10 bg-gray-200 rounded-lg"></div>
+		</div>
+		<div class="mt-4 w-full h-12 bg-gray-100 rounded-xl animate-pulse"></div>
+	</template>
+
+	<template v-else-if="settings.data?.allow_employee_checkin_from_mobile_app">
 
 			<!-- Status + Timer card -->
 			<div
@@ -272,9 +281,13 @@ function refreshStatus() {
 	checkinStatus.reload()
 }
 
-// Reload when tab becomes visible (user switches back from dashboard)
+// Reload when tab becomes visible (user switches back from dashboard / reopens app)
 function onVisibilityChange() {
-	if (!document.hidden) refreshStatus()
+	if (!document.hidden) {
+		// Reload settings first (may be null after cold resume), then status
+		if (!settings.data) settings.reload()
+		refreshStatus()
+	}
 }
 
 // 5-second polling — catches any missed socket events quickly
