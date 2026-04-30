@@ -166,9 +166,7 @@ frappe.query_reports["Monthly Attendance Sheet"] = {
 
 		if (!summarized_view) {
 			if ((group_by && column.colIndex > 3) || (!group_by && column.colIndex > 2)) {
-				if (value && value.startsWith && value.startsWith("0.5P/"))
-					value = "<span style='color:#914EE3'>" + value + "</span>";
-					else if (value && value.includes && value.includes("/")) {
+				if (value && value.startsWith && value.includes("/")) {
 						// New half-day formatting outputs e.g. `MO/P`, `P/MO`, `LWP/P`, `P/LWP`.
 						if (value.startsWith("MO/") || value.endsWith("/MO"))
 							value = "<span style='color:#F59E0B'>" + value + "</span>";

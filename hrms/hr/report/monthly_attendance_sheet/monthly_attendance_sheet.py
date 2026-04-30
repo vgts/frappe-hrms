@@ -1092,15 +1092,13 @@ def get_attendance_status_for_detailed_view(
 					# Append permission duration when present + permission exists
 					if abbr == "P" and perm:
 						duration = _fmt_perm_duration(perm.get('from_time'), perm.get('to_time'))
-						prefix = "0.5P" if _is_second_half_permission(perm.get('from_time')) else "P"
-						abbr = f"{prefix}/{duration}"
+						abbr = f"P/{duration}"
 			elif status is not None:
 				abbr = status_map.get(status, "")
-				# Present + approved permission → 0.5P/1H (second half) or P/1H (first half)
+				# Present + approved permission → P/<duration>
 				if abbr == "P" and perm:
 					duration = _fmt_perm_duration(perm.get('from_time'), perm.get('to_time'))
-					prefix = "0.5P" if _is_second_half_permission(perm.get('from_time')) else "P"
-					abbr = f"{prefix}/{duration}"
+					abbr = f"P/{duration}"
 			elif d > today_date:
 				# Future workday — no attendance yet
 				abbr = "-"
