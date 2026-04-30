@@ -122,6 +122,38 @@ frappe.query_reports["Monthly Attendance Sheet"] = {
 			},
 		});
 	},
+	after_datatable_render: function (dt) {
+		const group_by = frappe.query_report.get_filter_value("group_by");
+		// With group_by: cols are [Group, Employee, Employee Name, Shift, days...]
+		// Without:       cols are [Employee, Employee Name, Shift, days...]
+		const freeze_count = group_by ? 3 : 2;
+		const $wrapper = $(dt.wrapper);
+
+		// Compute cumulative left offsets from actual rendered widths
+		const offsets = [];
+		let left = 0;
+		for (let i = 0; i < freeze_count; i++) {
+			offsets.push(left);
+			const w = $wrapper.find(`.dt-cell--col-${i}`).first().outerWidth() || 120;
+			left += w;
+		}
+
+		for (let i = 0; i < freeze_count; i++) {
+			const $cells = $wrapper.find(`.dt-cell--col-${i}`);
+			$cells.css({
+				"position": "sticky",
+				"left": offsets[i] + "px",
+				"z-index": 2,
+				"background-color": "var(--bg-color, #fff)",
+			});
+			// Give header cells higher z-index so they sit above body cells
+			$wrapper.find(`.dt-cell--header.dt-cell--col-${i}`).css("z-index", 4);
+			// Add a shadow on the last frozen column to signal the boundary
+			if (i === freeze_count - 1) {
+				$cells.css("box-shadow", "3px 0 6px -2px rgba(0,0,0,0.15)");
+			}
+		}
+	},
 	formatter: function (value, row, column, data, default_formatter) {
 		value = default_formatter(value, row, column, data);
 		const summarized_view = frappe.query_report.get_filter_value("summarized_view");
