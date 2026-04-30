@@ -1082,8 +1082,8 @@ def get_attendance_status_for_detailed_view(
 			if status is None and holidays:
 				status = get_holiday_status(d, holidays)
 
-			# Sat/Sun always show W — even if not in holiday list and even if future
-			if status is None and d.weekday() >= 5:
+			# Sat/Sun: force Weekly Off regardless of any WFH/OD/attendance on that day
+			if d.weekday() >= 5:
 				status = "Weekly Off"
 
 			# Add pending leave from draft/open Leave Applications.

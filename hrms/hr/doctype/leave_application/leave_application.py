@@ -1158,6 +1158,21 @@ def get_allocation_expiry_for_cf_leaves(
 
 
 @frappe.whitelist()
+def _count_weekends(from_date, to_date) -> int:
+	"""Count Saturdays and Sundays between from_date and to_date (inclusive)."""
+	from_dt = getdate(from_date)
+	to_dt = getdate(to_date)
+	total = (to_dt - from_dt).days + 1
+	# Number of full weeks × 2 weekend days + leftover weekend days
+	full_weeks, remainder = divmod(total, 7)
+	weekend_days = full_weeks * 2
+	# Check each day in the remainder
+	for i in range(remainder):
+		if (from_dt + datetime.timedelta(days=full_weeks * 7 + i)).weekday() >= 5:
+			weekend_days += 1
+	return weekend_days
+
+
 def get_number_of_leave_days(
 	employee: str,
 	leave_type: str,
@@ -1167,7 +1182,8 @@ def get_number_of_leave_days(
 	half_day_date: datetime.date | str | None = None,
 	holiday_list: str | None = None,
 ) -> float:
-	"""Returns number of leave days between 2 dates after considering half day and holidays
+	"""Returns number of leave days between 2 dates after considering half day,
+	weekends (Sat/Sun are never counted as leave days) and holidays
 	(Based on the include_holiday setting in Leave Type)"""
 	number_of_days = 0
 	if cint(half_day) == 1:
@@ -1179,6 +1195,9 @@ def get_number_of_leave_days(
 			number_of_days = date_diff(to_date, from_date) + 1
 	else:
 		number_of_days = date_diff(to_date, from_date) + 1
+
+	# Always exclude Saturdays and Sundays from leave count
+	number_of_days = flt(number_of_days) - _count_weekends(from_date, to_date)
 
 	if not frappe.db.get_value("Leave Type", leave_type, "include_holiday"):
 		number_of_days = flt(number_of_days) - flt(
