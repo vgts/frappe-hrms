@@ -48,6 +48,11 @@ const routes = [
 				name: "SalarySlipsDashboard",
 				component: () => import("@/views/salary_slip/Dashboard.vue"),
 			},
+			{
+				path: "/approvals",
+				name: "Approvals",
+				component: () => import("@/views/Approvals.vue"),
+			},
 		],
 	},
 	{

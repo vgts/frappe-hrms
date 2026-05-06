@@ -33,6 +33,7 @@ import LeaveIcon from "@/components/icons/LeaveIcon.vue"
 import ExpenseIcon from "@/components/icons/ExpenseIcon.vue"
 import SalaryIcon from "@/components/icons/SalaryIcon.vue"
 import AttendanceIcon from "@/components/icons/AttendanceIcon.vue"
+import ApprovalsIcon from "@/components/icons/ApprovalsIcon.vue"
 import { inject } from "vue"
 import { useTheme } from "@/composables/useTheme"
 
@@ -60,6 +61,11 @@ const tabItems = [
 		icon: ExpenseIcon,
 		title: __("Expenses"),
 		route: "/dashboard/expense-claims",
+	},
+	{
+		icon: ApprovalsIcon,
+		title: __("Approvals"),
+		route: "/approvals",
 	},
 ]
 </script>
