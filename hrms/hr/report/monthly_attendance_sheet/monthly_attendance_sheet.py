@@ -449,6 +449,21 @@ def get_employee_related_details(filters: Filters) -> tuple[dict, list]:
 		.where(Employee.company.isin(filters.companies))
 	)
 
+	# Exclude employees who left before the report period starts.
+	# Active employees always appear; Left employees only appear if their
+	# relieving_date falls on or after the period start (they were still
+	# employed for at least part of the period).
+	if filters.filter_based_on == "Date Range":
+		period_start = getdate(filters.start_date)
+	else:
+		from calendar import monthrange as _monthrange
+		period_start = date(cint(filters.year), cint(filters.month), 1)
+
+	query = query.where(
+		(Employee.status == "Active")
+		| (Employee.relieving_date >= period_start)
+	)
+
 	if filters.employee:
 		query = query.where(Employee.name == filters.employee)
 
