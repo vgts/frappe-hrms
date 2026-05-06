@@ -1,0 +1,426 @@
+================================================================================
+  VGTS-HRMS  —  API REFERENCE & PROJECT ROUTE MAP
+================================================================================
+  App        : VGTS-HRMS (Frappe / ERPNext based PWA)
+  Base URL   : https://<your-domain>/hrms
+  Auth Type  : Cookie-based session (Frappe standard)
+  Date       : 2026-05-06
+================================================================================
+
+
+────────────────────────────────────────────────────────────────────────────────
+  SECTION 1 — AUTHENTICATION
+────────────────────────────────────────────────────────────────────────────────
+
+1.1  LOGIN
+──────────
+  Endpoint  :  POST /api/method/login
+  Headers   :
+    Content-Type        : application/json
+    X-Frappe-CSRF-Token : <token from frappe.csrf_token in boot context>
+
+  Request Payload (Standard Login):
+    {
+      "usr": "user@example.com",
+      "pwd": "YourPassword123"
+    }
+
+  Request Payload (OTP / 2FA — Step 2):
+    {
+      "tmp_id": "<tmp_id returned in step 1 response>",
+      "otp":    "123456"
+    }
+
+  Success Response:
+    {
+      "message": "Logged In"
+    }
+
+  OTP Required Response (when 2FA is enabled):
+    {
+      "message":      "No App",
+      "tmp_id":       "abc123xyz",
+      "verification": {
+        "setup":  true,
+        "prompt": "Enter OTP sent to your email"
+      }
+    }
+
+  Password Reset Required Response:
+    {
+      "message":     "Password Reset",
+      "redirect_to": "/update-password"
+    }
+
+  Notes:
+    - Session is maintained via the "user_id" browser cookie set by Frappe.
+    - All subsequent API calls must include the session cookie.
+    - CSRF token must be read from window.frappe.csrf_token after page load.
+
+
+1.2  LOGOUT
+───────────
+  Endpoint  :  GET /api/method/logout
+  Headers   :  (session cookie)
+
+  Response  :  { "message": "Logged Out" }
+
+
+1.3  GET CURRENT USER INFO  (call immediately after login)
+──────────────────────────
+  Endpoint  :  GET /api/method/hrms.api.get_current_user_info
+  Headers   :  (session cookie)
+
+  Response:
+    {
+      "name":       "user@example.com",
+      "first_name": "John",
+      "full_name":  "John Doe",
+      "user_image": "/files/john.jpg",
+      "roles":      ["Employee", "Leave Approver", "HR User"]
+    }
+
+
+1.4  GET CURRENT EMPLOYEE INFO  (required before check-in/check-out)
+──────────────────────────────
+  Endpoint  :  GET /api/method/hrms.api.get_current_employee_info
+  Headers   :  (session cookie)
+
+  Response:
+    {
+      "name":          "HR-EMP-00001",   ← employee ID used in check-in API
+      "first_name":    "John",
+      "employee_name": "John Doe",
+      "designation":   "Software Engineer",
+      "department":    "IT",
+      "company":       "VGTS",
+      "reports_to":    "HR-EMP-00099",
+      "user_id":       "user@example.com"
+    }
+
+  Notes:
+    - Only returns data for Active employees linked to the logged-in user.
+    - Returns null if no active Employee record is linked to the account.
+
+
+────────────────────────────────────────────────────────────────────────────────
+  SECTION 2 — EMPLOYEE CHECK-IN / CHECK-OUT
+────────────────────────────────────────────────────────────────────────────────
+
+  There are TWO ways to submit a check-in. Use Option A for the VGTS dashboard
+  (session-user based, no employee ID needed). Use Option B for external/REST
+  integrations (employee ID required).
+
+──────────────────────────────────────────
+  OPTION A — VGTS Session-Based Check-In
+  (used by the PWA dashboard button)
+──────────────────────────────────────────
+
+  Endpoint  :  POST /api/method/vgts.api.employee_checkin
+  Headers   :
+    Content-Type        : application/json
+    X-Frappe-CSRF-Token : <csrf_token>
+
+  Request Payload:
+    {
+      "log_type": "IN"
+    }
+
+    or
+
+    {
+      "log_type": "OUT"
+    }
+
+  Success Response:
+    {
+      "message": {
+        "status": "ok",
+        "time":   "2026-05-06 09:30:00"
+      }
+    }
+
+  Error Response (no employee linked):
+    {
+      "exc_type": "ValidationError",
+      "exception": "frappe.exceptions.ValidationError: No Employee record linked to your account."
+    }
+
+  Notes:
+    - Resolves the employee automatically from the session user (frappe.session.user).
+    - Attendance processing (shift detection, attendance marking) is triggered
+      automatically by Frappe HRMS after every OUT log.
+    - device_id is set to "desk" for dashboard check-ins.
+
+
+──────────────────────────────────────────
+  OPTION B — REST / Biometric Check-In
+  (for external systems, biometric devices)
+──────────────────────────────────────────
+
+  Endpoint  :  POST /api/resource/Employee Checkin
+  Headers   :
+    Content-Type        : application/json
+    X-Frappe-CSRF-Token : <csrf_token>
+
+  Request Payload:
+    {
+      "employee":  "HR-EMP-00001",
+      "log_type":  "IN",
+      "time":      "2026-05-06 09:30:00",
+      "latitude":  13.0827,
+      "longitude": 80.2707
+    }
+
+  Field Reference:
+    employee    (required)  Employee ID — e.g. "HR-EMP-00001"
+    log_type    (required)  "IN" or "OUT"
+    time        (optional)  Datetime string "YYYY-MM-DD HH:mm:ss"
+                            Defaults to current server time if omitted.
+    latitude    (optional)  Float — GPS latitude
+    longitude   (optional)  Float — GPS longitude
+    device_id   (optional)  String identifier for the device
+
+  Success Response:  The created Employee Checkin document (full doctype JSON).
+
+  Alternative Bulk-Insert Endpoint (biometric field matching):
+    POST /api/method/hrms.hr.doctype.employee_checkin.employee_checkin.add_log_based_on_employee_field
+
+    Payload:
+      {
+        "employee_field_value":  "EMP001",
+        "timestamp":             "2026-05-06 09:30:08.000000",
+        "log_type":              "IN",
+        "device_id":             "DEVICE_01",
+        "employee_fieldname":    "attendance_device_id",
+        "latitude":              13.0827,
+        "longitude":             80.2707
+      }
+
+
+────────────────────────────────────────────────────────────────────────────────
+  SECTION 3 — CHECK-IN STATUS
+────────────────────────────────────────────────────────────────────────────────
+
+3.1  GET CURRENT CHECK-IN STATUS
+──────────────────────────────────
+  Endpoint  :  GET /api/method/vgts.api.get_checkin_status
+  Headers   :  (session cookie)
+
+  Response:
+    {
+      "message": {
+        "is_checked_in":      true,
+        "checked_in_seconds": 3720,
+        "last_checkin_time":  "2026-05-06 09:30:00",
+        "first_checkin_time": "2026-05-06 09:30:00"
+      }
+    }
+
+  Field Reference:
+    is_checked_in       Boolean  — true if employee has an open IN log today
+    checked_in_seconds  Integer  — total completed IN→OUT seconds for today
+    last_checkin_time   String   — timestamp of the last IN log
+    first_checkin_time  String   — timestamp of first IN log today
+
+
+3.2  GET CHECK-INS FOR A SPECIFIC DATE
+────────────────────────────────────────
+  Endpoint  :  GET /api/method/hrms.api.get_employee_checkins_on_date
+  Headers   :  (session cookie)
+
+  Query Params:
+    date=2026-05-06
+
+  Response:
+    {
+      "message": {
+        "in_time":  "2026-05-06 09:30:00",
+        "in_lat":   13.0827,
+        "in_lng":   80.2707,
+        "out_time": "2026-05-06 18:15:00",
+        "out_lat":  13.0831,
+        "out_lng":  80.2710
+      }
+    }
+
+
+────────────────────────────────────────────────────────────────────────────────
+  SECTION 4 — FRONTEND PWA ROUTES
+────────────────────────────────────────────────────────────────────────────────
+
+  All routes are prefixed with /hrms  (e.g., https://<domain>/hrms/home)
+
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │  MAIN TAB ROUTES  (shown in bottom tab bar / desktop sidebar)           │
+  ├──────────────────────────┬──────────────────────────────────────────────┤
+  │  /home                   │  Home dashboard                              │
+  │  /dashboard/attendance   │  Attendance dashboard + check-in panel       │
+  │  /dashboard/leaves       │  Leave balance & applications dashboard      │
+  │  /dashboard/expense-claims│  Expense claims dashboard                   │
+  │  /dashboard/salary-slips │  Salary slips dashboard                      │
+  │  /approvals              │  Pending approvals (leave, attendance, etc.) │
+  └──────────────────────────┴──────────────────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │  STANDALONE ROUTES                                                      │
+  ├──────────────────────────┬──────────────────────────────────────────────┤
+  │  /login                  │  Login page                                  │
+  │  /profile                │  Current user profile                        │
+  │  /notifications          │  Notification list                           │
+  │  /settings               │  App settings (push notifications, theme)    │
+  │  /invalid-employee       │  Shown when no Employee record is linked     │
+  │  /employee/:employeeName │  Employee profile view                       │
+  └──────────────────────────┴──────────────────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │  ATTENDANCE ROUTES                                                      │
+  ├──────────────────────────┬──────────────────────────────────────────────┤
+  │  /attendance-requests         │  Attendance request list               │
+  │  /attendance-requests/new     │  New attendance request form           │
+  │  /attendance-requests/:id     │  View/edit attendance request          │
+  │  /shift-requests              │  Shift request list                    │
+  │  /shift-requests/new          │  New shift request form                │
+  │  /shift-requests/:id          │  View/edit shift request               │
+  │  /shift-assignments           │  Shift assignment list                 │
+  │  /shift-assignments/new       │  New shift assignment form             │
+  │  /shift-assignments/:id       │  View/edit shift assignment            │
+  │  /employee-checkins           │  Employee check-in history list        │
+  └──────────────────────────┴──────────────────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │  LEAVE ROUTES                                                           │
+  ├──────────────────────────┬──────────────────────────────────────────────┤
+  │  /leave-applications          │  Leave application list                │
+  │  /leave-applications/new      │  New leave application form            │
+  │  /leave-applications/:id      │  View/edit leave application           │
+  └──────────────────────────┴──────────────────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │  EXPENSE ROUTES                                                         │
+  ├──────────────────────────┬──────────────────────────────────────────────┤
+  │  /expense-claims              │  Expense claim list                    │
+  │  /expense-claims/new          │  New expense claim form                │
+  │  /expense-claims/:id          │  View/edit expense claim               │
+  └──────────────────────────┴──────────────────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │  ADVANCE & SALARY ROUTES                                                │
+  ├──────────────────────────┬──────────────────────────────────────────────┤
+  │  /employee-advances           │  Employee advance list                 │
+  │  /employee-advances/new       │  New employee advance form             │
+  │  /employee-advances/:id       │  View/edit employee advance            │
+  │  /salary-slips/:id            │  View salary slip                      │
+  └──────────────────────────┴──────────────────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │  PERMISSION & REGULARIZATION ROUTES                                     │
+  ├──────────────────────────┬──────────────────────────────────────────────┤
+  │  /employee-permissions        │  Employee permission list              │
+  │  /employee-permissions/new    │  New permission request form           │
+  │  /employee-permissions/:id    │  View/edit permission request          │
+  │  /attendance-regularization   │  Regularization request list           │
+  │  /attendance-regularization/new│  New regularization form             │
+  │  /attendance-regularization/:id│  View/edit regularization            │
+  └──────────────────────────┴──────────────────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │  COMPENSATORY LEAVE ROUTES                                              │
+  ├──────────────────────────┬──────────────────────────────────────────────┤
+  │  /compensatory-leave          │  Compensatory leave list               │
+  │  /compensatory-leave/new      │  New compensatory leave form           │
+  │  /compensatory-leave/:id      │  View/edit compensatory leave          │
+  │  /compensatory-leave-request/:id│  Compensatory leave request view    │
+  └──────────────────────────┴──────────────────────────────────────────────┘
+
+
+────────────────────────────────────────────────────────────────────────────────
+  SECTION 5 — OTHER USEFUL API ENDPOINTS
+────────────────────────────────────────────────────────────────────────────────
+
+  GET  /api/method/hrms.api.get_hr_settings
+    Returns:
+      { "allow_employee_checkin_from_mobile_app": 1, "allow_geolocation_tracking": 1 }
+
+  GET  /api/method/hrms.api.are_push_notifications_enabled
+    Returns:  true / false
+
+  GET  /api/method/hrms.api.get_attendance_calendar_events?from_date=2026-05-01&to_date=2026-05-31
+    Returns map of date → attendance status (Present / Absent / Half Day / Holiday)
+
+  GET  /api/method/hrms.api.get_leave_balance_map
+    Returns map of leave type → { allocated_leaves, balance_leaves }
+
+  GET  /api/method/hrms.api.get_team_checkins?date=2026-05-06
+    Returns check-in status for all direct reports of the logged-in manager
+
+  GET  /api/method/vgts.api.get_team_requests
+    Returns all pending leave / permission / attendance / shift / regularization /
+    compensatory requests awaiting the logged-in user's approval
+
+  GET  /api/method/hrms.api.get_unread_notifications_count
+    Returns:  integer count of unread notifications
+
+  POST /api/method/hrms.api.mark_all_notifications_as_read
+    Marks all notifications as read for the session user
+
+
+────────────────────────────────────────────────────────────────────────────────
+  SECTION 6 — TYPICAL INTEGRATION FLOW
+────────────────────────────────────────────────────────────────────────────────
+
+  Step 1 — Login
+    POST /api/method/login
+    Payload: { "usr": "...", "pwd": "..." }
+    → Save session cookie
+
+  Step 2 — Fetch Employee ID
+    GET /api/method/hrms.api.get_current_employee_info
+    → Save employee.name  (e.g. "HR-EMP-00001")
+
+  Step 3 — Check Current Status
+    GET /api/method/vgts.api.get_checkin_status
+    → Check is_checked_in to decide whether to show CHECK IN or CHECK OUT
+
+  Step 4a — Check In
+    POST /api/method/vgts.api.employee_checkin
+    Payload: { "log_type": "IN" }
+
+  Step 4b — Check Out
+    POST /api/method/vgts.api.employee_checkin
+    Payload: { "log_type": "OUT" }
+
+  Step 5 — Logout
+    GET /api/method/logout
+
+
+────────────────────────────────────────────────────────────────────────────────
+  SECTION 7 — NOTES & REQUIREMENTS
+────────────────────────────────────────────────────────────────────────────────
+
+  1.  HTTPS is mandatory — push notifications and service workers require HTTPS.
+
+  2.  CSRF Token — Frappe uses CSRF protection. After login, read the token from:
+        window.frappe.csrf_token   (in browser)
+        or from the /api/method/frappe.www.login response cookie.
+      Include it in every POST/PUT/DELETE request as:
+        Header:  X-Frappe-CSRF-Token: <token>
+
+  3.  Date/Time Format — All datetime values use:
+        "YYYY-MM-DD HH:mm:ss"   e.g. "2026-05-06 09:30:00"
+
+  4.  Employee ID format — Frappe auto-names employees as "HR-EMP-XXXXX".
+      Always use the name field from get_current_employee_info as the
+      employee identifier in API calls.
+
+  5.  Geolocation — latitude and longitude are optional in check-in payloads.
+      If allow_geolocation_tracking is enabled in HR Settings, the PWA will
+      attempt to capture them automatically.
+
+  6.  Attendance processing — Frappe HRMS automatically calculates attendance
+      (Present / Half Day / Absent) when an OUT log is submitted. No manual
+      trigger is needed.
+
+================================================================================
+  END OF DOCUMENT
+================================================================================
