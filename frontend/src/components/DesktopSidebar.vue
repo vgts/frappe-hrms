@@ -89,6 +89,7 @@ import HomeIcon from "@/components/icons/HomeIcon.vue"
 import LeaveIcon from "@/components/icons/LeaveIcon.vue"
 import ExpenseIcon from "@/components/icons/ExpenseIcon.vue"
 import AttendanceIcon from "@/components/icons/AttendanceIcon.vue"
+import ApprovalsIcon from "@/components/icons/ApprovalsIcon.vue"
 import EmployeeSearchModal from "@/components/EmployeeSearchModal.vue"
 
 const __ = inject("$translate")
@@ -103,6 +104,7 @@ const navItems = [
 	{ icon: markRaw(AttendanceIcon), label: __("Attendance"), route: "/dashboard/attendance" },
 	{ icon: markRaw(LeaveIcon),      label: __("Leaves"),     route: "/dashboard/leaves" },
 	{ icon: markRaw(ExpenseIcon),    label: __("Expenses"),   route: "/dashboard/expense-claims" },
+	{ icon: markRaw(ApprovalsIcon),  label: __("Approvals"),  route: "/approvals" },
 ]
 
 const quickLinks = [

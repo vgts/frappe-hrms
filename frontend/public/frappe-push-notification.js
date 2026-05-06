@@ -161,6 +161,25 @@ class FrappePushNotification {
 		if (!(await isSupported())) {
 			throw new Error("Push notifications are not supported on your device")
 		}
+		// Ensure Firebase messaging is initialized before proceeding.
+		// On desktop, fetchWebConfig() may have failed silently at startup,
+		// leaving this.messaging null. Re-try initialization here so the user
+		// gets a clear error instead of a cryptic browser "push service error".
+		if (!this.initialized || this.messaging === null) {
+			if (this.serviceWorkerRegistration) {
+				try {
+					await this.initialize(this.serviceWorkerRegistration)
+				} catch (e) {
+					throw new Error(
+						"Push notification service is not ready. Please reload the page and try again."
+					)
+				}
+			} else {
+				throw new Error(
+					"Push notification service is not ready. Please reload the page and try again."
+				)
+			}
+		}
 		// Return if token already presence in the instance
 		if (this.token != null) {
 			return {

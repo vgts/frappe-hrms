@@ -105,7 +105,11 @@ const enablePushNotifications = () => {
 			}
 		})
 		.catch((error) => {
-			toast({ title: __("Error"), text: __(error.message), icon: "alert-circle", position: "bottom-center", iconClasses: "text-red-500" })
+			let message = error.message || ""
+			if (message.toLowerCase().includes("registration failed") || message.toLowerCase().includes("push service error")) {
+				message = __("Could not connect to the push service. Ensure your browser supports push notifications and the site is served over HTTPS.")
+			}
+			toast({ title: __("Error"), text: __(message), icon: "alert-circle", position: "bottom-center", iconClasses: "text-red-500" })
 			pushNotificationState.value = false
 		})
 		.finally(() => { isLoading.value = false })

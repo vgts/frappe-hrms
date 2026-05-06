@@ -102,6 +102,11 @@ const registerServiceWorker = async () => {
 					window.frappePushNotification.initialize(registration).then(() => {
 						console.log("Frappe Push Notification initialized")
 					})
+				} else {
+					// Config fetch failed (e.g. relay server unreachable on desktop).
+					// Store the SW registration so enableNotification() can re-try
+					// initialization when the user explicitly enables push notifications.
+					window.frappePushNotification.serviceWorkerRegistration = registration
 				}
 			})
 			.catch((err) => {
