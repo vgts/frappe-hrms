@@ -35,11 +35,14 @@ class PWANotification(Document):
 	def get_notification_link(self):
 		base_url = f"{frappe.utils.get_url()}/hrms"
 
-		if self.reference_document_type == "Leave Application":
-			return f"{base_url}/leave-applications/{self.reference_document_name}"
-		elif self.reference_document_type == "Expense Claim":
-			return f"{base_url}/expense-claims/{self.reference_document_name}"
-		elif self.reference_document_type == "Compensatory Leave Request":
-			return f"{frappe.utils.get_url()}/app/compensatory-leave-request/{self.reference_document_name}"
+		route_map = {
+			"Leave Application":           f"{base_url}/leave-applications/{self.reference_document_name}",
+			"Expense Claim":               f"{base_url}/expense-claims/{self.reference_document_name}",
+			"Attendance Request":          f"{base_url}/attendance-requests/{self.reference_document_name}",
+			"Shift Request":               f"{base_url}/shift-requests/{self.reference_document_name}",
+			"Employee Permission":         f"{base_url}/employee-permissions/{self.reference_document_name}",
+			"Attendance Regularization":   f"{base_url}/attendance-regularization/{self.reference_document_name}",
+			"Compensatory Leave Request":  f"{base_url}/compensatory-leave/{self.reference_document_name}",
+		}
 
-		return base_url
+		return route_map.get(self.reference_document_type, base_url)
