@@ -174,6 +174,8 @@ frappe.query_reports["Monthly Attendance Sheet"] = {
 							value = "<span style='color:#F59E0B'>" + value + "</span>";
 						else if (value.startsWith("LWP/") || value.endsWith("/LWP"))
 							value = "<span style='color:#EF4444'>" + value + "</span>";
+						else if (value.startsWith("PL/") || value.endsWith("/PL"))
+							value = "<span style='color:#2196F3;font-weight:600'>" + value + "</span>";
 						else if (value.startsWith("A/")) value = "<span style='color:red'>" + value + "</span>";
 						else if (value.startsWith("P/") || value.endsWith("/P"))
 							value = "<span style='color:green'>" + value + "</span>";
@@ -187,6 +189,7 @@ frappe.query_reports["Monthly Attendance Sheet"] = {
 				else if (value == "L") value = "<span style='color:#318AD8'>" + value + "</span>";
 				else if (value == "MO") value = "<span style='color:#F59E0B'>" + value + "</span>";
 				else if (value == "LOP") value = "<span style='color:#EF4444'>" + value + "</span>";
+				else if (value == "PL") value = "<span style='color:#2196F3;font-weight:600'>" + value + "</span>";
 				else if (value == "W") value = "<span style='color:#878787'>" + value + "</span>";
 				else value = "<span style='color:#878787'>" + value + "</span>";
 			}

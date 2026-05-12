@@ -37,6 +37,7 @@ status_map = {
 LEAVE_SHORT_CODES = {
 	"Monthly Off": "MO",
 	"Leave Without Pay": "LWP",
+	"Paternity Leave": "PL",
 }
 
 day_abbr = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -118,6 +119,7 @@ def get_message() -> str:
 	extra_legends = [
 		("Monthly Off", "MO", "#F59E0B"),
 		("Leave Without Pay", "LWP", "#EF4444"),
+		("Paternity Leave", "PL", "#2196F3"),
 		("Half Day + Leave (Other half absent)", "P/<type>", "#914EE3"),
 		("Half Day + Leave (Other half present)", "<type>/P", "#914EE3"),
 		("Half Day + Permission (Other half absent)", "P/<n>PM", "#06B6D4"),
