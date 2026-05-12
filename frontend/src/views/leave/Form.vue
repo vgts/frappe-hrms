@@ -403,7 +403,13 @@ watch(
 
 watch(
 	() => leaveApplication.value.leave_type,
-	(leave_type) => setLeaveBalance(leave_type)
+	(leave_type) => {
+		setLeaveBalance(leave_type)
+		// Auto-calculate To Date when Paternity Leave is selected
+		if (leave_type === "Paternity Leave" && leaveApplication.value.from_date) {
+			setPaternityToDate()
+		}
+	}
 )
 
 watch(
@@ -436,7 +442,10 @@ watch(
 watch(
 	() => leaveApplication.value.from_date,
 	(from_date) => {
-		if (!leaveApplication.value.to_date) {
+		if (leaveApplication.value.leave_type === "Paternity Leave") {
+			// Always auto-calculate To Date = From Date + 7 working days
+			if (from_date) setPaternityToDate()
+		} else if (!leaveApplication.value.to_date) {
 			leaveApplication.value.to_date = from_date
 		}
 
@@ -671,6 +680,71 @@ function areValuesSet() {
 		leaveApplication.value.to_date &&
 		leaveApplication.value.leave_type
 	)
+}
+
+// ── Paternity Leave: auto-set To Date = From Date + 7 working days ──────────
+// Weekends (Sat/Sun) and public holidays are NOT counted.
+function setPaternityToDate() {
+	if (!leaveApplication.value.from_date || !currEmployee.value) return
+
+	// Step 1: get the employee's holiday list
+	const empRes = createResource({
+		url: "frappe.client.get_value",
+		params: {
+			doctype: "Employee",
+			fieldname: "holiday_list",
+			filters: { name: currEmployee.value },
+		},
+		onSuccess(empData) {
+			const holidayList = empData?.holiday_list || ""
+			if (!holidayList) {
+				// No holiday list — count Mon–Fri only
+				leaveApplication.value.to_date = _nthWorkingDay(
+					leaveApplication.value.from_date, 7, new Set()
+				)
+				return
+			}
+
+			// Step 2: fetch non-weekly-off holidays from the list
+			const holRes = createResource({
+				url: "frappe.client.get_list",
+				params: {
+					doctype: "Holiday",
+					parent: holidayList,
+					filters: [
+						["holiday_date", ">=", leaveApplication.value.from_date],
+						["weekly_off", "=", 0],
+					],
+					fields: ["holiday_date"],
+					limit: 200,
+				},
+				onSuccess(holidays) {
+					const holidaySet = new Set((holidays || []).map(h => h.holiday_date))
+					leaveApplication.value.to_date = _nthWorkingDay(
+						leaveApplication.value.from_date, 7, holidaySet
+					)
+				},
+			})
+			holRes.reload()
+		},
+	})
+	empRes.reload()
+}
+
+// Return the date string of the n-th working day counting from startDateStr.
+// Skips Saturday (6), Sunday (0), and any date in holidaySet.
+function _nthWorkingDay(startDateStr, n, holidaySet) {
+	let date  = dayjs(startDateStr)
+	let count = 0
+	while (count < n) {
+		const day     = date.day()                       // 0=Sun … 6=Sat
+		const dateStr = date.format("YYYY-MM-DD")
+		if (day !== 0 && day !== 6 && !holidaySet.has(dateStr)) {
+			count++
+		}
+		if (count < n) date = date.add(1, "day")
+	}
+	return date.format("YYYY-MM-DD")
 }
 
 function validateForm() {
