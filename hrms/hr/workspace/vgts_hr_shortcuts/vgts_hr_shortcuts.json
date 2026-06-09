@@ -62,6 +62,12 @@
    "type": "DocType"
   },
   {
+   "doc_view": "New",
+   "label": "New Employee",
+   "link_to": "Employee",
+   "type": "DocType"
+  },
+  {
    "label": "Department",
    "link_to": "Department",
    "type": "DocType"
