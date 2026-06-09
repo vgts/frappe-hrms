@@ -68,6 +68,11 @@
    "type": "DocType"
   },
   {
+   "label": "New Employee (Easy Form)",
+   "link_to": "new-employee",
+   "type": "Page"
+  },
+  {
    "label": "Department",
    "link_to": "Department",
    "type": "DocType"
