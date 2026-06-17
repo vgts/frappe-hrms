@@ -304,7 +304,9 @@ class LeaveApplication(Document, PWANotificationsMixin):
 			frappe.throw(_("Half Day Date should be between From Date and To Date"))
 
 		if not is_lwp(self.leave_type):
-			self.validate_dates_across_allocation()
+			# Monthly Off can be applied without an allocation (will be LWP if no balance)
+			if self.leave_type != "Monthly Off":
+				self.validate_dates_across_allocation()
 			self.validate_back_dated_application()
 
 	def validate_dates_across_allocation(self):
@@ -419,6 +421,11 @@ class LeaveApplication(Document, PWANotificationsMixin):
 		# Monthly Attendance Sheet relies on Attendance.half_day_status to decide the output order.
 		is_second_half = bool(getattr(self, "custom_second_half", 0))
 
+		# Monthly Off applied as LWP (no balance) → show LWP in attendance sheet
+		attendance_leave_type = self.leave_type
+		if getattr(self, "custom_is_lwp", 0):
+			attendance_leave_type = "Leave Without Pay"
+
 		if attendance_name:
 			# update existing attendance, change absent to on leave or half day
 			doc = frappe.get_doc("Attendance", attendance_name)
@@ -427,7 +434,7 @@ class LeaveApplication(Document, PWANotificationsMixin):
 			doc.db_set(
 				{
 					"status": status,
-					"leave_type": self.leave_type,
+					"leave_type": attendance_leave_type,
 					"leave_application": self.name,
 					"half_day_status": half_day_status,
 					"modify_half_day_status": modify_half_day_status,
@@ -440,7 +447,7 @@ class LeaveApplication(Document, PWANotificationsMixin):
 			doc.employee_name = self.employee_name
 			doc.attendance_date = date
 			doc.company = self.company
-			doc.leave_type = self.leave_type
+			doc.leave_type = attendance_leave_type
 			doc.leave_application = self.name
 			doc.status = status
 			doc.half_day_status = "Absent" if (status == "Half Day" and is_second_half) else ("Present" if status == "Half Day" else None)
@@ -539,7 +546,19 @@ class LeaveApplication(Document, PWANotificationsMixin):
 				if self.status != "Rejected" and (
 					leave_balance_for_consumption < self.total_leave_days or not leave_balance_for_consumption
 				):
-					self.show_insufficient_balance_message(leave_balance_for_consumption)
+					if self.leave_type == "Monthly Off":
+						# No Monthly Off balance — allow apply, mark as LWP
+						self.custom_is_lwp = 1
+						frappe.msgprint(
+							_(
+								"No Monthly Off balance available. This leave will be applied as "
+								"<b>Leave Without Pay (LWP)</b> and reflected accordingly in the attendance sheet."
+							),
+							title=_("Applied as LWP"),
+							indicator="orange",
+						)
+					else:
+						self.show_insufficient_balance_message(leave_balance_for_consumption)
 
 	def show_insufficient_balance_message(self, leave_balance_for_consumption: float) -> None:
 		alloc_on_from_date, alloc_on_to_date = self.get_allocation_based_on_application_dates()
@@ -900,6 +919,9 @@ class LeaveApplication(Document, PWANotificationsMixin):
 			self.employee, self.leave_type, self.to_date, self.from_date
 		)
 		lwp = frappe.db.get_value("Leave Type", self.leave_type, "is_lwp")
+		# Monthly Off applied without balance → treat ledger entry as LWP (no balance deduction)
+		if getattr(self, "custom_is_lwp", 0):
+			lwp = 1
 
 		if expiry_date:
 			self.create_ledger_entry_for_intermediate_allocation_expiry(expiry_date, submit, lwp)

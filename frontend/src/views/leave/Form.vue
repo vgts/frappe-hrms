@@ -554,6 +554,8 @@ function setTotalLeaveDays() {
 	setLeaveBalance()
 }
 
+const MONTHLY_OFF_TYPE = "Monthly Off"
+
 function setLeaveBalance() {
 	if (!areValuesSet()) return
 
@@ -568,6 +570,21 @@ function setLeaveBalance() {
 		},
 		onSuccess(data) {
 			leaveApplication.value.leave_balance = data
+			// Monthly Off with no balance → warn, will be applied as LWP
+			if (
+				leaveApplication.value.leave_type === MONTHLY_OFF_TYPE &&
+				(!data || data <= 0)
+			) {
+				toast({
+					title: __("No Monthly Off Balance"),
+					text: __(
+						"No balance available. Leave will be applied as Leave Without Pay (LWP) and shown in attendance sheet accordingly."
+					),
+					icon: "alert-triangle",
+					position: "bottom-center",
+					iconClasses: "text-yellow-500",
+				})
+			}
 		},
 	})
 	leaveBalance.reload()

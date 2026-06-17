@@ -42,7 +42,8 @@
   "color",
   "column_break_17",
   "letter_head",
-  "amended_from"
+  "amended_from",
+  "custom_is_lwp"
  ],
  "fields": [
   {
@@ -304,6 +305,16 @@
    "fieldname": "sb_other_details",
    "fieldtype": "Section Break",
    "label": "Other Details"
+  },
+  {
+   "default": "0",
+   "fieldname": "custom_is_lwp",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Is LWP (Monthly Off without balance)",
+   "no_copy": 1,
+   "print_hide": 1,
+   "read_only": 1
   }
  ],
  "icon": "fa fa-calendar",
