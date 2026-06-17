@@ -543,11 +543,17 @@ class LeaveApplication(Document, PWANotificationsMixin):
 				leave_balance_for_consumption = flt(
 					leave_balance.get("leave_balance_for_consumption"), precision
 				)
-				if self.status != "Rejected" and (
-					leave_balance_for_consumption < self.total_leave_days or not leave_balance_for_consumption
-				):
-					if self.leave_type == "Monthly Off":
-						# No Monthly Off balance — allow apply, mark as LWP
+				# Also check actual leave_balance (not just for_consumption) to catch allow_negative edge cases
+				actual_leave_balance = flt(
+					leave_balance.get("leave_balance") if isinstance(leave_balance, dict) else leave_balance_for_consumption,
+					precision,
+				)
+
+				# Monthly Off: determine LWP based on actual available balance
+				if self.leave_type == "Monthly Off":
+					# Use minimum of both balance measures to be safe; if either ≤ 0 → LWP
+					effective_balance = min(actual_leave_balance, leave_balance_for_consumption)
+					if self.status != "Rejected" and effective_balance < self.total_leave_days:
 						self.custom_is_lwp = 1
 						frappe.msgprint(
 							_(
@@ -558,7 +564,11 @@ class LeaveApplication(Document, PWANotificationsMixin):
 							indicator="orange",
 						)
 					else:
-						self.show_insufficient_balance_message(leave_balance_for_consumption)
+						self.custom_is_lwp = 0
+				elif self.status != "Rejected" and (
+					leave_balance_for_consumption < self.total_leave_days or not leave_balance_for_consumption
+				):
+					self.show_insufficient_balance_message(leave_balance_for_consumption)
 
 	def show_insufficient_balance_message(self, leave_balance_for_consumption: float) -> None:
 		alloc_on_from_date, alloc_on_to_date = self.get_allocation_based_on_application_dates()
@@ -720,6 +730,11 @@ class LeaveApplication(Document, PWANotificationsMixin):
 		)
 
 	def validate_attendance(self):
+		# Skip check when submitting via secondary approval — mark_attendance will
+		# update existing records via create_or_update_attendance anyway.
+		if self.flags.get("skip_attendance_validation"):
+			return
+
 		attendance_dates = frappe.get_all(
 			"Attendance",
 			filters=[
@@ -919,8 +934,9 @@ class LeaveApplication(Document, PWANotificationsMixin):
 			self.employee, self.leave_type, self.to_date, self.from_date
 		)
 		lwp = frappe.db.get_value("Leave Type", self.leave_type, "is_lwp")
-		# Monthly Off: re-check balance at submit time to prevent negative deduction.
-		# custom_is_lwp may not be persisted if migration hasn't run, so always re-verify here.
+		# Monthly Off: always re-check balance at submit time (don't rely on custom_is_lwp persistence).
+		# Use both leave_balance and leave_balance_for_consumption — take the minimum to be safe.
+		# If effective balance < total_leave_days → LWP, no deduction, balance never goes negative.
 		if self.leave_type == "Monthly Off" and not lwp:
 			_bal = get_leave_balance_on(
 				self.employee,
@@ -933,7 +949,11 @@ class LeaveApplication(Document, PWANotificationsMixin):
 			_bal_for_consumption = flt(
 				_bal.get("leave_balance_for_consumption") if isinstance(_bal, dict) else _bal, 2
 			)
-			if _bal_for_consumption <= 0:
+			_actual_bal = flt(
+				_bal.get("leave_balance") if isinstance(_bal, dict) else _bal_for_consumption, 2
+			)
+			_effective_bal = min(_bal_for_consumption, _actual_bal)
+			if _effective_bal < self.total_leave_days:
 				lwp = 1
 
 		if expiry_date:
@@ -1940,6 +1960,8 @@ def secondary_approve(leave_application):
 
 	doc.custom_approval_stage = "Approved"
 	doc.flags.ignore_permissions = True
+	# Skip validate_attendance — existing Present/WFH records will be updated by mark_attendance
+	doc.flags.skip_attendance_validation = True
 	doc.submit()
 
 	return {"status": "success", "message": _("Leave Application approved and submitted.")}
