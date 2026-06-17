@@ -919,9 +919,22 @@ class LeaveApplication(Document, PWANotificationsMixin):
 			self.employee, self.leave_type, self.to_date, self.from_date
 		)
 		lwp = frappe.db.get_value("Leave Type", self.leave_type, "is_lwp")
-		# Monthly Off applied without balance → treat ledger entry as LWP (no balance deduction)
-		if getattr(self, "custom_is_lwp", 0):
-			lwp = 1
+		# Monthly Off: re-check balance at submit time to prevent negative deduction.
+		# custom_is_lwp may not be persisted if migration hasn't run, so always re-verify here.
+		if self.leave_type == "Monthly Off" and not lwp:
+			_bal = get_leave_balance_on(
+				self.employee,
+				self.leave_type,
+				self.from_date,
+				self.to_date,
+				consider_all_leaves_in_the_allocation_period=True,
+				for_consumption=True,
+			)
+			_bal_for_consumption = flt(
+				_bal.get("leave_balance_for_consumption") if isinstance(_bal, dict) else _bal, 2
+			)
+			if _bal_for_consumption <= 0:
+				lwp = 1
 
 		if expiry_date:
 			self.create_ledger_entry_for_intermediate_allocation_expiry(expiry_date, submit, lwp)
