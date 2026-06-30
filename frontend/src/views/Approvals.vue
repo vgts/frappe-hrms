@@ -121,6 +121,52 @@
 				</div>
 
 			</div>
+			<!-- END pending cards -->
+
+			<!-- ── Approved by Me section ───────────────────────────────────── -->
+			<div class="ap-approved-section">
+				<div class="ap-approved-header" @click="approvedExpanded = !approvedExpanded">
+					<span class="ap-approved-title">{{ __("Approved by Me") }}</span>
+					<span v-if="approvedItems.length > 0" class="ap-tab-count">{{ approvedItems.length }}</span>
+					<FeatherIcon
+						:name="approvedExpanded ? 'chevron-up' : 'chevron-down'"
+						class="w-4 h-4 text-gray-400 ml-auto"
+					/>
+				</div>
+
+				<template v-if="approvedExpanded">
+					<div v-if="approvedRequests.loading && !approvedItems.length" class="ap-approved-loading">
+						<div v-for="n in 3" :key="n" class="ap-skeleton-card ap-skeleton-card--sm">
+							<div class="ap-skel-row"><div class="ap-skel-badge"></div><div class="ap-skel-date"></div></div>
+							<div class="ap-skel-name"></div>
+						</div>
+					</div>
+					<div v-else-if="!approvedRequests.loading && approvedItems.length === 0" class="ap-approved-empty">
+						{{ __("No approvals in the last 30 days.") }}
+					</div>
+					<div v-else class="ap-cards ap-cards--approved">
+						<div
+							v-for="item in approvedItems"
+							:key="item.name"
+							class="ap-card ap-card--approved"
+						>
+							<div class="ap-card-toprow">
+								<span class="ap-type-badge" :class="typeBadgeClass(item.type)">
+									{{ typeLabelMap[item.type] || item.type }}
+								</span>
+								<div class="ap-card-toprow-right">
+									<span class="ap-stage-badge ap-stage--done">{{ __("Approved") }}</span>
+									<span class="ap-date">{{ item.creation_fmt }}</span>
+								</div>
+							</div>
+							<p class="ap-emp-name">{{ item.employee_name }}</p>
+							<p class="ap-detail">{{ detailLine(item) }}</p>
+							<p v-if="itemReason(item)" class="ap-reason">{{ itemReason(item) }}</p>
+						</div>
+					</div>
+				</template>
+			</div>
+			<!-- END ap-approved-section -->
 		</ion-content>
 
 		<!-- ── Reject reason bottom sheet (inside ion-page) ────────────────── -->
@@ -174,6 +220,42 @@ const sessionUser = computed(() => employee?.data?.user_id ?? "")
 const teamRequests = createResource({
 	url: "vgts.api.get_team_requests",
 	auto: true,
+})
+
+const approvedRequests = createResource({
+	url: "vgts.api.get_approved_requests",
+	auto: true,
+})
+
+const approvedExpanded = ref(false)
+
+const approvedItems = computed(() => {
+	const d = approvedRequests.data
+	if (!d) return []
+
+	const DOCTYPE = {
+		"Leave":             "Leave Application",
+		"Permission":        "Employee Permission",
+		"Attendance Request":"Attendance Request",
+		"Shift Request":     "Shift Request",
+		"Regularization":   "Attendance Regularization",
+		"CompOff":           "Compensatory Leave Request",
+	}
+
+	const flatten = (arr) =>
+		(arr || []).map((item) => ({
+			...item,
+			doctype: DOCTYPE[item.type] || item.type,
+		}))
+
+	return [
+		...flatten(d.leaves),
+		...flatten(d.permissions),
+		...flatten(d.attendance_requests),
+		...flatten(d.shift_requests),
+		...flatten(d.regularizations),
+		...flatten(d.compensatory_requests),
+	].sort((a, b) => (b.creation || "").localeCompare(a.creation || ""))
 })
 
 // Flatten all request arrays into a single list with doctype attached
@@ -871,4 +953,58 @@ onBeforeUnmount(() => document.removeEventListener("visibilitychange", onVisible
 
 .ap-reject-confirm-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .ap-reject-confirm-btn:active:not(:disabled) { opacity: 0.85; }
+
+/* ── Approved by Me section ──────────────────────────────────── */
+.ap-approved-section {
+	margin: 16px 16px 0;
+	border: 1px solid #e5e7eb;
+	border-radius: 12px;
+	background: #fff;
+	overflow: hidden;
+}
+
+.ap-approved-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 14px 16px;
+	cursor: pointer;
+	user-select: none;
+}
+
+.ap-approved-title {
+	font-size: 0.9375rem;
+	font-weight: 600;
+	color: #374151;
+}
+
+.ap-approved-empty {
+	padding: 12px 16px 16px;
+	font-size: 0.875rem;
+	color: #9ca3af;
+	text-align: center;
+}
+
+.ap-approved-loading {
+	padding: 0 12px 12px;
+}
+
+.ap-skeleton-card--sm {
+	padding: 10px 12px;
+	margin-bottom: 6px;
+}
+
+.ap-cards--approved {
+	padding: 0 12px 12px;
+}
+
+.ap-card--approved {
+	border-left: 3px solid #10b981;
+	opacity: 0.85;
+}
+
+.ap-stage--done {
+	background: #d1fae5;
+	color: #065f46;
+}
 </style>
