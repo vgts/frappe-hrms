@@ -163,7 +163,7 @@
 <script setup>
 import { ref, computed, inject, onMounted, onBeforeUnmount } from "vue"
 import { IonPage, IonContent } from "@ionic/vue"
-import { FeatherIcon, createResource, toast } from "frappe-ui"
+import { FeatherIcon, createResource, call, toast } from "frappe-ui"
 
 const __ = inject("$translate")
 const employee = inject("$employee")
@@ -245,7 +245,7 @@ function canApprove(item) {
 	return item.current_approver === sessionUser.value
 }
 
-function doApprove(item) {
+async function doApprove(item) {
 	const isSecondary = item.custom_approval_stage === "Pending Secondary Reporting Approval"
 	const method = isSecondary
 		? "hrms.hr.two_level_approval.secondary_approve"
@@ -253,33 +253,28 @@ function doApprove(item) {
 
 	actionLoading.value = { ...actionLoading.value, [item.name]: "approving" }
 
-	createResource({
-		url: method,
-		params: { doctype: item.doctype, docname: item.name },
-		auto: true,
-		onSuccess() {
-			actionLoading.value = { ...actionLoading.value, [item.name]: null }
-			toast({
-				title: __("Approved"),
-				text: __("Request approved successfully."),
-				icon: "check-circle",
-				iconClasses: "text-green-500",
-				position: "bottom-center",
-			})
-			teamRequests.reload()
-		},
-		onError(err) {
-			actionLoading.value = { ...actionLoading.value, [item.name]: null }
-			const msg = err?.messages?.[0] || err?.message || __("Approval failed. Please try again.")
-			toast({
-				title: __("Error"),
-				text: msg,
-				icon: "alert-circle",
-				iconClasses: "text-red-500",
-				position: "bottom-center",
-			})
-		},
-	})
+	try {
+		await call(method, { doctype: item.doctype, docname: item.name })
+		actionLoading.value = { ...actionLoading.value, [item.name]: null }
+		toast({
+			title: __("Approved"),
+			text: __("Request approved successfully."),
+			icon: "check-circle",
+			iconClasses: "text-green-500",
+			position: "bottom-center",
+		})
+		teamRequests.reload()
+	} catch (err) {
+		actionLoading.value = { ...actionLoading.value, [item.name]: null }
+		const msg = err?.messages?.[0] || err?.message || __("Approval failed. Please try again.")
+		toast({
+			title: __("Error"),
+			text: msg,
+			icon: "alert-circle",
+			iconClasses: "text-red-500",
+			position: "bottom-center",
+		})
+	}
 }
 
 // Reject sheet state
@@ -296,7 +291,7 @@ function closeRejectSheet() {
 	rejectReason.value = ""
 }
 
-function doReject() {
+async function doReject() {
 	const item = rejectSheet.value.item
 	if (!item || !rejectReason.value.trim()) return
 
@@ -307,34 +302,29 @@ function doReject() {
 
 	actionLoading.value = { ...actionLoading.value, [item.name]: "rejecting" }
 
-	createResource({
-		url: method,
-		params: { doctype: item.doctype, docname: item.name, reason: rejectReason.value.trim() },
-		auto: true,
-		onSuccess() {
-			actionLoading.value = { ...actionLoading.value, [item.name]: null }
-			toast({
-				title: __("Rejected"),
-				text: __("Request has been rejected."),
-				icon: "x-circle",
-				iconClasses: "text-red-500",
-				position: "bottom-center",
-			})
-			closeRejectSheet()
-			teamRequests.reload()
-		},
-		onError(err) {
-			actionLoading.value = { ...actionLoading.value, [item.name]: null }
-			const msg = err?.messages?.[0] || err?.message || __("Rejection failed. Please try again.")
-			toast({
-				title: __("Error"),
-				text: msg,
-				icon: "alert-circle",
-				iconClasses: "text-red-500",
-				position: "bottom-center",
-			})
-		},
-	})
+	try {
+		await call(method, { doctype: item.doctype, docname: item.name, reason: rejectReason.value.trim() })
+		actionLoading.value = { ...actionLoading.value, [item.name]: null }
+		toast({
+			title: __("Rejected"),
+			text: __("Request has been rejected."),
+			icon: "x-circle",
+			iconClasses: "text-red-500",
+			position: "bottom-center",
+		})
+		closeRejectSheet()
+		teamRequests.reload()
+	} catch (err) {
+		actionLoading.value = { ...actionLoading.value, [item.name]: null }
+		const msg = err?.messages?.[0] || err?.message || __("Rejection failed. Please try again.")
+		toast({
+			title: __("Error"),
+			text: msg,
+			icon: "alert-circle",
+			iconClasses: "text-red-500",
+			position: "bottom-center",
+		})
+	}
 }
 
 // ── Display helpers ───────────────────────────────────────────────────────────
