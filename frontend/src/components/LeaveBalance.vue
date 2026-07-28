@@ -30,11 +30,11 @@
 					:percentage="allocation.balance_percentage"
 					:colorClass="getChartColor(index)"
 				/>
-				<div class="text-gray-800 font-bold text-base">
-					{{ `${allocation.balance_leaves}/${allocation.allocated_leaves}` }}
+				<div class="text-gray-800 font-bold text-xl">
+					{{ allocation.balance_leaves }}
 				</div>
-				<div class="text-gray-600 font-normal text-sm w-24 leading-4">
-					{{ __("{0} balance", [__(leave_type, null, "Leave Type")]) }}
+				<div class="text-gray-600 font-normal text-xs w-24 leading-4">
+					{{ __(leave_type, null, "Leave Type") }}
 				</div>
 			</div>
 		</div>
@@ -53,11 +53,11 @@
 					:percentage="allocation.balance_percentage"
 					:colorClass="getChartColor(index)"
 				/>
-				<div class="text-gray-800 font-bold text-lg">
-					{{ `${allocation.balance_leaves}/${allocation.allocated_leaves}` }}
+				<div class="text-gray-800 font-bold text-xl">
+					{{ allocation.balance_leaves }}
 				</div>
 				<div class="text-gray-500 font-normal text-sm leading-4">
-					{{ __("{0} balance", [__(leave_type, null, "Leave Type")]) }}
+					{{ __(leave_type, null, "Leave Type") }}
 				</div>
 			</div>
 		</div>
