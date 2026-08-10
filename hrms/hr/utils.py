@@ -786,7 +786,7 @@ def share_doc_with_approver(doc, user):
 
 		approver = approvers.get(doc.doctype)
 		if doc_before_save.get(approver) != doc.get(approver):
-			frappe.share.remove(doc.doctype, doc.name, doc_before_save.get(approver))
+			frappe.share.remove(doc.doctype, doc.name, doc_before_save.get(approver), flags={"ignore_share_permission": True})
 
 
 def validate_active_employee(employee, method=None):
