@@ -60,6 +60,18 @@ def get_current_employee_info() -> dict:
 
 
 @frappe.whitelist()
+def get_my_employee_details() -> dict:
+	"""Return all Employee fields for the logged-in user's own record."""
+	emp = frappe.db.get_value(
+		"Employee",
+		{"user_id": frappe.session.user, "status": "Active"},
+		"*",
+		as_dict=True,
+	)
+	return emp or {}
+
+
+@frappe.whitelist()
 def get_all_employees() -> list[dict]:
 	return frappe.get_list(
 		"Employee",

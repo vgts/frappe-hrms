@@ -315,8 +315,7 @@ const isDefaultPresent = computed(() => !!defaultPresentResource.data)
 
 // ── Employee document (for field values) ──────────────────────────────────
 const employeeDoc = createResource({
-	url: "frappe.client.get",
-	params: { doctype: DOCTYPE, name: employee.data.name },
+	url: "hrms.api.get_my_employee_details",
 	cache: `hrms:employee_doc:${employee.data.name}`,
 	auto: true,
 })
