@@ -149,7 +149,9 @@ const props = defineProps({
 	},
 })
 
-const isSickLeave = computed(() => leaveApplication.value.leave_type === "Sick Leave")
+const isSickLeave = computed(
+	() => leaveApplication.value.leave_type === "Sick Leave" && parseFloat(leaveApplication.value.total_leave_days || 0) > 2
+)
 
 const sessionEmployee = inject("$employee")
 const currEmployee = ref(sessionEmployee.data.name)

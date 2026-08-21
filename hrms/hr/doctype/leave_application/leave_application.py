@@ -188,7 +188,7 @@ class LeaveApplication(Document, PWANotificationsMixin):
 		)
 
 	def validate_sick_leave_attachment(self):
-		if self.leave_type == "Sick Leave":
+		if self.leave_type == "Sick Leave" and flt(self.total_leave_days) > 2:
 			attachments = frappe.get_all(
 				"File",
 				filters={
@@ -199,7 +199,7 @@ class LeaveApplication(Document, PWANotificationsMixin):
 			)
 			if not attachments:
 				frappe.throw(
-					_("Attachment is mandatory for Sick Leave applications. Please attach a medical certificate or relevant document."),
+					_("Attachment is mandatory for Sick Leave applications exceeding 2 days. Please attach a medical certificate or relevant document."),
 					title=_("Attachment Required"),
 				)
 
