@@ -146,6 +146,8 @@ class LeaveApplication(Document, PWANotificationsMixin):
 		)
 
 	def before_submit(self):
+		self.validate_sick_leave_attachment()
+
 		"""Gate submission: only secondary approver (or normal flow without secondary) can submit."""
 		if not self.custom_secondary_leave_approver:
 			return
@@ -184,6 +186,22 @@ class LeaveApplication(Document, PWANotificationsMixin):
 				self.custom_approval_stage
 			)
 		)
+
+	def validate_sick_leave_attachment(self):
+		if self.leave_type == "Sick Leave":
+			attachments = frappe.get_all(
+				"File",
+				filters={
+					"attached_to_doctype": self.doctype,
+					"attached_to_name": self.name,
+				},
+				limit=1,
+			)
+			if not attachments:
+				frappe.throw(
+					_("Attachment is mandatory for Sick Leave applications. Please attach a medical certificate or relevant document."),
+					title=_("Attachment Required"),
+				)
 
 	def on_submit(self):
 		if self.status in ["Open", "Cancelled"]:

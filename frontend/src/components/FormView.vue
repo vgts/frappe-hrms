@@ -383,6 +383,11 @@ const props = defineProps({
 		required: false,
 		default: false,
 	},
+	requireAttachment: {
+		type: Boolean,
+		required: false,
+		default: false,
+	},
 	showFormButton: {
 		type: Boolean,
 		required: false,
@@ -682,6 +687,10 @@ function validateMandatoryFields() {
 				field.reqd && !field.hidden && !formModel.value[field.fieldname]
 		)
 		.map((field) => field.label)
+
+	if (props.requireAttachment && !fileAttachments.value.length) {
+		errorFields.push("Attachment")
+	}
 
 	if (errorFields.length) {
 		formErrorMessage.value = `${errorFields.join(", ")} ${

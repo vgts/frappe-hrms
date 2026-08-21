@@ -9,6 +9,7 @@
 				:fields="formFields.data"
 				:id="props.id"
 				:showAttachmentView="true"
+				:requireAttachment="isSickLeave"
 				:showFormButton="!showSecondaryActions"
 				@validateForm="validateForm"
 			>
@@ -147,6 +148,8 @@ const props = defineProps({
 		required: false,
 	},
 })
+
+const isSickLeave = computed(() => leaveApplication.value.leave_type === "Sick Leave")
 
 const sessionEmployee = inject("$employee")
 const currEmployee = ref(sessionEmployee.data.name)
