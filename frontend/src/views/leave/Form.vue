@@ -149,9 +149,13 @@ const props = defineProps({
 	},
 })
 
-const isSickLeave = computed(
-	() => leaveApplication.value.leave_type === "Sick Leave" && parseFloat(leaveApplication.value.total_leave_days || 0) > 2
-)
+const isSickLeave = computed(() => {
+	if (leaveApplication.value.leave_type !== "Sick Leave") return false
+	const from = leaveApplication.value.from_date
+	const to = leaveApplication.value.to_date
+	if (!from || !to) return false
+	return dayjs(to).diff(dayjs(from), "day") > 2
+})
 
 const sessionEmployee = inject("$employee")
 const currEmployee = ref(sessionEmployee.data.name)

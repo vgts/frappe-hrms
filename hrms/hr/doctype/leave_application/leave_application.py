@@ -188,7 +188,7 @@ class LeaveApplication(Document, PWANotificationsMixin):
 		)
 
 	def validate_sick_leave_attachment(self):
-		if self.leave_type == "Sick Leave" and flt(self.total_leave_days) > 2:
+		if self.leave_type == "Sick Leave" and date_diff(self.to_date, self.from_date) > 2:
 			attachments = frappe.get_all(
 				"File",
 				filters={
