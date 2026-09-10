@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import cint, get_datetime, now_datetime, today
+from frappe.utils import cint, get_datetime, getdate, now_datetime, today
 
 from hrms.hr.doctype.shift_assignment.shift_assignment import get_actual_start_end_datetime_of_shift
 from hrms.hr.utils import (
@@ -33,11 +33,41 @@ class EmployeeCheckin(Document):
 		validate_active_employee(self.employee)
 		self.validate_duplicate_log()
 		self.validate_time_change()
+		self.validate_leave_application()
 		self.fetch_shift()
 		# Auto-checkout and Attendance Regularization logs are created server-side without GPS; do not enforce geolocation.
 		if self.device_id not in ("Auto Checkout", "Attendance Regularization"):
 			self.set_geolocation()
 			self.validate_distance_from_shift_location()
+
+	def validate_leave_application(self):
+		"""Block checkin if employee has a full-day leave application for today.
+		Half-day leaves are allowed since the employee works the other half."""
+		if self.device_id in ("Auto Checkout", "Attendance Regularization"):
+			return
+
+		checkin_date = get_datetime(self.time).date()
+		leave_applications = frappe.get_all(
+			"Leave Application",
+			filters={
+				"employee": self.employee,
+				"from_date": ("<=", checkin_date),
+				"to_date": (">=", checkin_date),
+				"docstatus": ("!=", 2),
+			},
+			fields=["name", "half_day", "half_day_date"],
+		)
+		for la in leave_applications:
+			# Allow checkin for half-day leaves
+			if la.half_day and getdate(la.half_day_date) == checkin_date:
+				continue
+			frappe.throw(
+				_("You have an active Leave Application {0} for {1}. Please delete the leave application before checking in.").format(
+					frappe.bold(la.name),
+					frappe.bold(checkin_date),
+				),
+				title=_("Leave Application Exists"),
+			)
 
 	def validate_duplicate_log(self):
 		doc = frappe.db.exists(

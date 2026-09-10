@@ -445,10 +445,10 @@ class LeaveApplication(Document, PWANotificationsMixin):
 			attendance_leave_type = "Leave Without Pay"
 
 		if attendance_name:
-			# update existing attendance, change absent to on leave or half day
+			# update existing attendance, change to on leave or half day
 			doc = frappe.get_doc("Attendance", attendance_name)
 			half_day_status = None if status == "On Leave" else ("Absent" if is_second_half else "Present")
-			modify_half_day_status = 1 if doc.status == "Absent" and status == "Half Day" else 0
+			modify_half_day_status = 1 if status == "Half Day" else 0
 			doc.db_set(
 				{
 					"status": status,
@@ -751,6 +751,11 @@ class LeaveApplication(Document, PWANotificationsMixin):
 		# Skip check when submitting via secondary approval — mark_attendance will
 		# update existing records via create_or_update_attendance anyway.
 		if self.flags.get("skip_attendance_validation"):
+			return
+
+		# Skip when leave is being approved — create_or_update_attendance on submit
+		# will handle updating existing attendance records (Present/WFH → On Leave).
+		if self.status == "Approved":
 			return
 
 		attendance_dates = frappe.get_all(
