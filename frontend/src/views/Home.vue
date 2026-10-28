@@ -42,6 +42,7 @@ import AttendanceIcon from "@/components/icons/AttendanceIcon.vue"
 import ShiftIcon from "@/components/icons/ShiftIcon.vue"
 import LeaveIcon from "@/components/icons/LeaveIcon.vue"
 import ExpenseIcon from "@/components/icons/ExpenseIcon.vue"
+import DevicesIcon from "@/components/icons/DevicesIcon.vue"
 
 import { myLeaves, teamLeaves } from "@/data/leaves"
 import { myAttendanceRequests, myShiftRequests, teamShiftRequests, teamAttendanceRequests } from "@/data/attendance"
@@ -122,6 +123,11 @@ const quickLinks = [
 		icon: markRaw(LeaveIcon),
 		title: __("Compensatory Request"),
 		route: "CompensatoryLeaveFormView",
+	},
+	{
+		icon: markRaw(DevicesIcon),
+		title: __("My Devices"),
+		href: "/my_devices",
 	},
 ]
 </script>
